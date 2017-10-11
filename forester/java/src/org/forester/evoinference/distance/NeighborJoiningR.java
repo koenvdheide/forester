@@ -30,7 +30,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map.Entry;
 
-import org.forester.evoinference.matrix.distance.BasicSymmetricalDistanceMatrix;
+import org.forester.evoinference.matrix.distance.DistanceMatrix;
 import org.forester.phylogeny.Phylogeny;
 import org.forester.phylogeny.PhylogenyNode;
 import org.forester.util.ForesterUtil;
@@ -38,7 +38,7 @@ import org.forester.util.ForesterUtil;
 public final class NeighborJoiningR {
 
     private final static DecimalFormat     DF = new DecimalFormat( "0.00000" );
-    private BasicSymmetricalDistanceMatrix _d;
+    private DistanceMatrix _d;
     private double[][]                     _d_values;
     private final DecimalFormat            _df;
     private PhylogenyNode[]                _external_nodes;
@@ -70,7 +70,7 @@ public final class NeighborJoiningR {
         _df.setRoundingMode( RoundingMode.HALF_UP );
     }
 
-    public final Phylogeny execute( final BasicSymmetricalDistanceMatrix distance ) {
+    public final Phylogeny execute( final DistanceMatrix distance ) {
         reset( distance );
         final Phylogeny phylogeny = new Phylogeny();
         while ( _n > 2 ) {
@@ -145,9 +145,9 @@ public final class NeighborJoiningR {
         return phylogeny;
     }
 
-    public final List<Phylogeny> execute( final List<BasicSymmetricalDistanceMatrix> distances_list ) {
+    public final List<Phylogeny> execute( final List<DistanceMatrix> distances_list ) {
         final List<Phylogeny> pl = new ArrayList<Phylogeny>();
-        for( final BasicSymmetricalDistanceMatrix distances : distances_list ) {
+        for( final DistanceMatrix distances : distances_list ) {
             pl.add( execute( distances ) );
         }
         return pl;
@@ -266,7 +266,7 @@ public final class NeighborJoiningR {
 
     // only the values in the lower triangle are used.
     // !matrix values will be changed!
-    private final void reset( final BasicSymmetricalDistanceMatrix distances ) {
+    private final void reset( final DistanceMatrix distances ) {
         _n = distances.getSize();
         _d = distances;
         _r = new double[ _n ];

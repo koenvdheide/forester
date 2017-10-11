@@ -44,4 +44,6 @@ public interface DistanceMatrix {
     public static enum Format {
         PHYLIP
     }
+
+    public double[][] getValues();
 }

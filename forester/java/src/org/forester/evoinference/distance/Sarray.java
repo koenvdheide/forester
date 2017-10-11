@@ -10,6 +10,7 @@ import java.util.SortedMap;
 import java.util.TreeMap;
 
 import org.forester.evoinference.matrix.distance.BasicSymmetricalDistanceMatrix;
+import org.forester.evoinference.matrix.distance.DistanceMatrix;
 
 public final class Sarray {
 
@@ -37,7 +38,7 @@ public final class Sarray {
         return getS( j ).get( key );
     }
 
-    final public void initialize( final BasicSymmetricalDistanceMatrix d ) {
+    final public void initialize( final DistanceMatrix d ) {
         for( int j = 0; j < d.getSize(); ++j ) {
             final TreeMap<Integer, int[]> map = new TreeMap<Integer, int[]>();
             _data.add( map );
