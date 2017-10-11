@@ -57,6 +57,8 @@ import javax.swing.UnsupportedLookAndFeelException;
 import javax.swing.WindowConstants;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
+import javax.swing.event.InternalFrameAdapter;
+import javax.swing.event.InternalFrameEvent;
 
 import org.forester.analysis.TaxonomyDataManager;
 import org.forester.archaeopteryx.Options.CLADOGRAM_TYPE;
@@ -161,10 +163,10 @@ public final class MainFrameApplication extends MainFrame {
         setSize( MainFrameApplication.FRAME_X_SIZE, MainFrameApplication.FRAME_Y_SIZE );
         // The window listener
         setDefaultCloseOperation( WindowConstants.DO_NOTHING_ON_CLOSE );
-        addWindowListener( new WindowAdapter() {
+        addInternalFrameListener( new InternalFrameAdapter() {
 
             @Override
-            public void windowClosing( final WindowEvent e ) {
+            public void internalFrameClosing (final InternalFrameEvent e ) {
                 exit();
             }
         } );
@@ -302,10 +304,10 @@ public final class MainFrameApplication extends MainFrame {
         //        } );
         // The window listener
         setDefaultCloseOperation( WindowConstants.DO_NOTHING_ON_CLOSE );
-        addWindowListener( new WindowAdapter() {
+        addInternalFrameListener( new InternalFrameAdapter() {
 
             @Override
-            public void windowClosing( final WindowEvent e ) {
+            public void internalFrameClosing( final InternalFrameEvent e ) {
                 if ( isUnsavedDataPresent() ) {
                     final int r = JOptionPane.showConfirmDialog( null,
                                                                  "Exit despite potentially unsaved changes?",

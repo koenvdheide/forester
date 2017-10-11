@@ -43,6 +43,7 @@ import javax.swing.Box;
 import javax.swing.JCheckBoxMenuItem;
 import javax.swing.JFileChooser;
 import javax.swing.JFrame;
+import javax.swing.JInternalFrame;
 import javax.swing.JLabel;
 import javax.swing.JMenu;
 import javax.swing.JMenuBar;
@@ -81,7 +82,7 @@ import org.forester.util.ForesterConstants;
 import org.forester.util.ForesterUtil;
 import org.forester.util.WindowsUtils;
 
-public abstract class MainFrame extends JFrame implements ActionListener {
+public abstract class MainFrame extends JInternalFrame implements ActionListener {
 
     final static NHFilter            nhfilter                                = new NHFilter();
     final static NHXFilter           nhxfilter                               = new NHXFilter();
