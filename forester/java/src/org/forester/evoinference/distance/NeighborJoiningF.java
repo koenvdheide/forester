@@ -30,13 +30,14 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.forester.evoinference.matrix.distance.BasicSymmetricalDistanceMatrix;
+import org.forester.evoinference.matrix.distance.DistanceMatrix;
 import org.forester.phylogeny.Phylogeny;
 import org.forester.phylogeny.PhylogenyNode;
 import org.forester.util.ForesterUtil;
 
 public final class NeighborJoiningF {
 
-    private BasicSymmetricalDistanceMatrix _d;
+    private DistanceMatrix _d;
     private float[][]                      _d_values;
     private final DecimalFormat            _df;
     private PhylogenyNode[]                _external_nodes;
@@ -63,7 +64,7 @@ public final class NeighborJoiningF {
         _df.setRoundingMode( RoundingMode.HALF_UP );
     }
 
-    public final Phylogeny execute( final BasicSymmetricalDistanceMatrix distance ) {
+    public final Phylogeny execute( final DistanceMatrix distance ) {
         reset( distance );
         final Phylogeny phylogeny = new Phylogeny();
         while ( _n > 2 ) {
@@ -213,7 +214,7 @@ public final class NeighborJoiningF {
     }
 
     // only the values in the lower triangle are used.
-    private final void reset( final BasicSymmetricalDistanceMatrix distances ) {
+    private final void reset( final DistanceMatrix distances ) {
         _n = distances.getSize();
         _d = distances;
         _r = new float[ _n ];
