@@ -36,7 +36,7 @@ import org.forester.util.ForesterConstants;
 
 public final class AptxConstants {
 
-    final static boolean        __ALLOW_PHYLOGENETIC_INFERENCE                                = true;
+    final static boolean        __ALLOW_PHYLOGENETIC_INFERENCE                                = false; //disabled for Jalview
     public final static String  PRG_NAME                                                      = "Archaeopteryx";
     final static String         VERSION                                                       = "0.9921 beta";
     final static String         PRG_DATE                                                      = "170712";

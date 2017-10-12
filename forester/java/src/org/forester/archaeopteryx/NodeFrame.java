@@ -58,6 +58,7 @@ final class NodeFrame extends javax.swing.JFrame {
                 close();
             }
         } );
+        this.setLocationRelativeTo( tp );
         setResizable( true );
         nodepanel.setVisible( true );
         setVisible( true );
@@ -91,6 +92,7 @@ final class NodeFrame extends javax.swing.JFrame {
                 dispose();
             }
         } );
+        this.setLocationRelativeTo( tp );
         setResizable( false );
         nodepanel.setVisible( true );
         setVisible( true );
