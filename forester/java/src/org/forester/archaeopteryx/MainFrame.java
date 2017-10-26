@@ -1032,7 +1032,7 @@ public abstract class MainFrame extends JInternalFrame implements ActionListener
                 _process_menu.setForeground( Color.RED );
             }
             _process_menu.removeAll();
-            final String text = "processes running: " + _process_pool.size();
+            final String text = "Processes Running: " + _process_pool.size();
             _process_menu.setText( text );
             _jmenubar.add( _process_menu );
             for( int i = 0; i < _process_pool.size(); ++i ) {
