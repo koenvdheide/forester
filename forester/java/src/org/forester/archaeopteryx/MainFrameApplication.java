@@ -309,21 +309,21 @@ public final class MainFrameApplication extends MainFrame {
             @Override
             public void internalFrameClosing( final InternalFrameEvent e ) {
                 if ( isUnsavedDataPresent() ) {
-                    final int r = JOptionPane.showConfirmDialog( null,
-                                                                 "Exit despite potentially unsaved changes?",
-                                                                 "Exit?",
+                    final int r = JOptionPane.showConfirmDialog( _mainpanel,
+                                                                 "Close Archaeopteryx despite potentially unsaved changes?",
+                                                                 "Close viewer?",
                                                                  JOptionPane.YES_NO_OPTION );
                     if ( r != JOptionPane.YES_OPTION ) {
                         return;
                     }
                 }
-                else {
-                    final int r = JOptionPane
-                            .showConfirmDialog( null, "Exit Archaeopteryx?", "Exit?", JOptionPane.YES_NO_OPTION );
-                    if ( r != JOptionPane.YES_OPTION ) {
-                        return;
-                    }
-                }
+//                else {
+//                    final int r = JOptionPane
+//                            .showConfirmDialog( null, "Exit Archaeopteryx?", "Exit?", JOptionPane.YES_NO_OPTION );
+//                    if ( r != JOptionPane.YES_OPTION ) {
+//                        return;
+//                    }
+//                }
                 exit();
             }
         } );
