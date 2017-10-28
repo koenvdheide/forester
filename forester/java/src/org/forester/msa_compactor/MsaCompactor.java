@@ -43,6 +43,7 @@ import org.forester.evoinference.distance.NeighborJoiningF;
 import org.forester.evoinference.distance.PairwiseDistanceCalculator;
 import org.forester.evoinference.distance.PairwiseDistanceCalculator.PWD_DISTANCE_METHOD;
 import org.forester.evoinference.matrix.distance.BasicSymmetricalDistanceMatrix;
+import org.forester.evoinference.matrix.distance.DistanceMatrix;
 import org.forester.evoinference.tools.BootstrapResampler;
 import org.forester.io.parsers.nhx.NHXParser.TAXONOMY_EXTRACTION;
 import org.forester.io.parsers.phyloxml.PhyloXmlDataFormatException;
@@ -601,7 +602,7 @@ public class MsaCompactor {
     }
 
     private final Phylogeny collapse( final Msa msa, final int threshold ) {
-        final BasicSymmetricalDistanceMatrix m = PairwiseDistanceCalculator.calcFractionalDissimilarities( msa );
+        final DistanceMatrix m = PairwiseDistanceCalculator.calcFractionalDissimilarities( msa );
         //TODO
         return null;
     }
@@ -610,7 +611,7 @@ public class MsaCompactor {
                                               final Msa msa,
                                               final boolean write_matrix,
                                               final String matrix_name ) {
-        BasicSymmetricalDistanceMatrix m = null;
+        DistanceMatrix m = null;
         switch ( pwd_distance_method ) {
             case KIMURA_DISTANCE:
                 m = PairwiseDistanceCalculator.calcKimuraDistances( msa );

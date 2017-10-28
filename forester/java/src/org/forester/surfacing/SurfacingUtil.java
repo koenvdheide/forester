@@ -60,7 +60,6 @@ import org.forester.evoinference.matrix.character.CharacterStateMatrix;
 import org.forester.evoinference.matrix.character.CharacterStateMatrix.BinaryStates;
 import org.forester.evoinference.matrix.character.CharacterStateMatrix.Format;
 import org.forester.evoinference.matrix.character.CharacterStateMatrix.GainLossStates;
-import org.forester.evoinference.matrix.distance.BasicSymmetricalDistanceMatrix;
 import org.forester.evoinference.matrix.distance.DistanceMatrix;
 import org.forester.go.GoId;
 import org.forester.go.GoNameSpace;
@@ -246,7 +245,7 @@ public final class SurfacingUtil {
                                                              final DistanceMatrix distance ) {
         checkForOutputFileWriteability( nj_tree_outfile );
         final NeighborJoining nj = NeighborJoining.createInstance();
-        final Phylogeny phylogeny = nj.execute( ( BasicSymmetricalDistanceMatrix ) distance );
+        final Phylogeny phylogeny = nj.execute( ( DistanceMatrix ) distance );
         phylogeny.setName( nj_tree_outfile.getName() );
         writePhylogenyToFile( phylogeny, nj_tree_outfile.toString() );
         return phylogeny;

@@ -96,9 +96,9 @@ public class PairwiseGenomeComparator {
                                             final boolean calc_similarity_scores,
                                             final Phylogeny phy ) {
         init();
-        final BasicSymmetricalDistanceMatrix domain_distance_scores_means = new BasicSymmetricalDistanceMatrix( number_of_genomes );
-        final BasicSymmetricalDistanceMatrix shared_domains_based_distances = new BasicSymmetricalDistanceMatrix( number_of_genomes );
-        final BasicSymmetricalDistanceMatrix shared_binary_combinations_based_distances = new BasicSymmetricalDistanceMatrix( number_of_genomes );
+        final DistanceMatrix domain_distance_scores_means = new BasicSymmetricalDistanceMatrix( number_of_genomes );
+        final DistanceMatrix shared_domains_based_distances = new BasicSymmetricalDistanceMatrix( number_of_genomes );
+        final DistanceMatrix shared_binary_combinations_based_distances = new BasicSymmetricalDistanceMatrix( number_of_genomes );
         if ( verbose ) {
             System.out.println();
             System.out.println( "Pairwise genome distances:" );
@@ -264,8 +264,8 @@ public class PairwiseGenomeComparator {
             final SortedSet<String> domain_ids_to_ignore = randomlyPickDomainIds( all_unique_domain_ids,
                                                                                   jacknife_ratio,
                                                                                   generator );
-            final BasicSymmetricalDistanceMatrix shared_domains_based_distances = new BasicSymmetricalDistanceMatrix( number_of_genomes );
-            final BasicSymmetricalDistanceMatrix shared_binary_combinations_based_distances = new BasicSymmetricalDistanceMatrix( number_of_genomes );
+            final DistanceMatrix shared_domains_based_distances = new BasicSymmetricalDistanceMatrix( number_of_genomes );
+            final DistanceMatrix shared_binary_combinations_based_distances = new BasicSymmetricalDistanceMatrix( number_of_genomes );
             for( int i = 0; i < number_of_genomes; ++i ) {
                 final String species_i = species[ i ].getSpeciesId();
                 shared_domains_based_distances.setIdentifier( i, species_i );

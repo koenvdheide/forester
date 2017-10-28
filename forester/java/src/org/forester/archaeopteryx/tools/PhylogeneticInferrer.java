@@ -37,6 +37,7 @@ import org.forester.archaeopteryx.MainFrameApplication;
 import org.forester.evoinference.distance.NeighborJoiningF;
 import org.forester.evoinference.distance.PairwiseDistanceCalculator;
 import org.forester.evoinference.matrix.distance.BasicSymmetricalDistanceMatrix;
+import org.forester.evoinference.matrix.distance.DistanceMatrix;
 import org.forester.evoinference.tools.BootstrapResampler;
 import org.forester.msa.BasicMsa;
 import org.forester.msa.Mafft;
@@ -116,7 +117,7 @@ public class PhylogeneticInferrer extends RunnableProcess {
     }
 
     private Phylogeny inferPhylogeny( final Msa msa ) {
-        BasicSymmetricalDistanceMatrix m = null;
+        DistanceMatrix m = null;
         switch ( _options.getPwdDistanceMethod() ) {
             case KIMURA_DISTANCE:
                 m = PairwiseDistanceCalculator.calcKimuraDistances( msa );
@@ -274,7 +275,7 @@ public class PhylogeneticInferrer extends RunnableProcess {
         return msa;
     }
 
-    private void writeToFiles( final BasicSymmetricalDistanceMatrix m ) {
+    private void writeToFiles( final DistanceMatrix m ) {
         if ( !ForesterUtil.isEmpty( _options.getIntermediateFilesBase() ) ) {
             try {
                 final BufferedWriter msa_writer = new BufferedWriter( new FileWriter( _options.getIntermediateFilesBase()

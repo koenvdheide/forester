@@ -29,7 +29,6 @@ import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.forester.evoinference.matrix.distance.BasicSymmetricalDistanceMatrix;
 import org.forester.evoinference.matrix.distance.DistanceMatrix;
 import org.forester.phylogeny.Phylogeny;
 import org.forester.phylogeny.PhylogenyNode;
@@ -118,9 +117,9 @@ public final class NeighborJoiningF {
         return phylogeny;
     }
 
-    public final List<Phylogeny> execute( final List<BasicSymmetricalDistanceMatrix> distances_list ) {
+    public final List<Phylogeny> execute( final List<DistanceMatrix> distances_list ) {
         final List<Phylogeny> pl = new ArrayList<Phylogeny>();
-        for( final BasicSymmetricalDistanceMatrix distances : distances_list ) {
+        for( final DistanceMatrix distances : distances_list ) {
             pl.add( execute( distances ) );
         }
         return pl;

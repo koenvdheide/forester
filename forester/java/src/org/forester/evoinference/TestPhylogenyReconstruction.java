@@ -439,7 +439,7 @@ public class TestPhylogenyReconstruction {
         try {
             final Msa msa0 = GeneralMsaParser.parseMsa( new FileInputStream( test_dir + ForesterUtil.FILE_SEPARATOR
                     + "bcl.aln" ) );
-            final BasicSymmetricalDistanceMatrix pwd0 = PairwiseDistanceCalculator.calcKimuraDistances( msa0 );
+            final DistanceMatrix pwd0 = PairwiseDistanceCalculator.calcKimuraDistances( msa0 );
             if ( pwd0.getSize() != 120 ) {
                 return false;
             }

@@ -10,7 +10,7 @@ import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
 
-import org.forester.evoinference.matrix.distance.BasicSymmetricalDistanceMatrix;
+import org.forester.evoinference.matrix.distance.DistanceMatrix;
 
 public final class Sset {
 
@@ -38,7 +38,7 @@ public final class Sset {
         return getS( j ).get( key );
     }
 
-    final public void initialize( final BasicSymmetricalDistanceMatrix d ) {
+    final public void initialize( final DistanceMatrix d ) {
         for( int j = 0; j < d.getSize(); ++j ) {
             final TreeMap<Integer, Set<Integer>> map = new TreeMap<Integer, Set<Integer>>();
             _data.add( map );

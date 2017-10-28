@@ -26,6 +26,8 @@
 package org.forester.evoinference.distance;
 
 import org.forester.evoinference.matrix.distance.BasicSymmetricalDistanceMatrix;
+import org.forester.evoinference.matrix.distance.DistanceMatrix;
+import org.forester.evoinference.matrix.distance.DistanceMatrix;
 import org.forester.msa.Msa;
 
 public final class PairwiseDistanceCalculator {
@@ -82,31 +84,31 @@ public final class PairwiseDistanceCalculator {
         return -Math.log( dp );
     }
 
-    private BasicSymmetricalDistanceMatrix calcKimuraDistances() {
+    private DistanceMatrix calcKimuraDistances() {
         final int s = _msa.getNumberOfSequences();
-        final BasicSymmetricalDistanceMatrix d = new BasicSymmetricalDistanceMatrix( s );
+        final DistanceMatrix d = new BasicSymmetricalDistanceMatrix( s );
         copyIdentifiers( s, d );
         calcKimuraDistances( s, d );
         return d;
     }
 
-    private BasicSymmetricalDistanceMatrix calcPoissonDistances() {
+    private DistanceMatrix calcPoissonDistances() {
         final int s = _msa.getNumberOfSequences();
-        final BasicSymmetricalDistanceMatrix d = new BasicSymmetricalDistanceMatrix( s );
+        final DistanceMatrix d = new BasicSymmetricalDistanceMatrix( s );
         copyIdentifiers( s, d );
         calcPoissonDistances( s, d );
         return d;
     }
 
-    private BasicSymmetricalDistanceMatrix calcFractionalDissimilarities() {
+    private DistanceMatrix calcFractionalDissimilarities() {
         final int s = _msa.getNumberOfSequences();
-        final BasicSymmetricalDistanceMatrix d = new BasicSymmetricalDistanceMatrix( s );
+        final DistanceMatrix d = new BasicSymmetricalDistanceMatrix( s );
         copyIdentifiers( s, d );
         calcFractionalDissimilarities( s, d );
         return d;
     }
 
-    private void calcKimuraDistances( final int s, final BasicSymmetricalDistanceMatrix d ) {
+    private void calcKimuraDistances( final int s, final DistanceMatrix d ) {
         for( int i = 1; i < s; i++ ) {
             for( int j = 0; j < i; j++ ) {
                 d.setValue( i, j, calcKimuraDistance( i, j ) );
@@ -114,7 +116,7 @@ public final class PairwiseDistanceCalculator {
         }
     }
 
-    private void calcPoissonDistances( final int s, final BasicSymmetricalDistanceMatrix d ) {
+    private void calcPoissonDistances( final int s, final DistanceMatrix d ) {
         for( int i = 1; i < s; i++ ) {
             for( int j = 0; j < i; j++ ) {
                 d.setValue( i, j, calcPoissonDistance( i, j ) );
@@ -122,7 +124,7 @@ public final class PairwiseDistanceCalculator {
         }
     }
 
-    private void calcFractionalDissimilarities( final int s, final BasicSymmetricalDistanceMatrix d ) {
+    private void calcFractionalDissimilarities( final int s, final DistanceMatrix d ) {
         for( int i = 1; i < s; i++ ) {
             for( int j = 0; j < i; j++ ) {
                 d.setValue( i, j, calcFractionalDissimilarity( i, j ) );
@@ -135,28 +137,28 @@ public final class PairwiseDistanceCalculator {
         throw new CloneNotSupportedException();
     }
 
-    private void copyIdentifiers( final int s, final BasicSymmetricalDistanceMatrix d ) {
+    private void copyIdentifiers( final int s, final DistanceMatrix d ) {
         for( int i = 0; i < s; i++ ) {
             d.setIdentifier( i, _msa.getIdentifier( i ) );
         }
     }
 
-    public static BasicSymmetricalDistanceMatrix calcFractionalDissimilarities( final Msa msa ) {
+    public static DistanceMatrix calcFractionalDissimilarities( final Msa msa ) {
         return new PairwiseDistanceCalculator( msa, DEFAULT_VALUE_FOR_TOO_LARGE_DISTANCE_FOR_KIMURA_FORMULA )
         .calcFractionalDissimilarities();
     }
 
-    public static BasicSymmetricalDistanceMatrix calcPoissonDistances( final Msa msa ) {
+    public static DistanceMatrix calcPoissonDistances( final Msa msa ) {
         return new PairwiseDistanceCalculator( msa, DEFAULT_VALUE_FOR_TOO_LARGE_DISTANCE_FOR_KIMURA_FORMULA )
         .calcPoissonDistances();
     }
 
-    public static BasicSymmetricalDistanceMatrix calcKimuraDistances( final Msa msa ) {
+    public static DistanceMatrix calcKimuraDistances( final Msa msa ) {
         return new PairwiseDistanceCalculator( msa, DEFAULT_VALUE_FOR_TOO_LARGE_DISTANCE_FOR_KIMURA_FORMULA )
         .calcKimuraDistances();
     }
 
-    public static BasicSymmetricalDistanceMatrix calcKimuraDistances( final Msa msa,
+    public static DistanceMatrix calcKimuraDistances( final Msa msa,
                                                                       final double value_for_too_large_distance_for_kimura_formula ) {
         return new PairwiseDistanceCalculator( msa, value_for_too_large_distance_for_kimura_formula )
         .calcKimuraDistances();
