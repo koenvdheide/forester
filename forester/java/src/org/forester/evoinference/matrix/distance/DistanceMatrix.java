@@ -25,6 +25,10 @@
 
 package org.forester.evoinference.matrix.distance;
 
+import java.io.BufferedWriter;
+import java.io.IOException;
+import java.io.Writer;
+
 public interface DistanceMatrix {
 
     public String getIdentifier( int i );
@@ -46,4 +50,6 @@ public interface DistanceMatrix {
     }
 
     public double[][] getValues();
+
+    public void write(  final Writer w ) throws IOException;
 }
