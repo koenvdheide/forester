@@ -5025,7 +5025,7 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
      * @param y
      * @return pointer to the node at x,y, null if not found
      */
-    final PhylogenyNode findNode( final int x, final int y ) {
+    public final PhylogenyNode findNode( final int x, final int y ) {
         if ( ( _phylogeny == null ) || _phylogeny.isEmpty() ) {
             return null;
         }
@@ -5063,15 +5063,15 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
         return _domain_structure_e_value_thr_exp;
     }
 
-    final Set<Long> getFoundNodes0() {
+    public final Set<Long> getFoundNodes0() {
         return _found_nodes_0;
     }
 
-    final Set<Long> getFoundNodes1() {
+    public final Set<Long> getFoundNodes1() {
         return _found_nodes_1;
     }
 
-    List<PhylogenyNode> getFoundNodesAsListOfPhylogenyNodes() {
+    public List<PhylogenyNode> getFoundNodesAsListOfPhylogenyNodes() {
         final List<PhylogenyNode> additional_nodes = new ArrayList<PhylogenyNode>();
         if ( getFoundNodes0() != null ) {
             for( final Long id : getFoundNodes0() ) {
@@ -5989,11 +5989,11 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
         _current_external_nodes_data_buffer = sb;
     }
 
-    final void setFoundNodes0( final Set<Long> found_nodes ) {
+    public final void setFoundNodes0( final Set<Long> found_nodes ) {
         _found_nodes_0 = found_nodes;
     }
 
-    final void setFoundNodes1( final Set<Long> found_nodes ) {
+    public final void setFoundNodes1( final Set<Long> found_nodes ) {
         _found_nodes_1 = found_nodes;
     }
 
