@@ -1735,7 +1735,7 @@ public final class Configuration {
         return _species_colors;
     }
 
-    final TAXONOMY_EXTRACTION getTaxonomyExtraction() {
+    public final TAXONOMY_EXTRACTION getTaxonomyExtraction() {
         return _taxonomy_extraction;
     }
 
@@ -1764,11 +1764,11 @@ public final class Configuration {
         return _hide_controls_and_menus;
     }
 
-    boolean isInternalNumberAreConfidenceForNhParsing() {
+    public boolean isInternalNumberAreConfidenceForNhParsing() {
         return _internal_number_are_confidence_for_nh_parsing;
     }
 
-    boolean isReplaceUnderscoresInNhParsing() {
+    public boolean isReplaceUnderscoresInNhParsing() {
         return _nh_parsing_replace_underscores;
     }
 
@@ -1795,7 +1795,7 @@ public final class Configuration {
         return _use_tabbed_display;
     }
 
-    boolean isValidatePhyloXmlAgainstSchema() {
+   public boolean isValidatePhyloXmlAgainstSchema() {
         return _validate_against_phyloxml_xsd_schema;
     }
 

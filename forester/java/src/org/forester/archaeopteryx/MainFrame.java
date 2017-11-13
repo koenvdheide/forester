@@ -84,16 +84,16 @@ import org.forester.util.WindowsUtils;
 
 public abstract class MainFrame extends JInternalFrame implements ActionListener {
 
-    final static NHFilter            nhfilter                                = new NHFilter();
-    final static NHXFilter           nhxfilter                               = new NHXFilter();
-    final static XMLFilter           xmlfilter                               = new XMLFilter();
-    final static TolFilter           tolfilter                               = new TolFilter();
-    final static NexusFilter         nexusfilter                             = new NexusFilter();
-    final static PdfFilter           pdffilter                               = new PdfFilter();
-    final static GraphicsFileFilter  graphicsfilefilter                      = new GraphicsFileFilter();
-    final static MsaFileFilter       msafilter                               = new MsaFileFilter();
-    final static SequencesFileFilter seqsfilter                              = new SequencesFileFilter();
-    final static DefaultFilter       defaultfilter                           = new DefaultFilter();
+    public final static NHFilter            nhfilter                                = new NHFilter();
+    public final static NHXFilter           nhxfilter                               = new NHXFilter();
+    public final static XMLFilter           xmlfilter                               = new XMLFilter();
+    public final static TolFilter           tolfilter                               = new TolFilter();
+    public final static NexusFilter         nexusfilter                             = new NexusFilter();
+    public final static PdfFilter           pdffilter                               = new PdfFilter();
+    public final static GraphicsFileFilter  graphicsfilefilter                      = new GraphicsFileFilter();
+    public final static MsaFileFilter       msafilter                               = new MsaFileFilter();
+    public final static SequencesFileFilter seqsfilter                              = new SequencesFileFilter();
+    public final static DefaultFilter       defaultfilter                           = new DefaultFilter();
     static final String              USE_MOUSEWHEEL_SHIFT_TO_ROTATE          = "rotate with mousewheel + Shift (or A and S), D toggles between horizontal and radial labels";
     static final String              PHYLOXML_REF_TOOL_TIP                   = AptxConstants.PHYLOXML_REFERENCE;                                                                                                                                                //TODO //FIXME
     static final String              APTX_REF_TOOL_TIP                       = AptxConstants.APTX_REFERENCE;
