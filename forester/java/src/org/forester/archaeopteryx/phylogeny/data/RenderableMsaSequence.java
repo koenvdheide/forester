@@ -111,14 +111,16 @@ public final class RenderableMsaSequence implements RenderablePhylogenyData {
                         final boolean to_pdf ) {
         final float y = y1;
         final float start = x1 + 20;
-        final float width = _width / _seq.length;
+        final float width = (_width / _seq.length)*5;
+       g.setFont(g.getFont().deriveFont( width ));
         for( int i = 0; i < _seq.length; ++i ) {
             final char c = _seq[ i ];
             if ( width < 4 ) {
                 if ( c != '-' ) {
                     g.setColor( calculateColor( c ) );
                     _rectangle.setFrame( start + ( i * width ), y - 0.5, width + 1, getRenderingHeight() );
-                    g.fill( _rectangle );
+                    g.drawString( String.valueOf( c ), start + ( i * width ), y - 0.5f );
+                    //g.fill( _rectangle );
                 }
             }
             else {
