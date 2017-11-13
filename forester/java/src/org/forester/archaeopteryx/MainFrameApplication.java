@@ -317,13 +317,13 @@ public final class MainFrameApplication extends MainFrame {
                         return;
                     }
                 }
-//                else {
-//                    final int r = JOptionPane
-//                            .showConfirmDialog( null, "Exit Archaeopteryx?", "Exit?", JOptionPane.YES_NO_OPTION );
-//                    if ( r != JOptionPane.YES_OPTION ) {
-//                        return;
-//                    }
-//                }
+                else {
+                    final int r = JOptionPane
+                            .showConfirmDialog( null, "Exit Archaeopteryx?", "Exit?", JOptionPane.YES_NO_OPTION );
+                    if ( r != JOptionPane.YES_OPTION ) {
+                        return;
+                    }
+                }
                 exit();
             }
         } );
