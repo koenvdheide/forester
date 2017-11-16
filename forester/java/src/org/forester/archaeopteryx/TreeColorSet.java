@@ -384,7 +384,7 @@ public final class TreeColorSet {
         return box_color;
     }
 
-    Color getBranchColor() {
+    public Color getBranchColor() {
         return branch_color;
     }
 
@@ -424,15 +424,15 @@ public final class TreeColorSet {
         return duplication_or_specation_color;
     }
 
-    Color getFoundColor0() {
+    public Color getFoundColor0() {
         return found_color_0;
     }
 
-    Color getFoundColor0and1() {
+    public Color getFoundColor0and1() {
         return found_color_0_and_1;
     }
 
-    Color getFoundColor1() {
+    public Color getFoundColor1() {
         return found_color_1;
     }
 
