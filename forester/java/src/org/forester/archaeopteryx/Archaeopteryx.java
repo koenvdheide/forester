@@ -49,7 +49,10 @@ public final class Archaeopteryx {
         phylogenies[ 0 ] = phylogeny;
         return MainFrameApplication.createInstance( phylogenies, config, title );
     }
-
+    public static MainFrame createApplication( final Phylogeny[] phylogenies, final Configuration config, final String title ) {
+        return MainFrameApplication.createInstance( phylogenies, config, title );
+    }
+    
     public static MainFrame createApplication( final Phylogeny[] phylogenies ) {
         return createApplication( phylogenies, "", "" );
     }
