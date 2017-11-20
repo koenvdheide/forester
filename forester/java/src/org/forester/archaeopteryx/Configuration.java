@@ -1812,4 +1812,10 @@ public final class Configuration {
     }
 
     
+    public String getConfigFilename() {
+        return config_filename;
+    }
+    
+
+    
 }
