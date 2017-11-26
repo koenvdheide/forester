@@ -845,7 +845,7 @@ public final class AptxUtil {
         }
     }
 
-    final static void lookAtSomeTreePropertiesForAptxControlSettings( final Phylogeny t,
+    public final static void lookAtSomeTreePropertiesForAptxControlSettings( final Phylogeny t,
                                                                       final ControlPanel cp,
                                                                       final Configuration configuration ) {
         if ( ( t != null ) && !t.isEmpty() ) {

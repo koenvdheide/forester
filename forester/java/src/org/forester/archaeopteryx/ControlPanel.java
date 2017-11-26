@@ -73,7 +73,7 @@ import org.forester.phylogeny.data.SequenceRelation.SEQUENCE_RELATION_TYPE;
 import org.forester.phylogeny.iterators.PhylogenyNodeIterator;
 import org.forester.util.ForesterUtil;
 
-final class ControlPanel extends JPanel implements ActionListener {
+public final class ControlPanel extends JPanel implements ActionListener {
 
     enum NodeClickAction {
                           ADD_NEW_NODE,
@@ -2079,7 +2079,7 @@ final class ControlPanel extends JPanel implements ActionListener {
         _click_to_combobox.setSelectedIndex( action );
     }
 
-    void setColorBranches( final boolean color_branches ) {
+    public void setColorBranches( final boolean color_branches ) {
         _color_branches = color_branches;
     }
 

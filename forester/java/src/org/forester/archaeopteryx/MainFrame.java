@@ -1129,7 +1129,7 @@ public abstract class MainFrame extends JInternalFrame implements ActionListener
         }
     }
 
-    void activateSaveAllIfNeeded() {
+    public void activateSaveAllIfNeeded() {
         if ( ( getMainPanel().getTabbedPane() != null ) && ( getMainPanel().getTabbedPane().getTabCount() > 1 ) ) {
             _save_all_item.setEnabled( true );
         }
