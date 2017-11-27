@@ -177,6 +177,7 @@ public abstract class MainFrame extends JInternalFrame implements ActionListener
     JMenuItem                        _write_to_tif_item;
     JMenuItem                        _write_to_png_item;
     JMenuItem                        _write_to_bmp_item;
+    JMenuItem                        _write_to_eps_item;
     // tools menu:
     JMenuItem                        _midpoint_root_item;
     JMenuItem                        _taxcolor_item;
@@ -729,6 +730,18 @@ public abstract class MainFrame extends JInternalFrame implements ActionListener
                 setCurrentDir( new_dir );
             }
         }
+        else if (o == _write_to_eps_item) {
+          final File new_dir = writeToGraphicsFile(_mainpanel.getCurrentPhylogeny(),
+                  GraphicsExportType.EPS,
+                  _mainpanel,
+                  _writetographics_filechooser,
+                  this,
+                  getContentPane(),
+                  _current_dir );
+          if (new_dir != null) {
+            setCurrentDir(new_dir);
+          }
+        }
         else if ( o == _print_item ) {
             print( getCurrentTreePanel(), getOptions(), this );
         }
@@ -1139,35 +1152,39 @@ public abstract class MainFrame extends JInternalFrame implements ActionListener
     }
 
     void buildFileMenu() {
-        _file_jmenu = MainFrame.createMenu( "File", getConfiguration() );
-        _file_jmenu.add( _save_item = new JMenuItem( "Save Tree As..." ) );
-        _file_jmenu.addSeparator();
-        _file_jmenu.add( _write_to_pdf_item = new JMenuItem( "Export to PDF file ..." ) );
-        if ( AptxUtil.canWriteFormat( "tif" ) || AptxUtil.canWriteFormat( "tiff" ) || AptxUtil.canWriteFormat( "TIF" ) ) {
-            _file_jmenu.add( _write_to_tif_item = new JMenuItem( "Export to TIFF file..." ) );
-        }
-        _file_jmenu.add( _write_to_png_item = new JMenuItem( "Export to PNG file..." ) );
-        _file_jmenu.add( _write_to_jpg_item = new JMenuItem( "Export to JPG file..." ) );
-        if ( AptxUtil.canWriteFormat( "gif" ) ) {
-            _file_jmenu.add( _write_to_gif_item = new JMenuItem( "Export to GIF file..." ) );
-        }
-        if ( AptxUtil.canWriteFormat( "bmp" ) ) {
-            _file_jmenu.add( _write_to_bmp_item = new JMenuItem( "Export to BMP file..." ) );
-        }
-        _file_jmenu.addSeparator();
-        _file_jmenu.add( _print_item = new JMenuItem( "Print..." ) );
-        _file_jmenu.addSeparator();
-        _file_jmenu.add( _exit_item = new JMenuItem( "Exit" ) );
-        customizeJMenuItem( _save_item );
-        customizeJMenuItem( _write_to_pdf_item );
-        customizeJMenuItem( _write_to_png_item );
-        customizeJMenuItem( _write_to_jpg_item );
-        customizeJMenuItem( _write_to_gif_item );
-        customizeJMenuItem( _write_to_tif_item );
-        customizeJMenuItem( _write_to_bmp_item );
-        customizeJMenuItem( _print_item );
-        customizeJMenuItem( _exit_item );
-        _jmenubar.add( _file_jmenu );
+//        _file_jmenu = MainFrame.createMenu( "File", getConfiguration() );
+//        _file_jmenu.add( _save_item = new JMenuItem( "Save Tree As..." ) );
+//        _file_jmenu.addSeparator();
+//        _file_jmenu.add( _write_to_pdf_item = new JMenuItem( "Export to PDF file ..." ) );
+//        if ( AptxUtil.canWriteFormat( "tif" ) || AptxUtil.canWriteFormat( "tiff" ) || AptxUtil.canWriteFormat( "TIF" ) ) {
+//            _file_jmenu.add( _write_to_tif_item = new JMenuItem( "Export to TIFF file..." ) );
+//        }
+//        _file_jmenu.add( _write_to_png_item = new JMenuItem( "Export to PNG file..." ) );
+//        _file_jmenu.add( _write_to_jpg_item = new JMenuItem( "Export to JPG file..." ) );
+//        if ( AptxUtil.canWriteFormat( "gif" ) ) {
+//            _file_jmenu.add( _write_to_gif_item = new JMenuItem( "Export to GIF file..." ) );
+//        }
+//        if ( AptxUtil.canWriteFormat( "bmp" ) ) {
+//            _file_jmenu.add( _write_to_bmp_item = new JMenuItem( "Export to BMP file..." ) );
+//        }
+//
+//         _file_jmenu.add( _write_to_eps_item = new JMenuItem("Export to EPS file...") );
+//        
+//        _file_jmenu.addSeparator();
+//        _file_jmenu.add( _print_item = new JMenuItem( "Print..." ) );
+//        _file_jmenu.addSeparator();
+//        _file_jmenu.add( _exit_item = new JMenuItem( "Exit" ) );
+//        customizeJMenuItem( _save_item );
+//        customizeJMenuItem( _write_to_pdf_item );
+//        customizeJMenuItem( _write_to_png_item );
+//        customizeJMenuItem( _write_to_jpg_item );
+//        customizeJMenuItem( _write_to_gif_item );
+//        customizeJMenuItem( _write_to_tif_item );
+//        customizeJMenuItem( _write_to_bmp_item );
+//        customizeJMenuItem(_write_to_eps_item);
+//        customizeJMenuItem( _print_item );
+//        customizeJMenuItem( _exit_item );
+//        _jmenubar.add( _file_jmenu );
     }
 
     void buildFontSizeMenu() {

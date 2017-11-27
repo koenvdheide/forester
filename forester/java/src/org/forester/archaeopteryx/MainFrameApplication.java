@@ -1744,6 +1744,7 @@ public final class MainFrameApplication extends MainFrame {
         if ( AptxUtil.canWriteFormat( "bmp" ) ) {
             _file_jmenu.add( _write_to_bmp_item = new JMenuItem( "Export to BMP file..." ) );
         }
+        _file_jmenu.add( _write_to_eps_item = new JMenuItem("Export to EPS file...") );
         _file_jmenu.addSeparator();
         _file_jmenu.add( _print_item = new JMenuItem( "Print..." ) );
         _file_jmenu.addSeparator();
@@ -1772,6 +1773,7 @@ public final class MainFrameApplication extends MainFrame {
         customizeJMenuItem( _write_to_gif_item );
         customizeJMenuItem( _write_to_tif_item );
         customizeJMenuItem( _write_to_bmp_item );
+        customizeJMenuItem( _write_to_eps_item );
         customizeJMenuItem( _print_item );
         customizeJMenuItem( _exit_item );
         _jmenubar.add( _file_jmenu );

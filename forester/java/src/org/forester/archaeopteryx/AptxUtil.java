@@ -89,7 +89,9 @@ public final class AptxUtil {
                                            JPG( "jpg" ),
                                            PDF( "pdf" ),
                                            PNG( "png" ),
+                                           EPS("eps"),
                                            TIFF( "tif" );
+            
 
         private final String _suffix;
 
@@ -1085,6 +1087,9 @@ public final class AptxUtil {
         if ( type == GraphicsExportType.TIFF ) {
             writeToTiff( file, buffered_img );
         }
+        else if (type == GraphicsExportType.EPS) {
+            writeToEps();
+        }
         else {
             ImageIO.write( buffered_img, type.toString(), file );
         }
@@ -1098,6 +1103,9 @@ public final class AptxUtil {
             msg += " [size: " + width + ", " + height + "]";
         }
         return msg;
+    }
+    final static void writeToEps() {
+        
     }
 
     final static void writeToTiff( final File file, final BufferedImage image ) throws IOException {
