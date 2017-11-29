@@ -304,10 +304,12 @@ public final class MainFrameApplication extends MainFrame {
         //        } );
         // The window listener
         setDefaultCloseOperation( WindowConstants.DO_NOTHING_ON_CLOSE );
+ 
         addInternalFrameListener( new InternalFrameAdapter() {
 
             @Override
             public void internalFrameClosing( final InternalFrameEvent e ) {
+                if (MainFrameApplication.this.getParent() == null) {
                 if ( isUnsavedDataPresent() ) {
                     final int r = JOptionPane.showConfirmDialog( _mainpanel,
                                                                  "Close Archaeopteryx despite potentially unsaved changes?",
@@ -323,10 +325,10 @@ public final class MainFrameApplication extends MainFrame {
                     if ( r != JOptionPane.YES_OPTION ) {
                         return;
                     }
-                }
+                }}
                 exit();
-            }
-        } );
+            
+        } });
         // The component listener
         addComponentListener( new ComponentAdapter() {
 
