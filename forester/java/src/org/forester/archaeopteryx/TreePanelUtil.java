@@ -252,7 +252,7 @@ public class TreePanelUtil {
         }
     }
 
-    static void colorizeSubtree( final PhylogenyNode node, final BranchColor c ) {
+    public static void colorizeSubtree( final PhylogenyNode node, final BranchColor c ) {
         node.getBranchData().setBranchColor( c );
         final List<PhylogenyNode> descs = PhylogenyMethods.getAllDescendants( node );
         for( final PhylogenyNode desc : descs ) {
