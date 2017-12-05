@@ -344,7 +344,7 @@ public class MainPanel extends JPanel implements ComponentListener {
         return _colorset;
     }
 
-    List<TreePanel> getTreePanels() {
+   public List<TreePanel> getTreePanels() {
         return _treepanels;
     }
 
