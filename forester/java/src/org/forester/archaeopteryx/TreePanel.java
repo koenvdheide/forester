@@ -345,6 +345,9 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
     private Map<String, AttributedString> _attributed_string_map                             = null;
     private int                           _depth_collapse_level                              = -1;
     private int                           _rank_collapse_level                               = -1;
+   // private boolean                     _partition_tree                                     = false;
+    //private float                           _root_x;
+    //private float                           _furthest_node_x;
     static {
         final DecimalFormatSymbols dfs = new DecimalFormatSymbols();
         dfs.setDecimalSeparator( '.' );
@@ -5150,7 +5153,7 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
         return getTreeColorSet().getTaxonomyColor();
     }
 
-    final File getTreeFile() {
+    public final File getTreeFile() {
         return _treefile;
     }
 
@@ -5383,10 +5386,23 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
                 }
             }
             else {
-                // no node was clicked
+                // no node was clicked so partition tree instead
+                int clicked_x = e.getX();
+//                _partition_tree = true;
                 _highlight_node = null;
-            }
-        }
+//                PhylogenyNode furthestNode = PhylogenyMethods.calculateNodeWithMaxDistanceToRoot( _phylogeny );
+//                _furthest_node_x = furthestNode.getXcoord();
+//                _root_x = _phylogeny.getRoot().getXcoord();
+//                
+//                if (_furthest_node_x != _root_x && !(clicked_x < _root_x || clicked_x > _furthest_node_x)) // don't
+//                                                                                                                // of tree
+//                {
+//                    float threshold = (clicked_x - _root_x) / (_furthest_node_x - _root_x);
+//                    //draw vertical line at clicked_x
+//                }
+//
+//                _partition_tree = false;}
+        }}
         repaint();
     }
 
@@ -5659,6 +5675,10 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
                                final int graphics_file_height,
                                final int graphics_file_x,
                                final int graphics_file_y ) {
+    //    if (_partition_tree) {
+     //       
+       // }
+        
         if ( ( _phylogeny == null ) || _phylogeny.isEmpty() ) {
             return;
         }
@@ -6074,7 +6094,7 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
         getTreeFontSet().tinyFonts();
     }
 
-    final void setTreeFile( final File treefile ) {
+    public final void setTreeFile( final File treefile ) {
         _treefile = treefile;
     }
 
