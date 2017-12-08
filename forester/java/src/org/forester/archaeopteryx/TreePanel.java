@@ -263,6 +263,7 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
     HashMap<Long, Short>                  _nodeid_dist_to_leaf                               = new HashMap<Long, Short>();
     final private Arc2D                   _arc                                               = new Arc2D.Double();
     private AffineTransform               _at;
+    private int                             _clicked_x;
     private int                           _circ_max_depth;
     final private Set<Long>               _collapsed_external_nodeid_set                     = new HashSet<Long>();
     private JColorChooser                 _color_chooser                                     = null;
@@ -283,6 +284,7 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
     private final FontRenderContext       _frc                                               = new FontRenderContext( null,
                                                                                                                       false,
                                                                                                                       false );
+    private float                           _furthest_node_x;
     private PHYLOGENY_GRAPHICS_TYPE       _graphics_type                                     = PHYLOGENY_GRAPHICS_TYPE.RECTANGULAR;
     private PhylogenyNode                 _highlight_node                                    = null;
     private boolean                       _in_ov                                             = false;
@@ -312,6 +314,7 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
     private float                         _ov_y_distance                                     = 0;
     private int                           _ov_y_position                                     = 0;
     private int                           _ov_y_start                                        = 0;
+    private boolean                     _partition_tree                                     = false;
     private final boolean                 _phy_has_branch_lengths;
     private Phylogeny                     _phylogeny                                         = null;
     private final Path2D.Float            _polygon                                           = new Path2D.Float();
@@ -323,6 +326,7 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
                                                                                                                    RenderingHints.VALUE_RENDER_DEFAULT );
     private JTextArea                     _rollover_popup;
     private PhylogenyNode                 _root;
+    private float                           _root_x;
     private final StringBuilder           _sb                                                = new StringBuilder();
     private double                        _scale_distance                                    = 0.0;
     private String                        _scale_label                                       = null;
@@ -345,9 +349,9 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
     private Map<String, AttributedString> _attributed_string_map                             = null;
     private int                           _depth_collapse_level                              = -1;
     private int                           _rank_collapse_level                               = -1;
-   // private boolean                     _partition_tree                                     = false;
-    //private float                           _root_x;
-    //private float                           _furthest_node_x;
+
+
+
     static {
         final DecimalFormatSymbols dfs = new DecimalFormatSymbols();
         dfs.setDecimalSeparator( '.' );
@@ -5387,22 +5391,27 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
             }
             else {
                 // no node was clicked so partition tree instead
-                int clicked_x = e.getX();
-//                _partition_tree = true;
                 _highlight_node = null;
-//                PhylogenyNode furthestNode = PhylogenyMethods.calculateNodeWithMaxDistanceToRoot( _phylogeny );
-//                _furthest_node_x = furthestNode.getXcoord();
-//                _root_x = _phylogeny.getRoot().getXcoord();
-//                
-//                if (_furthest_node_x != _root_x && !(clicked_x < _root_x || clicked_x > _furthest_node_x)) // don't
-//                                                                                                                // of tree
-//                {
-//                    float threshold = (clicked_x - _root_x) / (_furthest_node_x - _root_x);
-//                    //draw vertical line at clicked_x
-//                }
-//
-//                _partition_tree = false;}
-        }}
+                
+                _clicked_x = e.getX();
+                if (!getPhylogeny().isEmpty()) {
+                // should be calculated on each partition as the tree can theoretically
+                // change in the meantime
+                PhylogenyNode furthestNode = PhylogenyMethods.calculateNodeWithMaxDistanceToRoot( _phylogeny );
+                _furthest_node_x = furthestNode.getXcoord();
+                _root_x = _phylogeny.getRoot().getXcoord();
+                
+                // don't bother if 0 distance tree or clicked x lies outside of tree
+                if (_furthest_node_x != _root_x && !(_clicked_x < _root_x || _clicked_x > _furthest_node_x)) 
+                {
+                    _partition_tree = true;
+
+                }
+
+
+        }
+                }
+            }
         repaint();
     }
 
@@ -5675,9 +5684,12 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
                                final int graphics_file_height,
                                final int graphics_file_x,
                                final int graphics_file_y ) {
-    //    if (_partition_tree) {
-     //       
-       // }
+        if (_partition_tree) {
+//            float threshold = (_clicked_x - _root_x) / (_furthest_node_x - _root_x);
+//            drawLine( _clicked_x, 0, _clicked_x, getHeight(),g);
+            
+            _partition_tree = false;
+        }
         
         if ( ( _phylogeny == null ) || _phylogeny.isEmpty() ) {
             return;
