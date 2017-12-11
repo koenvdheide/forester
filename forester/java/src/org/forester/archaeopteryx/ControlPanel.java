@@ -2537,7 +2537,7 @@ public final class ControlPanel extends JPanel implements ActionListener {
     /**
      * Fit entire tree into window.
      */
-    void showWhole() {
+    public void showWhole() {
         if ( ( _mainpanel.getCurrentScrollPane() == null )
                 || _mainpanel.getCurrentTreePanel().getPhylogeny().isEmpty() ) {
             return;
