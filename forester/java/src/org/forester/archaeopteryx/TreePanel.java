@@ -5684,13 +5684,7 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
                                final int graphics_file_height,
                                final int graphics_file_x,
                                final int graphics_file_y ) {
-        if (_partition_tree) {
-//            float threshold = (_clicked_x - _root_x) / (_furthest_node_x - _root_x);
-//            drawLine( _clicked_x, 0, _clicked_x, getHeight(),g);
-            
-            _partition_tree = false;
-        }
-        
+
         if ( ( _phylogeny == null ) || _phylogeny.isEmpty() ) {
             return;
         }
@@ -5891,8 +5885,19 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
                 g.setTransform( _at );
                 paintOvRectangle( g );
             }
-        }
+
+              
+        }            
+//        if (_partition_tree) {
+//            g.setColor( Color.BLACK );
+//            float threshold = (_clicked_x - _root_x) / (_furthest_node_x - _root_x);
+//           drawLine( _clicked_x, 0, _clicked_x, getHeight(),g);
+//             
+//             _partition_tree = false;
+//         }
     }
+    
+    
 
     final void recalculateMaxDistanceToRoot() {
         _max_distance_to_root = PhylogenyMethods.calculateMaxDistanceToRoot( getPhylogeny() );
