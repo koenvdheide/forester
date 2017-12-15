@@ -225,6 +225,9 @@ public final class PhylogenyNode implements Comparable<PhylogenyNode> {
             if ( !getName().equals( other.getName() ) ) {
                 return false;
             }
+            if (getId() != other.getId()) {
+                return false;
+            }
             final NodeData this_data = getNodeData();
             final NodeData other_data = other.getNodeData();
             if ( ( this_data.isHasSequence() && other_data.isHasSequence() )
@@ -602,7 +605,7 @@ public final class PhylogenyNode implements Comparable<PhylogenyNode> {
         if ( ( getName().length() < 1 ) && !data.isHasSequence() && !data.isHasTaxonomy() ) {
             return super.hashCode();
         }
-        int result = getName().hashCode();
+        int result =  getName().hashCode() * (int) getId();
         if ( data.isHasSequence() ) {
             result ^= data.getSequence().hashCode();
         }
