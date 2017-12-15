@@ -5290,7 +5290,7 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
                 && ( !node.isRoot() || ( _subtree_index > 0 ) ) );
     }
 
-    final boolean isCurrentTreeIsSubtree() {
+    public final boolean isCurrentTreeIsSubtree() {
         return ( _subtree_index > 0 );
     }
 
@@ -5677,6 +5677,14 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
         paintCircularsLite( phy.getRoot(), phy, center_x, center_y, radius, g );
     }
 
+    public final void paintFile( final Graphics2D g,
+                                 final boolean to_pdf,
+                                 final int graphics_file_width,
+                                 final int graphics_file_height,
+                                 final int graphics_file_x,
+                                 final int graphics_file_y ) {
+        paintPhylogeny(g,to_pdf,true,graphics_file_width,graphics_file_height,graphics_file_x,graphics_file_y);
+    }
     final void paintPhylogeny( final Graphics2D g,
                                final boolean to_pdf,
                                final boolean to_graphics_file,
