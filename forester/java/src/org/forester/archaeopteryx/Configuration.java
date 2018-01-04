@@ -33,6 +33,7 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.URL;
 import java.util.Arrays;
@@ -276,7 +277,23 @@ public final class Configuration {
     public Configuration() {
         this( null, false, false, false );
     }
-
+    public Configuration(final InputStream is, final boolean is_applet, final boolean verbose) {
+ 
+        setDisplayColors( new TreeMap<String, Color>() );
+        try {
+            InputStreamReader isr = new InputStreamReader(is);
+            final BufferedReader bf = new BufferedReader( isr );
+            readConfig( bf );
+            bf.close();
+            ForesterUtil.programMessage( AptxConstants.PRG_NAME, "successfully read from configuration url ["
+                    + config_filename + "]" );
+            _could_read_config_file = true;
+        }
+        catch ( final Exception e ) {
+            ForesterUtil.printWarningMessage( AptxConstants.PRG_NAME, "failed to read configuration from ["
+                    + config_filename + "]: " + e.getLocalizedMessage() );
+        }
+    }
     public Configuration( final String cf, final boolean is_url, final boolean is_applet, final boolean verbose ) {
         if ( ForesterUtil.isEmpty( cf ) ) {
             config_filename = default_config_filename;
