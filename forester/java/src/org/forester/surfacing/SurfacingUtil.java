@@ -100,9 +100,9 @@ import org.forester.util.TaxonomyGroups;
 public final class SurfacingUtil {
 
     public final static Pattern              PATTERN_SP_STYLE_TAXONOMY        = Pattern.compile( "^[A-Z0-9]{3,5}$" );
-    private final static Map<String, String> _TAXCODE_HEXCOLORSTRING_MAP      = new HashMap<String, String>();
-    private final static Map<String, String> _TAXCODE_TAXGROUP_MAP            = new HashMap<String, String>();
-    private static final Comparator<Domain>  ASCENDING_CONFIDENCE_VALUE_ORDER = new Comparator<Domain>() {
+    private final static Map<String, String> _TAXCODE_HEXCOLORSTRING_MAP      = new HashMap<>();
+    private final static Map<String, String> _TAXCODE_TAXGROUP_MAP            = new HashMap<>();
+    private static final Comparator<Domain>  ASCENDING_CONFIDENCE_VALUE_ORDER = new Comparator<>() {
 
                                                                                   @Override
                                                                                   public int compare( final Domain d1,
@@ -189,7 +189,7 @@ public final class SurfacingUtil {
                                                                                            final BinaryDomainCombination.DomainCombinationType dc_type,
                                                                                            final List<BinaryDomainCombination> all_binary_domains_combination_gained,
                                                                                            final boolean get_gains ) {
-        final SortedSet<String> sorted_ids = new TreeSet<String>();
+        final SortedSet<String> sorted_ids = new TreeSet<>();
         for( int i = 0; i < matrix.getNumberOfIdentifiers(); ++i ) {
             sorted_ids.add( matrix.getIdentifier( i ) );
         }
@@ -216,7 +216,7 @@ public final class SurfacingUtil {
     }
 
     public static Map<String, List<GoId>> createDomainIdToGoIdMap( final List<PfamToGoMapping> pfam_to_go_mappings ) {
-        final Map<String, List<GoId>> domain_id_to_go_ids_map = new HashMap<String, List<GoId>>( pfam_to_go_mappings
+        final Map<String, List<GoId>> domain_id_to_go_ids_map = new HashMap<>( pfam_to_go_mappings
                 .size() );
         for( final PfamToGoMapping pfam_to_go : pfam_to_go_mappings ) {
             if ( !domain_id_to_go_ids_map.containsKey( pfam_to_go.getKey() ) ) {
@@ -230,7 +230,7 @@ public final class SurfacingUtil {
     public static Map<String, Set<String>> createDomainIdToSecondaryFeaturesMap( final File secondary_features_map_file )
             throws IOException {
         final BasicTable<String> primary_table = BasicTableParser.parse( secondary_features_map_file, '\t' );
-        final Map<String, Set<String>> map = new TreeMap<String, Set<String>>();
+        final Map<String, Set<String>> map = new TreeMap<>();
         for( int r = 0; r < primary_table.getNumberOfRows(); ++r ) {
             final String domain_id = primary_table.getValue( 0, r );
             if ( !map.containsKey( domain_id ) ) {
@@ -377,7 +377,7 @@ public final class SurfacingUtil {
     }
 
     public static Map<String, Integer> createTaxCodeToIdMap( final Phylogeny phy ) {
-        final Map<String, Integer> m = new HashMap<String, Integer>();
+        final Map<String, Integer> m = new HashMap<>();
         for( final PhylogenyNodeIterator iter = phy.iteratorExternalForward(); iter.hasNext(); ) {
             final PhylogenyNode n = iter.next();
             if ( n.getNodeData().isHasTaxonomy() ) {
@@ -434,7 +434,7 @@ public final class SurfacingUtil {
                     out.write( protein.getProteinId().getId() );
                     out.write( separator );
                     out.write( "[" );
-                    final Set<String> visited_domain_ids = new HashSet<String>();
+                    final Set<String> visited_domain_ids = new HashSet<>();
                     boolean first = true;
                     for( final Domain domain : protein.getProteinDomains() ) {
                         if ( !visited_domain_ids.contains( domain.getDomainId() ) ) {
@@ -636,8 +636,8 @@ public final class SurfacingUtil {
         final Writer out = ForesterUtil.createBufferedWriter( output_file );
         final SortedMap<Object, Integer> bdc_to_counts = ForesterUtil
                 .listToSortedCountsMap( all_bin_domain_combinations_changed );
-        final SortedSet<String> all_domains_in_combination_changed_more_than_once = new TreeSet<String>();
-        final SortedSet<String> all_domains_in_combination_changed_only_once = new TreeSet<String>();
+        final SortedSet<String> all_domains_in_combination_changed_more_than_once = new TreeSet<>();
+        final SortedSet<String> all_domains_in_combination_changed_only_once = new TreeSet<>();
         int above_one = 0;
         int one = 0;
         for( final Object bdc_object : bdc_to_counts.keySet() ) {
@@ -732,11 +732,11 @@ public final class SurfacingUtil {
                                                  final boolean perform_dc_fich ) {
         final String sep = ForesterUtil.LINE_SEPARATOR + "###################" + ForesterUtil.LINE_SEPARATOR;
         final String date_time = ForesterUtil.getCurrentDateTime();
-        final SortedSet<String> all_pfams_encountered = new TreeSet<String>();
-        final SortedSet<String> all_pfams_gained_as_domains = new TreeSet<String>();
-        final SortedSet<String> all_pfams_lost_as_domains = new TreeSet<String>();
-        final SortedSet<String> all_pfams_gained_as_dom_combinations = new TreeSet<String>();
-        final SortedSet<String> all_pfams_lost_as_dom_combinations = new TreeSet<String>();
+        final SortedSet<String> all_pfams_encountered = new TreeSet<>();
+        final SortedSet<String> all_pfams_gained_as_domains = new TreeSet<>();
+        final SortedSet<String> all_pfams_lost_as_domains = new TreeSet<>();
+        final SortedSet<String> all_pfams_gained_as_dom_combinations = new TreeSet<>();
+        final SortedSet<String> all_pfams_lost_as_dom_combinations = new TreeSet<>();
         if ( write_to_nexus ) {
             writeToNexus( outfile_name, domain_parsimony, phylogeny );
         }
@@ -855,10 +855,11 @@ public final class SurfacingUtil {
                                              outfile_name
                                                      + surfacing.PARSIMONY_OUTPUT_GL_SUFFIX_FITCH_BINARY_COMBINATIONS,
                                              Format.FORESTER );
-            SurfacingUtil.writeMatrixToFile( domain_parsimony.getGainLossCountsMatrix(),
-                                             outfile_name
-                                                     + surfacing.PARSIMONY_OUTPUT_GL_COUNTS_SUFFIX_FITCH_BINARY_COMBINATIONS,
-                                             Format.FORESTER );
+            SurfacingUtil
+                    .writeMatrixToFile( domain_parsimony.getGainLossCountsMatrix(),
+                                        outfile_name
+                                                + surfacing.PARSIMONY_OUTPUT_GL_COUNTS_SUFFIX_FITCH_BINARY_COMBINATIONS,
+                                        Format.FORESTER );
             SurfacingUtil.writeBinaryStatesMatrixAsListToFile( domain_parsimony.getGainLossMatrix(),
                                                                CharacterStateMatrix.GainLossStates.GAIN,
                                                                outfile_name + surfacing.PARSIMONY_OUTPUT_FITCH_GAINS_BC,
@@ -888,14 +889,15 @@ public final class SurfacingUtil {
                         .getGainLossMatrix(), dc_type, all_binary_domains_combination_lost_fitch, false );
             }
             if ( output_binary_domain_combinations_for_graphs ) {
-                SurfacingUtil.writeBinaryStatesMatrixAsListToFileForBinaryCombinationsForGraphAnalysis( domain_parsimony
-                        .getGainLossMatrix(),
-                                                                                                        null,
-                                                                                                        outfile_name
-                                                                                                                + surfacing.PARSIMONY_OUTPUT_FITCH_PRESENT_BC_OUTPUTFILE_SUFFIX_FOR_GRAPH_ANALYSIS,
-                                                                                                        sep,
-                                                                                                        ForesterUtil.LINE_SEPARATOR,
-                                                                                                        BinaryDomainCombination.OutputFormat.DOT );
+                SurfacingUtil
+                        .writeBinaryStatesMatrixAsListToFileForBinaryCombinationsForGraphAnalysis( domain_parsimony
+                                .getGainLossMatrix(),
+                                                                                                   null,
+                                                                                                   outfile_name
+                                                                                                           + surfacing.PARSIMONY_OUTPUT_FITCH_PRESENT_BC_OUTPUTFILE_SUFFIX_FOR_GRAPH_ANALYSIS,
+                                                                                                   sep,
+                                                                                                   ForesterUtil.LINE_SEPARATOR,
+                                                                                                   BinaryDomainCombination.OutputFormat.DOT );
             }
             // HTML:
             writeBinaryStatesMatrixToList( domain_id_to_go_ids_map,
@@ -1007,27 +1009,30 @@ public final class SurfacingUtil {
                                          outfile_name
                                                  + surfacing.PARSIMONY_OUTPUT_GL_COUNTS_SUFFIX_DOLLO_SECONDARY_FEATURES,
                                          Format.FORESTER );
-        SurfacingUtil.writeBinaryStatesMatrixAsListToFile( secondary_features_parsimony.getGainLossMatrix(),
-                                                           CharacterStateMatrix.GainLossStates.GAIN,
-                                                           outfile_name
-                                                                   + surfacing.PARSIMONY_OUTPUT_DOLLO_GAINS_SECONDARY_FEATURES,
-                                                           sep,
-                                                           ForesterUtil.LINE_SEPARATOR,
-                                                           null );
-        SurfacingUtil.writeBinaryStatesMatrixAsListToFile( secondary_features_parsimony.getGainLossMatrix(),
-                                                           CharacterStateMatrix.GainLossStates.LOSS,
-                                                           outfile_name
-                                                                   + surfacing.PARSIMONY_OUTPUT_DOLLO_LOSSES_SECONDARY_FEATURES,
-                                                           sep,
-                                                           ForesterUtil.LINE_SEPARATOR,
-                                                           null );
-        SurfacingUtil.writeBinaryStatesMatrixAsListToFile( secondary_features_parsimony.getGainLossMatrix(),
-                                                           null,
-                                                           outfile_name
-                                                                   + surfacing.PARSIMONY_OUTPUT_DOLLO_PRESENT_SECONDARY_FEATURES,
-                                                           sep,
-                                                           ForesterUtil.LINE_SEPARATOR,
-                                                           null );
+        SurfacingUtil
+                .writeBinaryStatesMatrixAsListToFile( secondary_features_parsimony.getGainLossMatrix(),
+                                                      CharacterStateMatrix.GainLossStates.GAIN,
+                                                      outfile_name
+                                                              + surfacing.PARSIMONY_OUTPUT_DOLLO_GAINS_SECONDARY_FEATURES,
+                                                      sep,
+                                                      ForesterUtil.LINE_SEPARATOR,
+                                                      null );
+        SurfacingUtil
+                .writeBinaryStatesMatrixAsListToFile( secondary_features_parsimony.getGainLossMatrix(),
+                                                      CharacterStateMatrix.GainLossStates.LOSS,
+                                                      outfile_name
+                                                              + surfacing.PARSIMONY_OUTPUT_DOLLO_LOSSES_SECONDARY_FEATURES,
+                                                      sep,
+                                                      ForesterUtil.LINE_SEPARATOR,
+                                                      null );
+        SurfacingUtil
+                .writeBinaryStatesMatrixAsListToFile( secondary_features_parsimony.getGainLossMatrix(),
+                                                      null,
+                                                      outfile_name
+                                                              + surfacing.PARSIMONY_OUTPUT_DOLLO_PRESENT_SECONDARY_FEATURES,
+                                                      sep,
+                                                      ForesterUtil.LINE_SEPARATOR,
+                                                      null );
         preparePhylogeny( local_phylogeny_copy,
                           secondary_features_parsimony,
                           date_time,
@@ -1080,7 +1085,7 @@ public final class SurfacingUtil {
                                                  final Map<String, List<GoId>> domain_id_to_go_ids_map,
                                                  final Map<GoId, GoTerm> go_id_to_term_map,
                                                  final List<Object> plus_minus_analysis_numbers ) {
-        final Set<String> all_spec = new HashSet<String>();
+        final Set<String> all_spec = new HashSet<>();
         for( final GenomeWideCombinableDomains gwcd : gwcd_list ) {
             all_spec.add( gwcd.getSpecies().getSpeciesId() );
         }
@@ -1142,7 +1147,7 @@ public final class SurfacingUtil {
                     out.write( protein.getProteinId().getId() );
                     out.write( separator );
                     out.write( "[" );
-                    final Set<String> visited_domain_ids = new HashSet<String>();
+                    final Set<String> visited_domain_ids = new HashSet<>();
                     boolean first = true;
                     for( final Domain domain : protein.getProteinDomains() ) {
                         if ( !visited_domain_ids.contains( domain.getDomainId() ) ) {
@@ -1212,7 +1217,7 @@ public final class SurfacingUtil {
                         }
                         out.write( "/" );
                         out.write( separator );
-                        final List<Domain> domain_list = new ArrayList<Domain>();
+                        final List<Domain> domain_list = new ArrayList<>();
                         for( final Domain domain : protein.getProteinDomains() ) {
                             if ( ( domain_e_cutoff < 0 ) || ( domain.getPerDomainEvalue() <= domain_e_cutoff ) ) {
                                 domain_list.add( domain );
@@ -1255,7 +1260,7 @@ public final class SurfacingUtil {
     }
 
     public static SortedSet<String> getAllDomainIds( final List<GenomeWideCombinableDomains> gwcd_list ) {
-        final SortedSet<String> all_domains_ids = new TreeSet<String>();
+        final SortedSet<String> all_domains_ids = new TreeSet<>();
         for( final GenomeWideCombinableDomains gwcd : gwcd_list ) {
             final Set<String> all_domains = gwcd.getAllDomainIds();
             //    for( final Domain domain : all_domains ) {
@@ -1266,7 +1271,7 @@ public final class SurfacingUtil {
     }
 
     public static SortedMap<String, Integer> getDomainCounts( final List<Protein> protein_domain_collections ) {
-        final SortedMap<String, Integer> map = new TreeMap<String, Integer>();
+        final SortedMap<String, Integer> map = new TreeMap<>();
         for( final Protein protein_domain_collection : protein_domain_collections ) {
             for( final Object name : protein_domain_collection.getProteinDomains() ) {
                 final BasicDomain protein_domain = ( BasicDomain ) name;
@@ -1601,8 +1606,8 @@ public final class SurfacingUtil {
             System.out.println( "--" );
         }
         //Test for node names:
-        final SortedSet<String> not_found = new TreeSet<String>();
-        final SortedSet<String> not_unique = new TreeSet<String>();
+        final SortedSet<String> not_found = new TreeSet<>();
+        final SortedSet<String> not_unique = new TreeSet<>();
         for( final String[] input_file_propertie : input_file_properties ) {
             final String name = input_file_propertie[ 1 ];
             final List<PhylogenyNode> nodes = intree.getNodes( name );
@@ -1663,12 +1668,13 @@ public final class SurfacingUtil {
             input_file_properties = ForesterUtil.file22dArray( input_genomes );
         }
         catch ( final IOException e ) {
-            ForesterUtil.fatalError( surfacing.PRG_NAME,
-                                     "genomes files is to be in the following format \"<hmmpfam output file> <species>\": "
-                                             + e.getLocalizedMessage() );
+            ForesterUtil
+                    .fatalError( surfacing.PRG_NAME,
+                                 "genomes files is to be in the following format \"<hmmpfam output file> <species>\": "
+                                         + e.getLocalizedMessage() );
         }
-        final Set<String> specs = new HashSet<String>();
-        final Set<String> paths = new HashSet<String>();
+        final Set<String> specs = new HashSet<>();
+        final Set<String> paths = new HashSet<>();
         for( int i = 0; i < input_file_properties.length; ++i ) {
             if ( !PhyloXmlUtil.TAXOMONY_CODE_PATTERN.matcher( input_file_properties[ i ][ 1 ] ).matches() ) {
                 ForesterUtil.fatalError( surfacing.PRG_NAME,
@@ -1732,25 +1738,28 @@ public final class SurfacingUtil {
                 final String species_trimmed = species.substring( 1 );
                 if ( species.startsWith( "+" ) ) {
                     if ( low_copy.contains( species_trimmed ) ) {
-                        ForesterUtil.fatalError( surfacing.PRG_NAME,
-                                                 "species/genome names can not appear with both '+' and '-' suffix, as appears the case for: \""
-                                                         + species_trimmed + "\"" );
+                        ForesterUtil
+                                .fatalError( surfacing.PRG_NAME,
+                                             "species/genome names can not appear with both '+' and '-' suffix, as appears the case for: \""
+                                                     + species_trimmed + "\"" );
                     }
                     high_copy_base.add( species_trimmed );
                 }
                 else if ( species.startsWith( "*" ) ) {
                     if ( low_copy.contains( species_trimmed ) ) {
-                        ForesterUtil.fatalError( surfacing.PRG_NAME,
-                                                 "species/genome names can not appear with both '*' and '-' suffix, as appears the case for: \""
-                                                         + species_trimmed + "\"" );
+                        ForesterUtil
+                                .fatalError( surfacing.PRG_NAME,
+                                             "species/genome names can not appear with both '*' and '-' suffix, as appears the case for: \""
+                                                     + species_trimmed + "\"" );
                     }
                     high_copy_target.add( species_trimmed );
                 }
                 else if ( species.startsWith( "-" ) ) {
                     if ( high_copy_base.contains( species_trimmed ) || high_copy_target.contains( species_trimmed ) ) {
-                        ForesterUtil.fatalError( surfacing.PRG_NAME,
-                                                 "species/genome names can not appear with both '+' or '*' and '-' suffix, as appears the case for: \""
-                                                         + species_trimmed + "\"" );
+                        ForesterUtil
+                                .fatalError( surfacing.PRG_NAME,
+                                             "species/genome names can not appear with both '+' or '*' and '-' suffix, as appears the case for: \""
+                                                     + species_trimmed + "\"" );
                     }
                     low_copy.add( species_trimmed );
                 }
@@ -1778,9 +1787,10 @@ public final class SurfacingUtil {
                     // Comment, ignore.
                 }
                 else {
-                    ForesterUtil.fatalError( surfacing.PRG_NAME,
-                                             "species/genome names in 'plus minus' file must begin with '*' (high copy target genome), '+' (high copy base genomes), '-' (low copy genomes), '$D=<integer>' minimal Difference (default is 1), '$F=<double>' factor (default is 1.0), double), or '#' (ignore) suffix, encountered: \""
-                                                     + species + "\"" );
+                    ForesterUtil
+                            .fatalError( surfacing.PRG_NAME,
+                                         "species/genome names in 'plus minus' file must begin with '*' (high copy target genome), '+' (high copy base genomes), '-' (low copy genomes), '$D=<integer>' minimal Difference (default is 1), '$F=<double>' factor (default is 1.0), double), or '#' (ignore) suffix, encountered: \""
+                                                 + species + "\"" );
                 }
                 numbers.add( new Integer( min_diff + "" ) );
                 numbers.add( new Double( factor + "" ) );
@@ -1808,7 +1818,7 @@ public final class SurfacingUtil {
         }
         final List<Domain> domains = protein.getProteinDomains();
         if ( domains.size() > 1 ) {
-            final Map<String, Integer> counts = new HashMap<String, Integer>();
+            final Map<String, Integer> counts = new HashMap<>();
             for( final Domain domain : domains ) {
                 final String id = domain.getDomainId();
                 if ( counts.containsKey( id ) ) {
@@ -1818,7 +1828,7 @@ public final class SurfacingUtil {
                     counts.put( id, 1 );
                 }
             }
-            final Set<String> dcs = new HashSet<String>();
+            final Set<String> dcs = new HashSet<>();
             for( int i = 1; i < domains.size(); ++i ) {
                 for( int j = 0; j < i; ++j ) {
                     Domain domain_n = domains.get( i );
@@ -1881,7 +1891,7 @@ public final class SurfacingUtil {
     }
 
     public static List<Domain> sortDomainsWithAscendingConfidenceValues( final Protein protein ) {
-        final List<Domain> domains = new ArrayList<Domain>();
+        final List<Domain> domains = new ArrayList<>();
         for( final Domain d : protein.getProteinDomains() ) {
             domains.add( d );
         }
@@ -1893,7 +1903,7 @@ public final class SurfacingUtil {
                                                 final SortedMap<String, Set<String>> domain_architecutures,
                                                 final List<Protein> protein_list,
                                                 final Map<String, Integer> distinct_domain_architecuture_counts ) {
-        final Set<String> da = new HashSet<String>();
+        final Set<String> da = new HashSet<>();
         domain_architecutures.put( genome, da );
         for( final Protein protein : protein_list ) {
             final String da_str = ( ( BasicProtein ) protein ).toDomainArchitectureString( "~", 3, "=" );
@@ -1988,7 +1998,7 @@ public final class SurfacingUtil {
                                                             final Map<String, String> descriptions ) {
         final File outfile = new File( filename );
         checkForOutputFileWriteability( outfile );
-        final SortedSet<String> sorted_ids = new TreeSet<String>();
+        final SortedSet<String> sorted_ids = new TreeSet<>();
         for( int i = 0; i < matrix.getNumberOfIdentifiers(); ++i ) {
             sorted_ids.add( matrix.getIdentifier( i ) );
         }
@@ -2032,7 +2042,7 @@ public final class SurfacingUtil {
                                                                                                  final BinaryDomainCombination.OutputFormat bc_output_format ) {
         final File outfile = new File( filename );
         checkForOutputFileWriteability( outfile );
-        final SortedSet<String> sorted_ids = new TreeSet<String>();
+        final SortedSet<String> sorted_ids = new TreeSet<>();
         for( int i = 0; i < matrix.getNumberOfIdentifiers(); ++i ) {
             sorted_ids.add( matrix.getIdentifier( i ) );
         }
@@ -2097,7 +2107,7 @@ public final class SurfacingUtil {
         }
         final File outfile = new File( filename );
         checkForOutputFileWriteability( outfile );
-        final SortedSet<String> sorted_ids = new TreeSet<String>();
+        final SortedSet<String> sorted_ids = new TreeSet<>();
         for( int i = 0; i < matrix.getNumberOfIdentifiers(); ++i ) {
             sorted_ids.add( matrix.getIdentifier( i ) );
         }
@@ -2314,6 +2324,7 @@ public final class SurfacingUtil {
                                                       final StringBuilder html_title,
                                                       final Writer simple_tab_writer,
                                                       final Writer single_writer,
+                                                      final Writer domain_species_seqid_map_writer,
                                                       Map<Character, Writer> split_writers,
                                                       final SortedSet<DomainSimilarity> similarities,
                                                       final boolean treat_as_binary,
@@ -2326,7 +2337,7 @@ public final class SurfacingUtil {
                                                       final Set<String> pos_filter_doms )
             throws IOException {
         if ( ( single_writer != null ) && ( ( split_writers == null ) || split_writers.isEmpty() ) ) {
-            split_writers = new HashMap<Character, Writer>();
+            split_writers = new HashMap<>();
             split_writers.put( '_', single_writer );
         }
         switch ( print_option ) {
@@ -2448,6 +2459,10 @@ public final class SurfacingUtil {
         }
         //
         for( final DomainSimilarity similarity : similarities ) {
+            if (domain_species_seqid_map_writer != null ) {
+            domain_species_seqid_map_writer.write( similarity.getSpeciesAndSeqIdsAsStringBuffer( similarity.getDomainId() ).toString()  );
+            //domain_species_seqid_map_writer.write( SurfacingConstants.NL );
+            }
             if ( ( species_order != null ) && !species_order.isEmpty() ) {
                 ( similarity ).setSpeciesOrder( species_order );
             }
@@ -2609,7 +2624,7 @@ public final class SurfacingUtil {
                                                        final List<GenomeWideCombinableDomains> gwcd_list,
                                                        final double domain_e_cutoff,
                                                        final Set<String> pos_filter_doms ) {
-        final SortedSet<String> all_domains = new TreeSet<String>();
+        final SortedSet<String> all_domains = new TreeSet<>();
         for( final GenomeWideCombinableDomains gwcd : gwcd_list ) {
             all_domains.addAll( gwcd.getAllDomainIds() );
         }
@@ -2710,7 +2725,7 @@ public final class SurfacingUtil {
             final BufferedWriter out_dc = new BufferedWriter( new FileWriter( outfilename_for_dc ) );
             final BufferedWriter out_dc_for_go_mapping = new BufferedWriter( new FileWriter( outfilename_for_dc_for_go_mapping ) );
             final BufferedWriter out_dc_for_go_mapping_unique = new BufferedWriter( new FileWriter( outfilename_for_dc_for_go_mapping_unique ) );
-            final SortedMap<String, Integer> dc_gain_counts = new TreeMap<String, Integer>();
+            final SortedMap<String, Integer> dc_gain_counts = new TreeMap<>();
             for( final PhylogenyNodeIterator it = local_phylogeny_l.iteratorPostorder(); it.hasNext(); ) {
                 final PhylogenyNode n = it.next();
                 final Set<String> gained_dc = n.getNodeData().getBinaryCharacters().getGainedCharacters();
@@ -2723,15 +2738,15 @@ public final class SurfacingUtil {
                     }
                 }
             }
-            final SortedMap<Integer, Integer> histogram = new TreeMap<Integer, Integer>();
-            final SortedMap<Integer, StringBuilder> domain_lists = new TreeMap<Integer, StringBuilder>();
-            final SortedMap<Integer, DescriptiveStatistics> dc_reapp_counts_to_protein_length_stats = new TreeMap<Integer, DescriptiveStatistics>();
-            final SortedMap<Integer, DescriptiveStatistics> dc_reapp_counts_to_domain_number_stats = new TreeMap<Integer, DescriptiveStatistics>();
-            final SortedMap<Integer, DescriptiveStatistics> dc_reapp_counts_to_domain_lengths_stats = new TreeMap<Integer, DescriptiveStatistics>();
-            final SortedMap<Integer, PriorityQueue<String>> domain_lists_go = new TreeMap<Integer, PriorityQueue<String>>();
-            final SortedMap<Integer, SortedSet<String>> domain_lists_go_unique = new TreeMap<Integer, SortedSet<String>>();
+            final SortedMap<Integer, Integer> histogram = new TreeMap<>();
+            final SortedMap<Integer, StringBuilder> domain_lists = new TreeMap<>();
+            final SortedMap<Integer, DescriptiveStatistics> dc_reapp_counts_to_protein_length_stats = new TreeMap<>();
+            final SortedMap<Integer, DescriptiveStatistics> dc_reapp_counts_to_domain_number_stats = new TreeMap<>();
+            final SortedMap<Integer, DescriptiveStatistics> dc_reapp_counts_to_domain_lengths_stats = new TreeMap<>();
+            final SortedMap<Integer, PriorityQueue<String>> domain_lists_go = new TreeMap<>();
+            final SortedMap<Integer, SortedSet<String>> domain_lists_go_unique = new TreeMap<>();
             final Set<String> dcs = dc_gain_counts.keySet();
-            final SortedSet<String> more_than_once = new TreeSet<String>();
+            final SortedSet<String> more_than_once = new TreeSet<>();
             DescriptiveStatistics gained_once_lengths_stats = new BasicDescriptiveStatistics();
             DescriptiveStatistics gained_once_domain_count_stats = new BasicDescriptiveStatistics();
             DescriptiveStatistics gained_multiple_times_lengths_stats = new BasicDescriptiveStatistics();
@@ -2751,10 +2766,10 @@ public final class SurfacingUtil {
                 else {
                     histogram.put( count, 1 );
                     domain_lists.put( count, new StringBuilder( dc ) );
-                    final PriorityQueue<String> q = new PriorityQueue<String>();
+                    final PriorityQueue<String> q = new PriorityQueue<>();
                     q.addAll( splitDomainCombination( dc ) );
                     domain_lists_go.put( count, q );
-                    final SortedSet<String> set = new TreeSet<String>();
+                    final SortedSet<String> set = new TreeSet<>();
                     set.addAll( splitDomainCombination( dc ) );
                     domain_lists_go_unique.put( count, set );
                 }
@@ -2859,10 +2874,10 @@ public final class SurfacingUtil {
             out_dc.close();
             out_dc_for_go_mapping.close();
             out_dc_for_go_mapping_unique.close();
-            final SortedMap<String, Integer> lca_rank_counts = new TreeMap<String, Integer>();
-            final SortedMap<String, Integer> lca_ancestor_species_counts = new TreeMap<String, Integer>();
+            final SortedMap<String, Integer> lca_rank_counts = new TreeMap<>();
+            final SortedMap<String, Integer> lca_ancestor_species_counts = new TreeMap<>();
             for( final String dc : more_than_once ) {
-                final List<PhylogenyNode> nodes = new ArrayList<PhylogenyNode>();
+                final List<PhylogenyNode> nodes = new ArrayList<>();
                 for( final PhylogenyNodeIterator it = local_phylogeny_l.iteratorExternalForward(); it.hasNext(); ) {
                     final PhylogenyNode n = it.next();
                     if ( n.getNodeData().getBinaryCharacters().getGainedCharacters().contains( dc ) ) {
@@ -3002,14 +3017,15 @@ public final class SurfacingUtil {
         ForesterUtil.programMessage( surfacing.PRG_NAME,
                                      "Wrote independent domain combination gains fitch lists to (for GO mapping) ["
                                              + outfilename_for_dc_for_go_mapping + "]" );
-        ForesterUtil.programMessage( surfacing.PRG_NAME,
-                                     "Wrote independent domain combination gains fitch lists to (for GO mapping, unique) ["
-                                             + outfilename_for_dc_for_go_mapping_unique + "]" );
+        ForesterUtil
+                .programMessage( surfacing.PRG_NAME,
+                                 "Wrote independent domain combination gains fitch lists to (for GO mapping, unique) ["
+                                         + outfilename_for_dc_for_go_mapping_unique + "]" );
     }
 
     private static SortedSet<String> collectAllDomainsChangedOnSubtree( final PhylogenyNode subtree_root,
                                                                         final boolean get_gains ) {
-        final SortedSet<String> domains = new TreeSet<String>();
+        final SortedSet<String> domains = new TreeSet<>();
         for( final PhylogenyNode descendant : PhylogenyMethods.getAllDescendants( subtree_root ) ) {
             final BinaryCharacters chars = descendant.getNodeData().getBinaryCharacters();
             if ( get_gains ) {
@@ -3062,7 +3078,7 @@ public final class SurfacingUtil {
 
     private static SortedSet<BinaryDomainCombination> createSetOfAllBinaryDomainCombinationsPerGenome( final GenomeWideCombinableDomains gwcd ) {
         final SortedMap<String, CombinableDomains> cds = gwcd.getAllCombinableDomainsIds();
-        final SortedSet<BinaryDomainCombination> binary_combinations = new TreeSet<BinaryDomainCombination>();
+        final SortedSet<BinaryDomainCombination> binary_combinations = new TreeSet<>();
         for( final String domain_id : cds.keySet() ) {
             final CombinableDomains cd = cds.get( domain_id );
             binary_combinations.addAll( cd.toBinaryDomainCombinations() );
@@ -3113,7 +3129,7 @@ public final class SurfacingUtil {
                                             "Stringyfied domain combination has illegal format: " + dc );
             System.exit( -1 );
         }
-        final List<String> l = new ArrayList<String>( 2 );
+        final List<String> l = new ArrayList<>( 2 );
         l.add( s[ 0 ] );
         l.add( s[ 1 ] );
         return l;
@@ -3441,7 +3457,7 @@ public final class SurfacingUtil {
                     + "] to nexus" );
         }
         final BasicCharacterStateMatrix<BinaryStates> my_matrix = ( org.forester.evoinference.matrix.character.BasicCharacterStateMatrix<BinaryStates> ) matrix;
-        final List<Phylogeny> phylogenies = new ArrayList<Phylogeny>( 1 );
+        final List<Phylogeny> phylogenies = new ArrayList<>( 1 );
         phylogenies.add( phylogeny );
         try {
             final BufferedWriter w = new BufferedWriter( new FileWriter( outfile_name ) );
