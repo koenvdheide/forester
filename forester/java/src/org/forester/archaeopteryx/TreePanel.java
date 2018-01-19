@@ -315,6 +315,7 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
     private int                           _ov_y_position                                     = 0;
     private int                           _ov_y_start                                        = 0;
     private boolean                     _partition_tree                                     = false;
+    private float                            _partition_threshold                           = 0;
     private final boolean                 _phy_has_branch_lengths;
     private Phylogeny                     _phylogeny                                         = null;
     private final Path2D.Float            _polygon                                           = new Path2D.Float();
@@ -1359,6 +1360,10 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
 
     final private TreeFontSet getTreeFontSet() {
         return getMainPanel().getTreeFontSet();
+    }
+    
+    final public float getThreshold() {
+        return _partition_threshold;
     }
 
     final private float getUrtFactor() {
@@ -5395,8 +5400,7 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
                 
                 _clicked_x = e.getX();
                 if (!getPhylogeny().isEmpty()) {
-                // should be calculated on each partition as the tree can theoretically
-                // change in the meantime
+
                 PhylogenyNode furthestNode = PhylogenyMethods.calculateNodeWithMaxDistanceToRoot( _phylogeny );
                 _furthest_node_x = furthestNode.getXcoord();
                 _root_x = _phylogeny.getRoot().getXcoord();
@@ -5896,15 +5900,13 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
 
               
         }            
-//        if (_partition_tree) {
-//            g.setColor( Color.BLACK );
-//            float threshold = (_clicked_x - _root_x) / (_furthest_node_x - _root_x);
-//           drawLine( _clicked_x, 0, _clicked_x, getHeight(),g);
-//             
-//             _partition_tree = false;
-//         }
+        if (_partition_tree) {
+            g.setColor( Color.BLACK );
+            _partition_threshold = (_clicked_x - _root_x) / (_furthest_node_x - _root_x);
+           drawLine( _clicked_x, 0, _clicked_x, getHeight(),g);
+             _partition_tree = false;
+         }
     }
-    
     
 
     final void recalculateMaxDistanceToRoot() {
