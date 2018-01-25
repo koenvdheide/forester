@@ -5904,7 +5904,6 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
             g.setColor( Color.BLACK );
             _partition_threshold = (_clicked_x - _root_x) / (_furthest_node_x - _root_x);
            drawLine( _clicked_x, 0, _clicked_x, getHeight(),g);
-             _partition_tree = false;
          }
     }
     
