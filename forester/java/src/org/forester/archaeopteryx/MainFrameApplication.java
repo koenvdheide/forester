@@ -188,12 +188,13 @@ public final class MainFrameApplication extends MainFrame {
     private MainFrameApplication( final Phylogeny[] phys, final Configuration config, final String title ) {
         this( phys, config, title, null );
     }
-
-    private MainFrameApplication( final Phylogeny[] phys,
+    
+    private MainFrameApplication(final Phylogeny[] phys,
                                   final Configuration config,
                                   final String title,
-                                  final File current_dir ) {
-        super();
+                                  final File current_dir,
+                                  final boolean isEmbedded) {
+        super(isEmbedded);
         _configuration = config;
         if ( _configuration == null ) {
             throw new IllegalArgumentException( "configuration is null" );
@@ -357,13 +358,15 @@ public final class MainFrameApplication extends MainFrame {
         // ...and its children
         _contentpane.repaint();
         System.gc();
+    
     }
 
-
-
- 
-
-
+    private MainFrameApplication( final Phylogeny[] phys,
+                                  final Configuration config,
+                                  final String title,
+                                  final File current_dir ) {
+        this(phys,config,title,current_dir,false);
+    }
 
     private MainFrameApplication( final Phylogeny[] phys, final String config_file, final String title ) {
         // Reads the config file (false, false => not url, not applet):
