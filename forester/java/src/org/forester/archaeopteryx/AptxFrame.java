@@ -2,59 +2,63 @@ package org.forester.archaeopteryx;
 
 
 
+import java.awt.Component;
+import java.awt.Container;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.ComponentListener;
+import java.util.EventListener;
+
+import javax.swing.JMenuBar;
 
 import org.forester.archaeopteryx.tools.InferenceManager;
 import org.forester.archaeopteryx.tools.ProcessPool;
 
-public interface AptxFrame extends ActionListener {
+public interface AptxFrame {
+    
+    void addComponentListener(ComponentListener compListener);
+    
+    
+    Container getThisFrame();
 
-    NHFilter            nhfilter           = new NHFilter();
-    NHXFilter           nhxfilter          = new NHXFilter();
-    XMLFilter           xmlfilter          = new XMLFilter();
-    TolFilter           tolfilter          = new TolFilter();
-    NexusFilter         nexusfilter        = new NexusFilter();
-    PdfFilter           pdffilter          = new PdfFilter();
-    GraphicsFileFilter  graphicsfilefilter = new GraphicsFileFilter();
-    MsaFileFilter       msafilter          = new MsaFileFilter();
-    SequencesFileFilter seqsfilter         = new SequencesFileFilter();
-    DefaultFilter       defaultfilter      = new DefaultFilter();
 
-    /**
-     * Action performed.
-     */
-    void actionPerformed( ActionEvent e );
+    void dispose();
 
-    Configuration getConfiguration();
 
-    /**
-     * This method returns the current external node data which
-     * has been selected by the user by clicking the "Return ..."
-     * menu item. This method is expected to be called from Javascript or
-     * something like it.
-     *
-     * @return current external node data as String
-     */
-    String getCurrentExternalNodesDataBuffer();
+    Container getContentPane();
 
-    int getCurrentExternalNodesDataBufferChangeCounter();
 
-    int getCurrentExternalNodesDataBufferLength();
+    void repaint();
 
-    InferenceManager getInferenceManager();
 
-    MainPanel getMainPanel();
+    void setSize( int x, int y );
 
-    Options getOptions();
 
-    ProcessPool getProcessPool();
+    void addFrameListener(FrameListener frameListener);
 
-    void showTextFrame( String s, String title );
 
-    void showWhole();
+    Container getJMenuBar();
 
-    void updateProcessMenu();
 
-    void activateSaveAllIfNeeded();
+    void setDefaultCloseOperation( int doNothingOnClose );
+
+
+    Container getParent();
+
+
+    void setVisible( boolean visible );
+
+
+    boolean requestFocusInWindow();
+
+
+    void setJMenuBar( JMenuBar jmenubar );
+
+
+    void setLocationRelativeTo( Component component );
+
+
+    void setTitle( String title );
+    
+    void validate();
 }
