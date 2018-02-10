@@ -59,7 +59,7 @@ public class AncestralTaxonomyInferrer extends RunnableProcess {
         }
         catch ( final AncestralTaxonomyInferenceException e ) {
             end( _mf );
-            JOptionPane.showMessageDialog( _mf,
+            JOptionPane.showMessageDialog( _mf.getThisFrame(),
                                            e.getMessage(),
                                            "Error during ancestral taxonomy inference",
                                            JOptionPane.ERROR_MESSAGE );
@@ -67,7 +67,7 @@ public class AncestralTaxonomyInferrer extends RunnableProcess {
         }
         catch ( final UnknownHostException e ) {
             end( _mf );
-            JOptionPane.showMessageDialog( _mf,
+            JOptionPane.showMessageDialog( _mf.getThisFrame(),
                                            "Could not connect to \"" + getBaseUrl() + "\"",
                                            "Network error during ancestral taxonomy inference",
                                            JOptionPane.ERROR_MESSAGE );
@@ -76,7 +76,7 @@ public class AncestralTaxonomyInferrer extends RunnableProcess {
         catch ( final Exception e ) {
             end( _mf );
             e.printStackTrace();
-            JOptionPane.showMessageDialog( _mf,
+            JOptionPane.showMessageDialog( _mf.getThisFrame(),
                                            e.toString(),
                                            "Unexpected exception during ancestral taxonomy inference",
                                            JOptionPane.ERROR_MESSAGE );
@@ -84,7 +84,7 @@ public class AncestralTaxonomyInferrer extends RunnableProcess {
         }
         catch ( final Error e ) {
             end( _mf );
-            JOptionPane.showMessageDialog( _mf,
+            JOptionPane.showMessageDialog( _mf.getThisFrame(),
                                            e.toString(),
                                            "Unexpected error during ancestral taxonomy inference",
                                            JOptionPane.ERROR_MESSAGE );
@@ -96,7 +96,7 @@ public class AncestralTaxonomyInferrer extends RunnableProcess {
         _treepanel.setEdited( true );
         end( _mf );
         try {
-            JOptionPane.showMessageDialog( _mf,
+            JOptionPane.showMessageDialog( _mf.getThisFrame(),
                                            "Ancestral taxonomy inference successfully completed",
                                            "Ancestral Taxonomy Inference Completed",
                                            JOptionPane.INFORMATION_MESSAGE );

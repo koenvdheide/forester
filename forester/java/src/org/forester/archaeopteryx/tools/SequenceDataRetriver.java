@@ -64,7 +64,7 @@ public final class SequenceDataRetriver extends RunnableProcess {
                                                                 SequenceDbWsTools.DEFAULT_LINES_TO_RETURN );
         }
         catch ( final UnknownHostException e ) {
-            JOptionPane.showMessageDialog( _mf,
+            JOptionPane.showMessageDialog( _mf.getThisFrame(),
                                            e.getLocalizedMessage(),
                                            "Network error during sequence data gathering",
                                            JOptionPane.ERROR_MESSAGE );
@@ -72,7 +72,7 @@ public final class SequenceDataRetriver extends RunnableProcess {
         }
         catch ( final IOException e ) {
             e.printStackTrace();
-            JOptionPane.showMessageDialog( _mf,
+            JOptionPane.showMessageDialog( _mf.getThisFrame(),
                                            e.toString(),
                                            "Failed to obtain sequence data",
                                            JOptionPane.ERROR_MESSAGE );
@@ -111,7 +111,7 @@ public final class SequenceDataRetriver extends RunnableProcess {
                 sb.append( "..." );
             }
             try {
-                JOptionPane.showMessageDialog( _mf,
+                JOptionPane.showMessageDialog( _mf.getThisFrame(),
                                                sb.toString(),
                                                "Sequence Tool Completed",
                                                JOptionPane.WARNING_MESSAGE );
@@ -122,7 +122,7 @@ public final class SequenceDataRetriver extends RunnableProcess {
         }
         else {
             try {
-                JOptionPane.showMessageDialog( _mf,
+                JOptionPane.showMessageDialog( _mf.getThisFrame(),
                                                "Sequence tool successfully completed",
                                                "Sequence Tool Completed",
                                                JOptionPane.INFORMATION_MESSAGE );

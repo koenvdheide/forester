@@ -235,9 +235,11 @@ public class PhyloInferenceDialog extends JDialog implements ActionListener {
         _pnl.add( launch_pnl );
         initializeValues( from_unaligned_seqs );
         pack();
-        setLocationRelativeTo( getParentFrame() );
+        setLocationRelativeTo( getParentFrame().getThisFrame() );
         setResizable( false );
     }
+
+ 
 
     @Override
     public void actionPerformed( final ActionEvent e ) {

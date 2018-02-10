@@ -163,10 +163,11 @@ public final class MainFrameApplication extends MainFrame {
         setSize( MainFrameApplication.FRAME_X_SIZE, MainFrameApplication.FRAME_Y_SIZE );
         // The window listener
         setDefaultCloseOperation( WindowConstants.DO_NOTHING_ON_CLOSE );
-        addInternalFrameListener( new InternalFrameAdapter() {
+        addFrameListener( new FrameAdapter() {
 
             @Override
-            public void internalFrameClosing (final InternalFrameEvent e ) {
+            public void FrameClosing () {
+             
                 exit();
             }
         } );
@@ -181,6 +182,8 @@ public final class MainFrameApplication extends MainFrame {
         // ...and its children
         _contentpane.repaint();
     }
+
+ 
 
     private MainFrameApplication( final Phylogeny[] phys, final Configuration config, final String title ) {
         this( phys, config, title, null );
@@ -305,10 +308,10 @@ public final class MainFrameApplication extends MainFrame {
         // The window listener
         setDefaultCloseOperation( WindowConstants.DO_NOTHING_ON_CLOSE );
  
-        addInternalFrameListener( new InternalFrameAdapter() {
+        addFrameListener( new FrameAdapter() {
 
             @Override
-            public void internalFrameClosing( final InternalFrameEvent e ) {
+            public void FrameClosing(  ) {
                 if (MainFrameApplication.this.getParent() == null) {
                 if ( isUnsavedDataPresent() ) {
                     final int r = JOptionPane.showConfirmDialog( _mainpanel,
@@ -355,6 +358,12 @@ public final class MainFrameApplication extends MainFrame {
         _contentpane.repaint();
         System.gc();
     }
+
+
+
+ 
+
+
 
     private MainFrameApplication( final Phylogeny[] phys, final String config_file, final String title ) {
         // Reads the config file (false, false => not url, not applet):
@@ -524,7 +533,7 @@ public final class MainFrameApplication extends MainFrame {
             }
             catch ( final MsaFormatException e ) {
                 setArrowCursor();
-                JOptionPane.showMessageDialog( this,
+                JOptionPane.showMessageDialog( getThisFrame(),
                                                e.getLocalizedMessage(),
                                                "Multiple sequence alignment format error",
                                                JOptionPane.ERROR_MESSAGE );
@@ -532,7 +541,7 @@ public final class MainFrameApplication extends MainFrame {
             }
             catch ( final IOException e ) {
                 setArrowCursor();
-                JOptionPane.showMessageDialog( this,
+                JOptionPane.showMessageDialog( getThisFrame(),
                                                e.getLocalizedMessage(),
                                                "Failed to read multiple sequence alignment",
                                                JOptionPane.ERROR_MESSAGE );
@@ -540,7 +549,7 @@ public final class MainFrameApplication extends MainFrame {
             }
             catch ( final IllegalArgumentException e ) {
                 setArrowCursor();
-                JOptionPane.showMessageDialog( this,
+                JOptionPane.showMessageDialog( getThisFrame(),
                                                e.getLocalizedMessage(),
                                                "Unexpected error during reading of multiple sequence alignment",
                                                JOptionPane.ERROR_MESSAGE );
@@ -549,28 +558,28 @@ public final class MainFrameApplication extends MainFrame {
             catch ( final Exception e ) {
                 setArrowCursor();
                 e.printStackTrace();
-                JOptionPane.showMessageDialog( this,
+                JOptionPane.showMessageDialog( getThisFrame(),
                                                e.getLocalizedMessage(),
                                                "Unexpected error during reading of multiple sequence alignment",
                                                JOptionPane.ERROR_MESSAGE );
                 return;
             }
             if ( ( msa == null ) || ( msa.getNumberOfSequences() < 1 ) ) {
-                JOptionPane.showMessageDialog( this,
+                JOptionPane.showMessageDialog( getThisFrame(),
                                                "Multiple sequence alignment is empty",
                                                "Illegal Multiple Sequence Alignment",
                                                JOptionPane.ERROR_MESSAGE );
                 return;
             }
             if ( msa.getNumberOfSequences() < 4 ) {
-                JOptionPane.showMessageDialog( this,
+                JOptionPane.showMessageDialog( getThisFrame(),
                                                "Multiple sequence alignment needs to contain at least 3 sequences",
                                                "Illegal multiple sequence alignment",
                                                JOptionPane.ERROR_MESSAGE );
                 return;
             }
             if ( msa.getLength() < 2 ) {
-                JOptionPane.showMessageDialog( this,
+                JOptionPane.showMessageDialog( getThisFrame(),
                                                "Multiple sequence alignment needs to contain at least 2 residues",
                                                "Illegal multiple sequence alignment",
                                                JOptionPane.ERROR_MESSAGE );
@@ -611,7 +620,7 @@ public final class MainFrameApplication extends MainFrame {
             }
             catch ( final MsaFormatException e ) {
                 setArrowCursor();
-                JOptionPane.showMessageDialog( this,
+                JOptionPane.showMessageDialog( getThisFrame(),
                                                e.getLocalizedMessage(),
                                                "Multiple sequence file format error",
                                                JOptionPane.ERROR_MESSAGE );
@@ -619,7 +628,7 @@ public final class MainFrameApplication extends MainFrame {
             }
             catch ( final IOException e ) {
                 setArrowCursor();
-                JOptionPane.showMessageDialog( this,
+                JOptionPane.showMessageDialog( getThisFrame(),
                                                e.getLocalizedMessage(),
                                                "Failed to read multiple sequence file",
                                                JOptionPane.ERROR_MESSAGE );
@@ -627,7 +636,7 @@ public final class MainFrameApplication extends MainFrame {
             }
             catch ( final IllegalArgumentException e ) {
                 setArrowCursor();
-                JOptionPane.showMessageDialog( this,
+                JOptionPane.showMessageDialog( getThisFrame(),
                                                e.getLocalizedMessage(),
                                                "Unexpected error during reading of multiple sequence file",
                                                JOptionPane.ERROR_MESSAGE );
@@ -636,21 +645,21 @@ public final class MainFrameApplication extends MainFrame {
             catch ( final Exception e ) {
                 setArrowCursor();
                 e.printStackTrace();
-                JOptionPane.showMessageDialog( this,
+                JOptionPane.showMessageDialog( getThisFrame(),
                                                e.getLocalizedMessage(),
                                                "Unexpected error during reading of multiple sequence file",
                                                JOptionPane.ERROR_MESSAGE );
                 return;
             }
             if ( ( seqs == null ) || ( seqs.size() < 1 ) ) {
-                JOptionPane.showMessageDialog( this,
+                JOptionPane.showMessageDialog( getThisFrame(),
                                                "Multiple sequence file is empty",
                                                "Illegal multiple sequence file",
                                                JOptionPane.ERROR_MESSAGE );
                 return;
             }
             if ( seqs.size() < 4 ) {
-                JOptionPane.showMessageDialog( this,
+                JOptionPane.showMessageDialog( getThisFrame(),
                                                "Multiple sequence file needs to contain at least 3 sequences",
                                                "Illegal multiple sequence file",
                                                JOptionPane.ERROR_MESSAGE );
@@ -671,7 +680,7 @@ public final class MainFrameApplication extends MainFrame {
 
     private void addExpressionValuesFromFile() {
         if ( ( getCurrentTreePanel() == null ) || ( getCurrentTreePanel().getPhylogeny() == null ) ) {
-            JOptionPane.showMessageDialog( this,
+            JOptionPane.showMessageDialog( getThisFrame(),
                                            "Need to load evolutionary tree first",
                                            "Can Not Read Expression Values",
                                            JOptionPane.WARNING_MESSAGE );
@@ -695,21 +704,21 @@ public final class MainFrameApplication extends MainFrame {
                 }
             }
             catch ( final IOException e ) {
-                JOptionPane.showMessageDialog( this,
+                JOptionPane.showMessageDialog( getThisFrame(),
                                                e.getMessage(),
                                                "Could Not Read Expression Value Table",
                                                JOptionPane.ERROR_MESSAGE );
                 return;
             }
             if ( t.getNumberOfColumns() < 2 ) {
-                JOptionPane.showMessageDialog( this,
+                JOptionPane.showMessageDialog( getThisFrame(),
                                                "Table contains " + t.getNumberOfColumns() + " column(s)",
                                                "Problem with Expression Value Table",
                                                JOptionPane.ERROR_MESSAGE );
                 return;
             }
             if ( t.getNumberOfRows() < 1 ) {
-                JOptionPane.showMessageDialog( this,
+                JOptionPane.showMessageDialog( getThisFrame(),
                                                "Table contains zero rows",
                                                "Problem with Expression Value Table",
                                                JOptionPane.ERROR_MESSAGE );
@@ -717,7 +726,7 @@ public final class MainFrameApplication extends MainFrame {
             }
             final Phylogeny phy = getCurrentTreePanel().getPhylogeny();
             if ( t.getNumberOfRows() != phy.getNumberOfExternalNodes() ) {
-                JOptionPane.showMessageDialog( this,
+                JOptionPane.showMessageDialog( getThisFrame(),
                                                "Table contains " + t.getNumberOfRows() + " rows, but tree contains "
                                                        + phy.getNumberOfExternalNodes() + " external nodes",
                                                "Warning",
@@ -734,7 +743,7 @@ public final class MainFrameApplication extends MainFrame {
                         row = t.findRow( node_name );
                     }
                     catch ( final IllegalArgumentException e ) {
-                        JOptionPane.showMessageDialog( this,
+                        JOptionPane.showMessageDialog( getThisFrame(),
                                                        e.getMessage(),
                                                        "Error Mapping Node Identifiers to Expression Value Identifiers",
                                                        JOptionPane.ERROR_MESSAGE );
@@ -753,7 +762,7 @@ public final class MainFrameApplication extends MainFrame {
                             d = Double.parseDouble( t.getValueAsString( col, row ) );
                         }
                         catch ( final NumberFormatException e ) {
-                            JOptionPane.showMessageDialog( this,
+                            JOptionPane.showMessageDialog( getThisFrame(),
                                                            "Could not parse \"" + t.getValueAsString( col, row )
                                                                    + "\" into a decimal value",
                                                            "Issue with Expression Value Table",
@@ -771,7 +780,7 @@ public final class MainFrameApplication extends MainFrame {
             }
             if ( not_found > 0 ) {
                 JOptionPane
-                        .showMessageDialog( this,
+                        .showMessageDialog( getThisFrame(),
                                             "Could not fine expression values for " + not_found + " external node(s)",
                                             "Warning",
                                             JOptionPane.WARNING_MESSAGE );
@@ -782,7 +791,7 @@ public final class MainFrameApplication extends MainFrame {
 
     private void addSequencesFromFile() {
         if ( ( getCurrentTreePanel() == null ) || ( getCurrentTreePanel().getPhylogeny() == null ) ) {
-            JOptionPane.showMessageDialog( this,
+            JOptionPane.showMessageDialog( getThisFrame(),
                                            "Need to load evolutionary tree first",
                                            "Can Not Read Sequences",
                                            JOptionPane.WARNING_MESSAGE );
@@ -809,7 +818,7 @@ public final class MainFrameApplication extends MainFrame {
                     }
                 }
                 else {
-                    JOptionPane.showMessageDialog( this,
+                    JOptionPane.showMessageDialog( getThisFrame(),
                                                    "Format does not appear to be Fasta",
                                                    "Multiple sequence file format error",
                                                    JOptionPane.ERROR_MESSAGE );
@@ -824,7 +833,7 @@ public final class MainFrameApplication extends MainFrame {
             }
             catch ( final MsaFormatException e ) {
                 setArrowCursor();
-                JOptionPane.showMessageDialog( this,
+                JOptionPane.showMessageDialog( getThisFrame(),
                                                e.getLocalizedMessage(),
                                                "Multiple sequence file format error",
                                                JOptionPane.ERROR_MESSAGE );
@@ -832,7 +841,7 @@ public final class MainFrameApplication extends MainFrame {
             }
             catch ( final IOException e ) {
                 setArrowCursor();
-                JOptionPane.showMessageDialog( this,
+                JOptionPane.showMessageDialog( getThisFrame(),
                                                e.getLocalizedMessage(),
                                                "Failed to read multiple sequence file",
                                                JOptionPane.ERROR_MESSAGE );
@@ -841,14 +850,14 @@ public final class MainFrameApplication extends MainFrame {
             catch ( final Exception e ) {
                 setArrowCursor();
                 e.printStackTrace();
-                JOptionPane.showMessageDialog( this,
+                JOptionPane.showMessageDialog( getThisFrame(),
                                                e.getLocalizedMessage(),
                                                "Unexpected error during reading of multiple sequence file",
                                                JOptionPane.ERROR_MESSAGE );
                 return;
             }
             if ( ( seqs == null ) || ( seqs.size() < 1 ) ) {
-                JOptionPane.showMessageDialog( this,
+                JOptionPane.showMessageDialog( getThisFrame(),
                                                "Multiple sequence file is empty",
                                                "Empty multiple sequence file",
                                                JOptionPane.ERROR_MESSAGE );
@@ -878,7 +887,7 @@ public final class MainFrameApplication extends MainFrame {
                         nodes = phy.getNodes( seq_name );
                     }
                     if ( nodes.size() > 1 ) {
-                        JOptionPane.showMessageDialog( this,
+                        JOptionPane.showMessageDialog( getThisFrame(),
                                                        "Sequence name \"" + seq_name + "\" is not unique",
                                                        "Sequence name not unique",
                                                        JOptionPane.ERROR_MESSAGE );
@@ -896,7 +905,7 @@ public final class MainFrameApplication extends MainFrame {
                             nodes = phy.getNodes( seq_name_split );
                         }
                         if ( nodes.size() > 1 ) {
-                            JOptionPane.showMessageDialog( this,
+                            JOptionPane.showMessageDialog( getThisFrame(),
                                                            "Split sequence name \"" + seq_name_split
                                                                    + "\" is not unique",
                                                            "Sequence name not unique",
@@ -938,13 +947,13 @@ public final class MainFrameApplication extends MainFrame {
                             + " external nodes now have a molecular sequence attached to them.";
                 }
                 if ( ( attached_counter == total_counter ) && ( ext_nodes == ext_nodes_with_seq ) ) {
-                    JOptionPane.showMessageDialog( this,
+                    JOptionPane.showMessageDialog( getThisFrame(),
                                                    "Attached all " + total_counter + " sequences to tree nodes.\n" + s,
                                                    "All sequences attached",
                                                    JOptionPane.INFORMATION_MESSAGE );
                 }
                 else {
-                    JOptionPane.showMessageDialog( this,
+                    JOptionPane.showMessageDialog( getThisFrame(),
                                                    "Attached " + attached_counter + " sequences out of a total of "
                                                            + total_counter + " sequences.\n" + s,
                                                    attached_counter + " sequences attached",
@@ -952,7 +961,7 @@ public final class MainFrameApplication extends MainFrame {
                 }
             }
             else {
-                JOptionPane.showMessageDialog( this,
+                JOptionPane.showMessageDialog( getThisFrame(),
                                                "No maching tree node for any of the " + total_counter + " sequences",
                                                "Could not attach any sequences",
                                                JOptionPane.ERROR_MESSAGE );
@@ -963,7 +972,7 @@ public final class MainFrameApplication extends MainFrame {
     private void closeCurrentPane() {
         if ( getMainPanel().getCurrentTreePanel() != null ) {
             if ( getMainPanel().getCurrentTreePanel().isEdited() ) {
-                final int r = JOptionPane.showConfirmDialog( this,
+                final int r = JOptionPane.showConfirmDialog( getThisFrame(),
                                                              "Close tab despite potentially unsaved changes?",
                                                              "Close Tab?",
                                                              JOptionPane.YES_NO_OPTION );
@@ -1021,7 +1030,7 @@ public final class MainFrameApplication extends MainFrame {
                 repaint();
             }
             if ( to_be_removed.size() > 0 ) {
-                JOptionPane.showMessageDialog( this,
+                JOptionPane.showMessageDialog( getThisFrame(),
                                                "Collapsed " + to_be_removed.size()
                                                        + " branches with\nconfidence values below "
                                                        + getMinNotCollapseConfidenceValue(),
@@ -1029,7 +1038,7 @@ public final class MainFrameApplication extends MainFrame {
                                                JOptionPane.INFORMATION_MESSAGE );
             }
             else {
-                JOptionPane.showMessageDialog( this,
+                JOptionPane.showMessageDialog( getThisFrame(),
                                                "No branch collapsed,\nminimum confidence value per branch is "
                                                        + min_support,
                                                "No branch collapsed",
@@ -1037,7 +1046,7 @@ public final class MainFrameApplication extends MainFrame {
             }
         }
         else {
-            JOptionPane.showMessageDialog( this,
+            JOptionPane.showMessageDialog( getThisFrame(),
                                            "No branch collapsed because no confidence values present",
                                            "No confidence values present",
                                            JOptionPane.INFORMATION_MESSAGE );
@@ -1048,7 +1057,7 @@ public final class MainFrameApplication extends MainFrame {
         if ( getCurrentTreePanel() != null ) {
             final Phylogeny phy = getCurrentTreePanel().getPhylogeny();
             if ( ( phy != null ) && !phy.isEmpty() ) {
-                final String s = ( String ) JOptionPane.showInputDialog( this,
+                final String s = ( String ) JOptionPane.showInputDialog( getThisFrame(),
                                                                          "Please enter the minimum branch length value\n",
                                                                          "Minimal Branch Length Value",
                                                                          JOptionPane.QUESTION_MESSAGE,
@@ -1083,7 +1092,7 @@ public final class MainFrameApplication extends MainFrame {
         if ( getCurrentTreePanel() != null ) {
             final Phylogeny phy = getCurrentTreePanel().getPhylogeny();
             if ( ( phy != null ) && !phy.isEmpty() ) {
-                final String s = ( String ) JOptionPane.showInputDialog( this,
+                final String s = ( String ) JOptionPane.showInputDialog( getThisFrame(),
                                                                          "Please enter the minimum confidence value\n",
                                                                          "Minimal Confidence Value",
                                                                          JOptionPane.QUESTION_MESSAGE,
@@ -1153,7 +1162,7 @@ public final class MainFrameApplication extends MainFrame {
                 repaint();
             }
             if ( to_be_removed.size() > 0 ) {
-                JOptionPane.showMessageDialog( this,
+                JOptionPane.showMessageDialog( getThisFrame(),
                                                "Collapsed " + to_be_removed.size()
                                                        + " branches with\nbranch length values below "
                                                        + getMinNotCollapseBlValue(),
@@ -1161,14 +1170,14 @@ public final class MainFrameApplication extends MainFrame {
                                                JOptionPane.INFORMATION_MESSAGE );
             }
             else {
-                JOptionPane.showMessageDialog( this,
+                JOptionPane.showMessageDialog( getThisFrame(),
                                                "No branch collapsed,\nminimum branch length is " + min_bl,
                                                "No branch collapsed",
                                                JOptionPane.INFORMATION_MESSAGE );
             }
         }
         else {
-            JOptionPane.showMessageDialog( this,
+            JOptionPane.showMessageDialog( getThisFrame(),
                                            "No branch collapsed because no branch length values present",
                                            "No branch length values present",
                                            JOptionPane.INFORMATION_MESSAGE );
@@ -1182,7 +1191,7 @@ public final class MainFrameApplication extends MainFrame {
                 xml_parser = PhyloXmlParser.createPhyloXmlParserXsdValidating();
             }
             catch ( final Exception e ) {
-                JOptionPane.showMessageDialog( this,
+                JOptionPane.showMessageDialog( getThisFrame(),
                                                e.getLocalizedMessage(),
                                                "failed to create validating XML parser",
                                                JOptionPane.WARNING_MESSAGE );
@@ -1209,7 +1218,7 @@ public final class MainFrameApplication extends MainFrame {
                     new Thread( inferrer ).start();
                 }
                 else {
-                    JOptionPane.showMessageDialog( this,
+                    JOptionPane.showMessageDialog( getThisFrame(),
                                                    "No multiple sequence alignment selected",
                                                    "Phylogenetic Inference Not Launched",
                                                    JOptionPane.WARNING_MESSAGE );
@@ -1224,7 +1233,7 @@ public final class MainFrameApplication extends MainFrame {
                     new Thread( inferrer ).start();
                 }
                 else {
-                    JOptionPane.showMessageDialog( this,
+                    JOptionPane.showMessageDialog( getThisFrame(),
                                                    "No input sequences selected",
                                                    "Phylogenetic Inference Not Launched",
                                                    JOptionPane.WARNING_MESSAGE );
@@ -1276,7 +1285,7 @@ public final class MainFrameApplication extends MainFrame {
                         failed = "\nCould not extract taxonomic data for " + counter_failed + " named external nodes:\n"
                                 + sb_failed;
                     }
-                    JOptionPane.showMessageDialog( this,
+                    JOptionPane.showMessageDialog( getThisFrame(),
                                                    "Extracted taxonomic data from " + all + counter
                                                            + " named external nodes:\n" + sb.toString() + failed,
                                                    "Taxonomic Data Extraction Completed",
@@ -1284,7 +1293,7 @@ public final class MainFrameApplication extends MainFrame {
                                                            : JOptionPane.INFORMATION_MESSAGE );
                 }
                 else {
-                    JOptionPane.showMessageDialog( this,
+                    JOptionPane.showMessageDialog( getThisFrame(),
                                                    "Could not extract any taxonomic data.\nMaybe node names are empty\n"
                                                            + "or not in the forms \"XYZ_CAEEL\", \"XYZ_6239\", or \"XYZ_Caenorhabditis_elegans\"\n"
                                                            + "or nodes already have taxonomic data?\n",
@@ -1548,7 +1557,7 @@ public final class MainFrameApplication extends MainFrame {
                                                        getMainPanel() );
                         _mainpanel.getControlPanel().showWhole();
                         if ( nhx_or_nexus && one_desc ) {
-                            JOptionPane.showMessageDialog( this,
+                            JOptionPane.showMessageDialog( getThisFrame(),
                                                            "One or more trees contain (a) node(s) with one descendant, "
                                                                    + ForesterUtil.LINE_SEPARATOR
                                                                    + "possibly indicating illegal parentheses within node names.",
@@ -1610,7 +1619,7 @@ public final class MainFrameApplication extends MainFrame {
             if ( !exception && ( t != null ) && !t.isRooted() ) {
                 exception = true;
                 t = null;
-                JOptionPane.showMessageDialog( this,
+                JOptionPane.showMessageDialog( getThisFrame(),
                                                "Species tree is not rooted",
                                                "Species tree not loaded",
                                                JOptionPane.ERROR_MESSAGE );
@@ -1622,7 +1631,7 @@ public final class MainFrameApplication extends MainFrame {
                     if ( !node.getNodeData().isHasTaxonomy() ) {
                         exception = true;
                         t = null;
-                        JOptionPane.showMessageDialog( this,
+                        JOptionPane.showMessageDialog( getThisFrame(),
                                                        "Species tree contains external node(s) without taxonomy information",
                                                        "Species tree not loaded",
                                                        JOptionPane.ERROR_MESSAGE );
@@ -1633,7 +1642,7 @@ public final class MainFrameApplication extends MainFrame {
                             exception = true;
                             t = null;
                             JOptionPane
-                                    .showMessageDialog( this,
+                                    .showMessageDialog( getThisFrame(),
                                                         "Taxonomy [" + node.getNodeData().getTaxonomy().asSimpleText()
                                                                 + "] is not unique in species tree",
                                                         "Species tree not loaded",
@@ -1648,7 +1657,7 @@ public final class MainFrameApplication extends MainFrame {
             }
             if ( !exception && ( t != null ) ) {
                 setSpeciesTree( t );
-                JOptionPane.showMessageDialog( this,
+                JOptionPane.showMessageDialog( getThisFrame(),
                                                "Species tree successfully loaded",
                                                "Species tree loaded",
                                                JOptionPane.INFORMATION_MESSAGE );
@@ -2094,7 +2103,7 @@ public final class MainFrameApplication extends MainFrame {
     @Override
     void close() {
         if ( isUnsavedDataPresent() ) {
-            final int r = JOptionPane.showConfirmDialog( this,
+            final int r = JOptionPane.showConfirmDialog( getThisFrame(),
                                                          "Exit despite potentially unsaved changes?",
                                                          "Exit?",
                                                          JOptionPane.YES_NO_OPTION );
@@ -2119,7 +2128,7 @@ public final class MainFrameApplication extends MainFrame {
         Phylogeny[] phys = null;
         final String message = "Please enter a complete URL, for example \"http://purl.org/phylo/treebase/phylows/study/TB2:S15480?format=nexus\"";
         final String url_string = JOptionPane
-                .showInputDialog( this,
+                .showInputDialog( getThisFrame(),
                                   message,
                                   "Use URL/webservice to obtain a phylogeny",
                                   JOptionPane.QUESTION_MESSAGE );
@@ -2152,20 +2161,20 @@ public final class MainFrameApplication extends MainFrame {
                 phys = factory.create( url.openStream(), parser );
             }
             catch ( final MalformedURLException e ) {
-                JOptionPane.showMessageDialog( this,
+                JOptionPane.showMessageDialog( getThisFrame(),
                                                "Malformed URL: " + url + "\n" + e.getLocalizedMessage(),
                                                "Malformed URL",
                                                JOptionPane.ERROR_MESSAGE );
             }
             catch ( final IOException e ) {
-                JOptionPane.showMessageDialog( this,
+                JOptionPane.showMessageDialog( getThisFrame(),
                                                "Could not read from " + url + "\n"
                                                        + ForesterUtil.wordWrap( e.getLocalizedMessage(), 80 ),
                                                "Failed to read URL",
                                                JOptionPane.ERROR_MESSAGE );
             }
             catch ( final Exception e ) {
-                JOptionPane.showMessageDialog( this,
+                JOptionPane.showMessageDialog( getThisFrame(),
                                                ForesterUtil.wordWrap( e.getLocalizedMessage(), 80 ),
                                                "Unexpected Exception",
                                                JOptionPane.ERROR_MESSAGE );

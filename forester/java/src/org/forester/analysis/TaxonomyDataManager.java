@@ -482,7 +482,7 @@ public final class TaxonomyDataManager extends RunnableProcess {
             not_found = obtainDetailedTaxonomicInformation( _phy, _delete, _allow_simple_names );
         }
         catch ( final UnknownHostException e ) {
-            JOptionPane.showMessageDialog( _mf,
+            JOptionPane.showMessageDialog( _mf.getThisFrame(),
                                            "Could not connect to \"" + getBaseUrl() + "\"",
                                            "Network error during taxonomic information gathering",
                                            JOptionPane.ERROR_MESSAGE );
@@ -490,7 +490,7 @@ public final class TaxonomyDataManager extends RunnableProcess {
         }
         catch ( final IOException e ) {
             e.printStackTrace();
-            JOptionPane.showMessageDialog( _mf,
+            JOptionPane.showMessageDialog( _mf.getThisFrame(),
                                            e.toString(),
                                            "Failed to obtain taxonomic information",
                                            JOptionPane.ERROR_MESSAGE );
@@ -498,7 +498,7 @@ public final class TaxonomyDataManager extends RunnableProcess {
         }
         catch ( final AncestralTaxonomyInferenceException e ) {
             e.printStackTrace();
-            JOptionPane.showMessageDialog( _mf,
+            JOptionPane.showMessageDialog( _mf.getThisFrame(),
                                            e.toString(),
                                            "Failed to obtain taxonomic information",
                                            JOptionPane.ERROR_MESSAGE );
@@ -509,7 +509,7 @@ public final class TaxonomyDataManager extends RunnableProcess {
         }
         if ( ( _phy == null ) || _phy.isEmpty() ) {
             try {
-                JOptionPane.showMessageDialog( _mf,
+                JOptionPane.showMessageDialog( _mf.getThisFrame(),
                                                "None of the external node taxonomies could be resolved",
                                                "Taxonomy Tool Failed",
                                                JOptionPane.WARNING_MESSAGE );
@@ -561,7 +561,7 @@ public final class TaxonomyDataManager extends RunnableProcess {
                 sb.append( "..." );
             }
             try {
-                JOptionPane.showMessageDialog( _mf,
+                JOptionPane.showMessageDialog( _mf.getThisFrame(),
                                                sb.toString(),
                                                "Taxonomy Tool Completed",
                                                JOptionPane.WARNING_MESSAGE );
@@ -572,7 +572,7 @@ public final class TaxonomyDataManager extends RunnableProcess {
         }
         else {
             try {
-                JOptionPane.showMessageDialog( _mf,
+                JOptionPane.showMessageDialog( _mf.getThisFrame(),
                                                "Taxonomy tool successfully completed",
                                                "Taxonomy Tool Completed",
                                                JOptionPane.INFORMATION_MESSAGE );

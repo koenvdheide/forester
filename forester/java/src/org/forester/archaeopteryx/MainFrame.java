@@ -30,6 +30,8 @@ import java.awt.Container;
 import java.awt.Font;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.ComponentAdapter;
+import java.awt.event.ComponentListener;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -82,7 +84,7 @@ import org.forester.util.ForesterConstants;
 import org.forester.util.ForesterUtil;
 import org.forester.util.WindowsUtils;
 
-public abstract class MainFrame extends JInternalFrame implements ActionListener {
+public abstract class MainFrame implements ActionListener {
 
     public final static NHFilter            nhfilter                                = new NHFilter();
     public final static NHXFilter           nhxfilter                               = new NHXFilter();
@@ -148,6 +150,8 @@ public abstract class MainFrame extends JInternalFrame implements ActionListener
     static final String              LINE_UP_RENDERABLE_DATA                 = "Line Up Diagrams (such as Domain Architectures)";
     static final String              INFER_ANCESTOR_TAXONOMIES               = "Infer Ancestor Taxonomies";
     static final String              OBTAIN_DETAILED_TAXONOMIC_INFORMATION   = "Obtain Detailed Taxonomic Information";
+    
+    final AptxFrame                  _frame;
     JMenuBar                         _jmenubar;
     JMenu                            _file_jmenu;
     JMenu                            _tools_menu;
@@ -297,6 +301,15 @@ public abstract class MainFrame extends JInternalFrame implements ActionListener
     private String                   _previous_node_annotation_ref;
 
     MainFrame() {
+        this(false);
+    }
+    MainFrame(boolean embedded){
+        if (embedded) {
+            _frame = new EmbeddedFrame();
+        }
+        else {
+            _frame = new StandaloneFrame();
+        } 
         _process_pool = ProcessPool.createInstance();
         _writetopdf_filechooser = new JFileChooser();
         _writetopdf_filechooser.setMultiSelectionEnabled( false );
@@ -321,7 +334,69 @@ public abstract class MainFrame extends JInternalFrame implements ActionListener
             // Do nothing. Not important.
         }
     }
-
+    public void addComponentListener( ComponentListener componentListener ) {
+        _frame.addComponentListener( componentListener );
+        
+    }
+    
+    public void dispose() {
+        _frame.dispose();
+    }
+    public Container getContentPane() {
+        return _frame.getContentPane();
+    }
+    
+    public void repaint() {
+       _frame.repaint();
+    }
+    
+     
+    public void addFrameListener(FrameListener frameListener) {
+        _frame.addFrameListener(frameListener);
+    }
+    
+    public void setSize(int x, int y) {
+        _frame.setSize(x,y);
+    }
+    public Container getJMenuBar() {
+        return _frame.getJMenuBar();
+    }
+    public void setDefaultCloseOperation( int doNothingOnClose ) {
+        _frame.setDefaultCloseOperation(doNothingOnClose);
+        
+    }
+    public Container getParent() {
+        return _frame.getParent();
+    }
+    public void setVisible(boolean visible) {
+        _frame.setVisible(visible);
+    }
+    public void requestFocusInWindow() {
+        _frame.requestFocusInWindow();
+    }
+    public void setJMenuBar( JMenuBar jmenubar ) {
+        _frame.setJMenuBar(jmenubar);
+    }
+    public void setLocationRelativeTo( Component component ) {
+        _frame.setLocationRelativeTo(component);  
+    }
+    public void setTitle(String title) {
+       _frame.setTitle(title);
+    }
+    
+    public Container getThisFrame() {
+        return _frame.getThisFrame();
+    }
+    
+    public void validate() {
+        _frame.validate();
+    }
+    
+    
+    
+    
+    
+    
     /**
      * Action performed.
      */
@@ -448,7 +523,7 @@ public abstract class MainFrame extends JInternalFrame implements ActionListener
             chooseMinimalConfidence();
         }
         else if ( o == _choose_node_size_mi ) {
-            chooseNodeSize( getOptions(), this );
+            chooseNodeSize( getOptions(), _frame.getThisFrame() );
         }
         else if ( o == _overview_placment_mi ) {
             MainFrame.cycleOverview( getOptions(), getCurrentTreePanel() );
@@ -661,7 +736,7 @@ public abstract class MainFrame extends JInternalFrame implements ActionListener
                                               _writetopdf_filechooser,
                                               _current_dir,
                                               getContentPane(),
-                                              this );
+                                              getThisFrame() );
             if ( curr_dir != null ) {
                 setCurrentDir( curr_dir );
             }
@@ -674,7 +749,7 @@ public abstract class MainFrame extends JInternalFrame implements ActionListener
                                                       GraphicsExportType.JPG,
                                                       _mainpanel,
                                                       _writetographics_filechooser,
-                                                      this,
+                                                      getThisFrame(),
                                                       getContentPane(),
                                                       _current_dir );
             if ( new_dir != null ) {
@@ -686,7 +761,7 @@ public abstract class MainFrame extends JInternalFrame implements ActionListener
                                                       GraphicsExportType.GIF,
                                                       _mainpanel,
                                                       _writetographics_filechooser,
-                                                      this,
+                                                      getThisFrame(),
                                                       getContentPane(),
                                                       _current_dir );
             if ( new_dir != null ) {
@@ -698,7 +773,7 @@ public abstract class MainFrame extends JInternalFrame implements ActionListener
                                                       GraphicsExportType.TIFF,
                                                       _mainpanel,
                                                       _writetographics_filechooser,
-                                                      this,
+                                                      getThisFrame(),
                                                       getContentPane(),
                                                       _current_dir );
             if ( new_dir != null ) {
@@ -710,7 +785,7 @@ public abstract class MainFrame extends JInternalFrame implements ActionListener
                                                       GraphicsExportType.BMP,
                                                       _mainpanel,
                                                       _writetographics_filechooser,
-                                                      this,
+                                                      getThisFrame(),
                                                       getContentPane(),
                                                       _current_dir );
             if ( new_dir != null ) {
@@ -722,7 +797,7 @@ public abstract class MainFrame extends JInternalFrame implements ActionListener
                                                       GraphicsExportType.PNG,
                                                       _mainpanel,
                                                       _writetographics_filechooser,
-                                                      this,
+                                                      getThisFrame(),
                                                       getContentPane(),
                                                       _current_dir );
             if ( new_dir != null ) {
@@ -730,7 +805,7 @@ public abstract class MainFrame extends JInternalFrame implements ActionListener
             }
         }
         else if ( o == _print_item ) {
-            print( getCurrentTreePanel(), getOptions(), this );
+            print( getCurrentTreePanel(), getOptions(), _frame.getThisFrame() );
         }
         else if ( o == _save_item ) {
             final File new_dir = writeToFile( _mainpanel.getCurrentPhylogeny(),
@@ -738,7 +813,7 @@ public abstract class MainFrame extends JInternalFrame implements ActionListener
                                               _save_filechooser,
                                               _current_dir,
                                               getContentPane(),
-                                              this );
+                                              _frame.getThisFrame() );
             if ( new_dir != null ) {
                 setCurrentDir( new_dir );
             }
@@ -757,7 +832,7 @@ public abstract class MainFrame extends JInternalFrame implements ActionListener
         }
         else if ( o == _lineage_inference ) {
             if ( isSubtreeDisplayed() ) {
-                JOptionPane.showMessageDialog( this,
+                JOptionPane.showMessageDialog( getThisFrame(),
                                                "Subtree is shown.",
                                                "Cannot infer ancestral taxonomies",
                                                JOptionPane.ERROR_MESSAGE );
@@ -776,6 +851,7 @@ public abstract class MainFrame extends JInternalFrame implements ActionListener
         }
         _contentpane.repaint();
     }
+
 
     public Configuration getConfiguration() {
         return _configuration;
@@ -847,7 +923,7 @@ public abstract class MainFrame extends JInternalFrame implements ActionListener
             }
             if ( ( nodes == null ) || nodes.isEmpty() ) {
                 JOptionPane
-                        .showMessageDialog( this,
+                        .showMessageDialog( getThisFrame(),
                                             "Need to select nodes, either via direct selection or via the \"Search\" function",
                                             "No nodes selected for annotation",
                                             JOptionPane.ERROR_MESSAGE );
@@ -878,7 +954,7 @@ public abstract class MainFrame extends JInternalFrame implements ActionListener
                         ref = ref.replaceAll( "\\s+", " " );
                         if ( ( ref.indexOf( ':' ) < 1 ) || ( ref.indexOf( ':' ) > ( ref.length() - 2 ) )
                                 || ( ref.length() < 3 ) ) {
-                            JOptionPane.showMessageDialog( this,
+                            JOptionPane.showMessageDialog( getThisFrame(),
                                                            "Reference needs to be in the form of \"GO:1234567\"",
                                                            "Illegal Format for Annotation Reference",
                                                            JOptionPane.ERROR_MESSAGE );
@@ -912,7 +988,7 @@ public abstract class MainFrame extends JInternalFrame implements ActionListener
     private void chooseFont() {
         final FontChooser fc = new FontChooser();
         fc.setFont( getMainPanel().getTreeFontSet().getLargeFont() );
-        fc.showDialog( this, "Select the Base Font" );
+        fc.showDialog( getThisFrame(), "Select the Base Font" );
         getMainPanel().getTreeFontSet().setBaseFont( fc.getFont() );
         getControlPanel().displayedPhylogenyMightHaveChanged( true );
         if ( getMainPanel().getCurrentTreePanel() != null ) {
@@ -925,7 +1001,7 @@ public abstract class MainFrame extends JInternalFrame implements ActionListener
 
     private void chooseMinimalConfidence() {
         final String s = ( String ) JOptionPane
-                .showInputDialog( this,
+                .showInputDialog( getThisFrame(),
                                   "Please enter the minimum for confidence values to be displayed.\n"
                                           + "[current value: " + getOptions().getMinConfidenceValue() + "]\n",
                                   "Minimal Confidence Value",
@@ -974,7 +1050,7 @@ public abstract class MainFrame extends JInternalFrame implements ActionListener
         }
         if ( ( nodes == null ) || nodes.isEmpty() ) {
             JOptionPane
-                    .showMessageDialog( this,
+                    .showMessageDialog( getThisFrame(),
                                         "Need to select external nodes, either via direct selection or via the \"Search\" function",
                                         "No external nodes selected to " + function.toLowerCase(),
                                         JOptionPane.ERROR_MESSAGE );
@@ -987,7 +1063,7 @@ public abstract class MainFrame extends JInternalFrame implements ActionListener
             res = ext - todo;
         }
         if ( res < 1 ) {
-            JOptionPane.showMessageDialog( this,
+            JOptionPane.showMessageDialog( getThisFrame(),
                                            "Cannot delete all nodes",
                                            "Attempt to delete all nodes ",
                                            JOptionPane.ERROR_MESSAGE );
@@ -1085,7 +1161,7 @@ public abstract class MainFrame extends JInternalFrame implements ActionListener
         setCurrentDir( _save_filechooser.getCurrentDirectory() );
         if ( ( file != null ) && ( result == JFileChooser.APPROVE_OPTION ) ) {
             if ( file.exists() ) {
-                final int i = JOptionPane.showConfirmDialog( this,
+                final int i = JOptionPane.showConfirmDialog( getThisFrame(),
                                                              file + " already exists. Overwrite?",
                                                              "Warning",
                                                              JOptionPane.OK_CANCEL_OPTION,
@@ -1098,7 +1174,7 @@ public abstract class MainFrame extends JInternalFrame implements ActionListener
                         file.delete();
                     }
                     catch ( final Exception e ) {
-                        JOptionPane.showMessageDialog( this,
+                        JOptionPane.showMessageDialog( getThisFrame(),
                                                        "Failed to delete: " + file,
                                                        "Error",
                                                        JOptionPane.WARNING_MESSAGE );
@@ -1121,7 +1197,7 @@ public abstract class MainFrame extends JInternalFrame implements ActionListener
                 writer.toPhyloXML( file, trees, 0, ForesterUtil.LINE_SEPARATOR );
             }
             catch ( final IOException e ) {
-                JOptionPane.showMessageDialog( this,
+                JOptionPane.showMessageDialog( getThisFrame(),
                                                "Failed to write to: " + file,
                                                "Error",
                                                JOptionPane.WARNING_MESSAGE );
@@ -1267,7 +1343,7 @@ public abstract class MainFrame extends JInternalFrame implements ActionListener
     }
 
     void choosePdfWidth() {
-        final String s = ( String ) JOptionPane.showInputDialog( this,
+        final String s = ( String ) JOptionPane.showInputDialog( getThisFrame(),
                                                                  "Please enter the default line width for PDF export.\n"
                                                                          + "[current value: "
                                                                          + getOptions().getPrintLineWidth() + "]\n",
@@ -1314,7 +1390,7 @@ public abstract class MainFrame extends JInternalFrame implements ActionListener
             final Map<String, Integer> present_ranks = AptxUtil.getRankCounts( _mainpanel.getCurrentTreePanel().getPhylogeny());
             final String[] ranks = AptxUtil.getAllPossibleRanks(present_ranks);
             String rank = ( String ) JOptionPane
-                    .showInputDialog( this,
+                    .showInputDialog( getThisFrame(),
                                       "What rank should the colorization be based on",
                                       "Rank Selection",
                                       JOptionPane.QUESTION_MESSAGE,
@@ -1389,7 +1465,7 @@ public abstract class MainFrame extends JInternalFrame implements ActionListener
         catch ( final Exception ex ) {
             // Do nothing.
         }
-        JOptionPane.showMessageDialog( this,
+        JOptionPane.showMessageDialog( getThisFrame(),
                                        ForesterUtil.wordWrap( e.getLocalizedMessage(), 80 ),
                                        "Error during File|Open",
                                        JOptionPane.ERROR_MESSAGE );
@@ -1400,7 +1476,7 @@ public abstract class MainFrame extends JInternalFrame implements ActionListener
             return;
         }
         if ( !_mainpanel.getCurrentPhylogeny().isRooted() ) {
-            JOptionPane.showMessageDialog( this,
+            JOptionPane.showMessageDialog( getThisFrame(),
                                            "Gene tree is not rooted.",
                                            "Cannot execute GSDI",
                                            JOptionPane.ERROR_MESSAGE );
@@ -1415,7 +1491,7 @@ public abstract class MainFrame extends JInternalFrame implements ActionListener
             gsdi = new GSDI( gene_tree, species_tree, false, true, true, true );
         }
         catch ( final SDIException e ) {
-            JOptionPane.showMessageDialog( this,
+            JOptionPane.showMessageDialog( getThisFrame(),
                                            e.getLocalizedMessage(),
                                            "Error during GSDI",
                                            JOptionPane.ERROR_MESSAGE );
@@ -1439,7 +1515,7 @@ public abstract class MainFrame extends JInternalFrame implements ActionListener
         _mainpanel.getCurrentTreePanel().setEdited( true );
         final int poly = PhylogenyMethods.countNumberOfPolytomies( species_tree );
         if ( gsdi.getStrippedExternalGeneTreeNodes().size() > 0 ) {
-            JOptionPane.showMessageDialog( this,
+            JOptionPane.showMessageDialog( getThisFrame(),
                                            "Duplications: " + gsdi.getDuplicationsSum() + "\n"
                                                    + "Potential duplications: "
                                                    + gsdi.getSpeciationOrDuplicationEventsSum() + "\n"
@@ -1452,7 +1528,7 @@ public abstract class MainFrame extends JInternalFrame implements ActionListener
                                            JOptionPane.WARNING_MESSAGE );
         }
         else {
-            JOptionPane.showMessageDialog( this,
+            JOptionPane.showMessageDialog( getThisFrame(),
                                            "Duplications: " + gsdi.getDuplicationsSum() + "\n"
                                                    + "Potential duplications: "
                                                    + gsdi.getSpeciationOrDuplicationEventsSum() + "\n"
@@ -1473,7 +1549,7 @@ public abstract class MainFrame extends JInternalFrame implements ActionListener
         final int p = PhylogenyMethods.countNumberOfPolytomies( _mainpanel.getCurrentPhylogeny() );
         if ( ( p > 0 )
                 && !( ( p == 1 ) && ( _mainpanel.getCurrentPhylogeny().getRoot().getNumberOfDescendants() == 3 ) ) ) {
-            JOptionPane.showMessageDialog( this,
+            JOptionPane.showMessageDialog( getThisFrame(),
                                            "Gene tree is not completely binary",
                                            "Cannot execute GSDI",
                                            JOptionPane.ERROR_MESSAGE );
@@ -1488,7 +1564,7 @@ public abstract class MainFrame extends JInternalFrame implements ActionListener
             gsdir = new GSDIR( gene_tree, species_tree, true, true, true );
         }
         catch ( final SDIException e ) {
-            JOptionPane.showMessageDialog( this,
+            JOptionPane.showMessageDialog( getThisFrame(),
                                            e.getLocalizedMessage(),
                                            "Error during GSDIR",
                                            JOptionPane.ERROR_MESSAGE );
@@ -1514,7 +1590,7 @@ public abstract class MainFrame extends JInternalFrame implements ActionListener
         _mainpanel.getCurrentTreePanel().setEdited( true );
         final int poly = PhylogenyMethods.countNumberOfPolytomies( species_tree );
         if ( gsdir.getStrippedExternalGeneTreeNodes().size() > 0 ) {
-            JOptionPane.showMessageDialog( this,
+            JOptionPane.showMessageDialog( getThisFrame(),
                                            "Minimal duplications: " + gsdir.getMinDuplicationsSum() + "\n"
                                                    + "Speciations: " + gsdir.getSpeciationsSum() + "\n"
                                                    + "Stripped gene tree nodes: "
@@ -1525,7 +1601,7 @@ public abstract class MainFrame extends JInternalFrame implements ActionListener
                                            JOptionPane.WARNING_MESSAGE );
         }
         else {
-            JOptionPane.showMessageDialog( this,
+            JOptionPane.showMessageDialog( getThisFrame(),
                                            "Minimal duplications: " + gsdir.getMinDuplicationsSum() + "\n"
                                                    + "Speciations: " + gsdir.getSpeciationsSum() + "\n"
                                                    + "Stripped gene tree nodes: "
@@ -1542,7 +1618,7 @@ public abstract class MainFrame extends JInternalFrame implements ActionListener
             return;
         }
         if ( !_mainpanel.getCurrentPhylogeny().isRooted() ) {
-            JOptionPane.showMessageDialog( this,
+            JOptionPane.showMessageDialog( getThisFrame(),
                                            "Phylogeny is not rooted.",
                                            "Cannot infer ancestral taxonomies",
                                            JOptionPane.ERROR_MESSAGE );
@@ -1557,14 +1633,14 @@ public abstract class MainFrame extends JInternalFrame implements ActionListener
 
     boolean GAndSDoHaveMoreThanOneSpeciesInComman( final Phylogeny gene_tree ) {
         if ( ( gene_tree == null ) || gene_tree.isEmpty() ) {
-            JOptionPane.showMessageDialog( this,
+            JOptionPane.showMessageDialog( getThisFrame(),
                                            "Gene tree and species tree have no species in common.",
                                            "Error during SDI",
                                            JOptionPane.ERROR_MESSAGE );
             return false;
         }
         else if ( gene_tree.getNumberOfExternalNodes() < 2 ) {
-            JOptionPane.showMessageDialog( this,
+            JOptionPane.showMessageDialog( getThisFrame(),
                                            "Gene tree and species tree have only one species in common.",
                                            "Error during SDI",
                                            JOptionPane.ERROR_MESSAGE );
@@ -1656,21 +1732,21 @@ public abstract class MainFrame extends JInternalFrame implements ActionListener
             return false;
         }
         else if ( ( getSpeciesTree() == null ) || getSpeciesTree().isEmpty() ) {
-            JOptionPane.showMessageDialog( this,
+            JOptionPane.showMessageDialog( getThisFrame(),
                                            "No species tree loaded",
                                            "Cannot execute GSDI",
                                            JOptionPane.ERROR_MESSAGE );
             return false;
         }
         else if ( species_tree_has_to_binary && !getSpeciesTree().isCompletelyBinary() ) {
-            JOptionPane.showMessageDialog( this,
+            JOptionPane.showMessageDialog( getThisFrame(),
                                            "Species tree is not completely binary",
                                            "Cannot execute GSDI",
                                            JOptionPane.ERROR_MESSAGE );
             return false;
         }
         else if ( gene_tree_has_to_binary && !_mainpanel.getCurrentPhylogeny().isCompletelyBinary() ) {
-            JOptionPane.showMessageDialog( this,
+            JOptionPane.showMessageDialog( getThisFrame(),
                                            "Gene tree is not completely binary",
                                            "Cannot execute GSDI",
                                            JOptionPane.ERROR_MESSAGE );
@@ -1685,7 +1761,7 @@ public abstract class MainFrame extends JInternalFrame implements ActionListener
         if ( getCurrentTreePanel() != null ) {
             if ( getCurrentTreePanel().isCurrentTreeIsSubtree() ) {
                 JOptionPane
-                        .showMessageDialog( this,
+                        .showMessageDialog( getThisFrame(),
                                             "This operation can only be performed on a complete tree, not on the currently displayed sub-tree only.",
                                             "Operation can not be exectuted on a sub-tree",
                                             JOptionPane.WARNING_MESSAGE );
@@ -2620,6 +2696,8 @@ public abstract class MainFrame extends JInternalFrame implements ActionListener
         }
         return new_current_dir;
     }
+ 
+
 }
 
 class DefaultFilter extends FileFilter {

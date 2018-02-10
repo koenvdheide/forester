@@ -67,7 +67,7 @@ public class UrlTreeReader implements Runnable {
         final WebservicesManager webservices_manager = WebservicesManager.getInstance();
         final PhylogeniesWebserviceClient client = webservices_manager
                 .getAvailablePhylogeniesWebserviceClient( _webservice_client_index );
-        String identifier = JOptionPane.showInputDialog( _main_frame, client.getInstructions() + "\n(Reference: "
+        String identifier = JOptionPane.showInputDialog( _main_frame.getThisFrame(), client.getInstructions() + "\n(Reference: "
                 + client.getReference() + ")", client.getDescription(), JOptionPane.QUESTION_MESSAGE );
         if ( ( identifier != null ) && ( identifier.trim().length() > 0 ) ) {
             identifier = identifier.trim();
@@ -81,7 +81,7 @@ public class UrlTreeReader implements Runnable {
                     id = -1;
                 }
                 if ( id < 1 ) {
-                    JOptionPane.showMessageDialog( _main_frame,
+                    JOptionPane.showMessageDialog( _main_frame.getThisFrame(),
                                                    "Identifier is expected to be a number",
                                                    "Can not open URL",
                                                    JOptionPane.ERROR_MESSAGE );
@@ -154,21 +154,21 @@ public class UrlTreeReader implements Runnable {
             }
             catch ( final MalformedURLException e ) {
                 exception = true;
-                JOptionPane.showMessageDialog( _main_frame,
+                JOptionPane.showMessageDialog( _main_frame.getThisFrame(),
                                                "Malformed URL: " + url + "\n" + e.getLocalizedMessage(),
                                                "Malformed URL",
                                                JOptionPane.ERROR_MESSAGE );
             }
             catch ( final IOException e ) {
                 exception = true;
-                JOptionPane.showMessageDialog( _main_frame,
+                JOptionPane.showMessageDialog( _main_frame.getThisFrame(),
                                                "Could not read from " + url + "\n" + e.getLocalizedMessage(),
                                                "Failed to read tree from " + client.getName() + " for " + identifier,
                                                JOptionPane.ERROR_MESSAGE );
             }
             catch ( final NumberFormatException e ) {
                 exception = true;
-                JOptionPane.showMessageDialog( _main_frame,
+                JOptionPane.showMessageDialog( _main_frame.getThisFrame(),
                                                "Could not read from " + url + "\n" + e.getLocalizedMessage(),
                                                "Failed to read tree from " + client.getName() + " for " + identifier,
                                                JOptionPane.ERROR_MESSAGE );
@@ -176,7 +176,7 @@ public class UrlTreeReader implements Runnable {
             catch ( final Exception e ) {
                 exception = true;
                 e.printStackTrace();
-                JOptionPane.showMessageDialog( _main_frame,
+                JOptionPane.showMessageDialog( _main_frame.getThisFrame(),
                                                e.getLocalizedMessage(),
                                                "Unexpected Exception",
                                                JOptionPane.ERROR_MESSAGE );
@@ -201,7 +201,7 @@ public class UrlTreeReader implements Runnable {
                                 WebserviceUtil.processInstructions( client, phylogeny );
                             }
                             catch ( final PhyloXmlDataFormatException e ) {
-                                JOptionPane.showMessageDialog( _main_frame,
+                                JOptionPane.showMessageDialog( _main_frame.getThisFrame(),
                                                                "Error:\n" + e.getLocalizedMessage(),
                                                                "Error",
                                                                JOptionPane.ERROR_MESSAGE );
@@ -212,7 +212,7 @@ public class UrlTreeReader implements Runnable {
                                 PhylogenyMethods.transferNodeNameToField( phylogeny, client.getNodeField(), false );
                             }
                             catch ( final PhyloXmlDataFormatException e ) {
-                                JOptionPane.showMessageDialog( _main_frame,
+                                JOptionPane.showMessageDialog( _main_frame.getThisFrame(),
                                                                "Error:\n" + e.getLocalizedMessage(),
                                                                "Error",
                                                                JOptionPane.ERROR_MESSAGE );

@@ -163,7 +163,7 @@ public class PhylogeneticInferrer extends RunnableProcess {
             }
             catch ( final IOException e ) {
                 end( _mf );
-                JOptionPane.showMessageDialog( _mf,
+                JOptionPane.showMessageDialog( _mf.getThisFrame(),
                                                "Could not create multiple sequence alignment with \""
                                                        + _options.getMsaPrg() + "\" and the following parameters:\n\""
                                                        + _options.getMsaPrgParameters() + "\"\nError: "
@@ -177,7 +177,7 @@ public class PhylogeneticInferrer extends RunnableProcess {
             }
             catch ( final Exception e ) {
                 end( _mf );
-                JOptionPane.showMessageDialog( _mf,
+                JOptionPane.showMessageDialog( _mf.getThisFrame(),
                                                "Could not create multiple sequence alignment with \""
                                                        + _options.getMsaPrg() + "\" and the following parameters:\n\""
                                                        + _options.getMsaPrgParameters() + "\"\nError: "
@@ -191,7 +191,7 @@ public class PhylogeneticInferrer extends RunnableProcess {
             }
             if ( msa == null ) {
                 end( _mf );
-                JOptionPane.showMessageDialog( _mf,
+                JOptionPane.showMessageDialog( _mf.getThisFrame(),
                                                "Could not create multiple sequence alignment with "
                                                        + _options.getMsaPrg() + "\nand the following parameters:\n\""
                                                        + _options.getMsaPrgParameters() + "\"",
@@ -210,7 +210,7 @@ public class PhylogeneticInferrer extends RunnableProcess {
                                                   msa );
                 if ( msa == null ) {
                     end( _mf );
-                    JOptionPane.showMessageDialog( _mf,
+                    JOptionPane.showMessageDialog( _mf.getThisFrame(),
                                                    "Less than two sequences longer than "
                                                            + _options.getMsaProcessingMinAllowedLength()
                                                            + " residues left after MSA processing",
@@ -243,7 +243,7 @@ public class PhylogeneticInferrer extends RunnableProcess {
         _mf.getMainPanel().addPhylogenyInNewTab( master_phy, _mf.getConfiguration(), "nj", "njpath" );
         //  _mf.getMainPanel().getCurrentTreePanel().setArrowCursor();
         end( _mf );
-        JOptionPane.showMessageDialog( _mf,
+        JOptionPane.showMessageDialog( _mf.getThisFrame(),
                                        "Inference successfully completed",
                                        "Inference Completed",
                                        JOptionPane.INFORMATION_MESSAGE );
