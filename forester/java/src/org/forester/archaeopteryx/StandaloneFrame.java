@@ -1,89 +1,73 @@
 package org.forester.archaeopteryx;
 
 
+import java.awt.Component;
+import java.awt.Container;
 import java.awt.event.ActionEvent;
+import java.awt.event.WindowEvent;
+import java.awt.event.WindowListener;
 
 import javax.swing.JFrame;
 
-import org.forester.archaeopteryx.tools.InferenceManager;
-import org.forester.archaeopteryx.tools.ProcessPool;
 
 public class StandaloneFrame extends JFrame implements AptxFrame{
     
-    MainFrame aptx;
+    @Override
+    public Container getThisFrame() {
+    return this;
+    }
+
+    @Override
+    public void addFrameListener( FrameListener frameListener ) {
+        WindowListener actualListener = new WindowListener() {
+
+            @Override
+            public void windowActivated( WindowEvent e ) {
+                frameListener.FrameActivated();
+                
+            }
+
+            @Override
+            public void windowClosed( WindowEvent e ) {
+                frameListener.FrameClosed();
+                
+            }
+
+            @Override
+            public void windowClosing( WindowEvent e ) {
+                frameListener.FrameClosing();
+                
+            }
+
+            @Override
+            public void windowDeactivated( WindowEvent e ) {
+               frameListener.FrameDeactivated();
+                
+            }
+
+            @Override
+            public void windowDeiconified( WindowEvent e ) {
+                frameListener.FrameDeiconified();
+                
+            }
+
+            @Override
+            public void windowIconified( WindowEvent e ) {
+                frameListener.FrameIconified();
+                
+            }
+
+            @Override
+            public void windowOpened( WindowEvent e ) {
+                frameListener.FrameOpened();
+                
+            }
+            
+        };
+        this.addWindowListener( actualListener );
+        
+        
+    }
+  
     
-    public StandaloneFrame(MainFrame aptxInstance) {
-        aptx = aptxInstance;
-    }
-
-    @Override
-    public void actionPerformed( ActionEvent e ) {
-        aptx.actionPerformed( e );
-        
-    }
-
-    @Override
-    public Configuration getConfiguration() {
-        return aptx.getConfiguration();
-    }
-
-    @Override
-    public String getCurrentExternalNodesDataBuffer() {
-        return aptx.getCurrentExternalNodesDataBuffer();
-    }
-
-    @Override
-    public int getCurrentExternalNodesDataBufferChangeCounter() {
-        return aptx.getCurrentExternalNodesDataBufferChangeCounter();
-    }
-
-    @Override
-    public int getCurrentExternalNodesDataBufferLength() {
-        return aptx.getCurrentExternalNodesDataBufferLength();
-    }
-
-    @Override
-    public InferenceManager getInferenceManager() {
-        return aptx.getInferenceManager();
-    }
-
-    @Override
-    public MainPanel getMainPanel() {
-        return aptx.getMainPanel();
-    }
-
-    @Override
-    public Options getOptions() {
-        return aptx.getOptions();
-    }
-
-    @Override
-    public ProcessPool getProcessPool() {
-        return aptx.getProcessPool();
-    }
-
-    @Override
-    public void showTextFrame( String s, String title ) {
-        aptx.showTextFrame( s, title );
-        
-    }
-
-    @Override
-    public void showWhole() {
-        aptx.showWhole();
-        
-    }
-
-    @Override
-    public void updateProcessMenu() {
-        aptx.updateProcessMenu();
-        
-    }
-
-    @Override
-    public void activateSaveAllIfNeeded() {
-        aptx.activateSaveAllIfNeeded();
-        
-    }
-
 }
