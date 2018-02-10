@@ -63,7 +63,7 @@ public final class Archaeopteryx {
         return MainFrameApplication.createInstance( phylogenies, config_file_name, title );
     }
 
-    public static MainFrame main( final String args[] ) {
+    public static void main( final String args[] ) {
         Phylogeny[] phylogenies = null;
         String config_filename = null;
         Configuration conf = null;
@@ -129,7 +129,7 @@ public final class Archaeopteryx {
             current_dir = new File( "." );
         }
         try {
-           return MainFrameApplication.createInstance( phylogenies, conf, title, current_dir );
+           MainFrameApplication.createInstance( phylogenies, conf, title, current_dir );
         }
         catch ( final OutOfMemoryError e ) {
             AptxUtil.outOfMemoryError( e );
@@ -140,5 +140,5 @@ public final class Archaeopteryx {
         catch ( final Error e ) {
             AptxUtil.unexpectedError( e );
         }
-    return null;}
+    }
 }
