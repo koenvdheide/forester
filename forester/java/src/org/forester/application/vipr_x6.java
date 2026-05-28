@@ -472,13 +472,13 @@ public class vipr_x6 {
                             new_name = new StringBuilder(m_genus);
                         }
                         if (!ForesterUtil.isEmpty(m_species)) {
-                            if (!new_name.isEmpty()) {
+                            if (new_name.length() > 0) {
                                 new_name.append("|");
                             }
                             new_name.append(m_species);
                         }
                         if (!ForesterUtil.isEmpty(m_strain)) {
-                            if (!new_name.isEmpty()) {
+                            if (new_name.length() > 0) {
                                 new_name.append("|");
                             }
                             new_name.append(m_strain);
@@ -506,7 +506,7 @@ public class vipr_x6 {
                         }
                     }
                 }
-                if (!new_name.isEmpty()) {
+                if (new_name.length() > 0) {
                     ext_node.setName(new_name.toString());
                 } else {
                     if (name.startsWith("(") && name.endsWith("))")) {

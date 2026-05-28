@@ -316,6 +316,8 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
     private float _ov_y_distance = 0;
     private int _ov_y_position = 0;
     private int _ov_y_start = 0;
+    private boolean _partition_tree = false;
+    private float _partition_threshold = 0f;
     private final boolean _phy_has_branch_lengths;
     private Phylogeny _phylogeny = null;
     private final Path2D.Float _polygon = new Path2D.Float();
@@ -4772,7 +4774,7 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
      * @param y
      * @return pointer to the node at x,y, null if not found
      */
-    final PhylogenyNode findNode(final int x, final int y) {
+    public final PhylogenyNode findNode(final int x, final int y) {
         if ((_phylogeny == null) || _phylogeny.isEmpty()) {
             return null;
         }
@@ -4810,11 +4812,11 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
         return _domain_structure_e_value_thr_exp;
     }
 
-    final Set<Long> getFoundNodes0() {
+    public final Set<Long> getFoundNodes0() {
         return _found_nodes_0;
     }
 
-    final Set<Long> getFoundNodes1() {
+    public final Set<Long> getFoundNodes1() {
         return _found_nodes_1;
     }
 
@@ -4896,7 +4898,7 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
         return getTreeColorSet().getTaxonomyColor();
     }
 
-    final File getTreeFile() {
+    public final File getTreeFile() {
         return _treefile;
     }
 
@@ -5027,7 +5029,7 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
                 && (!node.isRoot() || (_subtree_index > 0)));
     }
 
-    final boolean isCurrentTreeIsSubtree() {
+    public final boolean isCurrentTreeIsSubtree() {
         return (_subtree_index > 0);
     }
 
@@ -5383,6 +5385,15 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
         paintCircularsLite(phy.getRoot(), phy, center_x, center_y, radius, g);
     }
 
+    public final void paintFile(final Graphics2D g,
+                                final boolean to_pdf,
+                                final int graphics_file_width,
+                                final int graphics_file_height,
+                                final int graphics_file_x,
+                                final int graphics_file_y) {
+        paintPhylogeny(g, to_pdf, true, graphics_file_width, graphics_file_height, graphics_file_x, graphics_file_y);
+    }
+
     final void paintPhylogeny(final Graphics2D g,
                               final boolean to_pdf,
                               final boolean to_graphics_file,
@@ -5588,6 +5599,33 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
                 paintOvRectangle(g);
             }
         }
+        paintPartitionLine(g, to_graphics_file, graphics_file_y, graphics_file_height);
+    }
+
+    private void paintPartitionLine(final Graphics2D g,
+                                    final boolean to_graphics_file,
+                                    final int graphics_file_y,
+                                    final int graphics_file_height) {
+        if (!_partition_tree
+                || (getPhylogenyGraphicsType() == PHYLOGENY_GRAPHICS_TYPE.UNROOTED)
+                || (getPhylogenyGraphicsType() == PHYLOGENY_GRAPHICS_TYPE.CIRCULAR)) {
+            return;
+        }
+        if (_partition_threshold <= 0f) {
+            return;
+        }
+        final int partition_line_x = calculatePartitionLineX();
+        final Color color = g.getColor();
+        g.setColor(Color.RED);
+        if (to_graphics_file) {
+            g.drawLine(partition_line_x,
+                    graphics_file_y,
+                    partition_line_x,
+                    graphics_file_y + graphics_file_height);
+        } else {
+            g.drawLine(partition_line_x, 0, partition_line_x, getHeight());
+        }
+        g.setColor(color);
     }
 
     final void recalculateMaxDistanceToRoot() {
@@ -5712,12 +5750,24 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
         _current_external_nodes_data_buffer = sb;
     }
 
-    final void setFoundNodes0(final Set<Long> found_nodes) {
+    public final void setFoundNodes0(final Set<Long> found_nodes) {
         _found_nodes_0 = found_nodes;
     }
 
-    final void setFoundNodes1(final Set<Long> found_nodes) {
+    public final void setFoundNodes1(final Set<Long> found_nodes) {
         _found_nodes_1 = found_nodes;
+    }
+
+    public final void setPartitionThreshold(final float threshold) {
+        _partition_tree = true;
+        _partition_threshold = threshold;
+        repaint();
+    }
+
+    public final void clearPartitionLine() {
+        _partition_tree = false;
+        _partition_threshold = 0f;
+        repaint();
     }
 
     final void setInOvRect(final boolean in_ov_rect) {
@@ -5795,7 +5845,17 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
         getTreeFontSet().tinyFonts();
     }
 
-    final void setTreeFile(final File treefile) {
+    private int calculatePartitionLineX() {
+        if (!_partition_tree || (_phylogeny == null) || _phylogeny.isEmpty()) {
+            return 0;
+        }
+        final float root_x = _phylogeny.getRoot().getXcoord();
+        final PhylogenyNode furthest_node = PhylogenyMethods.calculateNodeWithMaxDistanceToRoot(_phylogeny);
+        final float furthest_node_x = furthest_node.getXcoord();
+        return Math.round(root_x + ((furthest_node_x - root_x) * _partition_threshold));
+    }
+
+    public final void setTreeFile(final File treefile) {
         _treefile = treefile;
     }
 

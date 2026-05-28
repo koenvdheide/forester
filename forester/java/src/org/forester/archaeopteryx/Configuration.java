@@ -33,6 +33,7 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.URL;
 import java.util.Arrays;
@@ -269,6 +270,23 @@ public final class Configuration {
 
     public Configuration() {
         this(null, false, false, false);
+    }
+
+    public Configuration(final InputStream is, final boolean is_applet, final boolean verbose) {
+        _could_read_config_file = false;
+        setDisplayColors(new TreeMap<String, Color>());
+        try {
+            final InputStreamReader isr = new InputStreamReader(is);
+            final BufferedReader bf = new BufferedReader(isr);
+            readConfig(bf);
+            bf.close();
+            _could_read_config_file = true;
+        } catch (final Exception e) {
+            if (verbose) {
+                ForesterUtil.printWarningMessage(AptxConstants.PRG_NAME,
+                        "failed to read configuration from stream: " + e);
+            }
+        }
     }
 
     public Configuration(final String cf, final boolean is_url, final boolean is_applet, final boolean verbose) {
@@ -1528,7 +1546,7 @@ public final class Configuration {
         return _species_colors;
     }
 
-    final TAXONOMY_EXTRACTION getTaxonomyExtraction() {
+    public final TAXONOMY_EXTRACTION getTaxonomyExtraction() {
         return _taxonomy_extraction;
     }
 
@@ -1556,11 +1574,11 @@ public final class Configuration {
         return _hide_controls_and_menus;
     }
 
-    boolean isInternalNumberAreConfidenceForNhParsing() {
+    public boolean isInternalNumberAreConfidenceForNhParsing() {
         return _internal_number_are_confidence_for_nh_parsing;
     }
 
-    boolean isReplaceUnderscoresInNhParsing() {
+    public boolean isReplaceUnderscoresInNhParsing() {
         return _nh_parsing_replace_underscores;
     }
 
@@ -1586,7 +1604,7 @@ public final class Configuration {
         return _use_tabbed_display;
     }
 
-    boolean isValidatePhyloXmlAgainstSchema() {
+    public boolean isValidatePhyloXmlAgainstSchema() {
         return _validate_against_phyloxml_xsd_schema;
     }
 

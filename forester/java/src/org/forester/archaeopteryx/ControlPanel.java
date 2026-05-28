@@ -73,7 +73,7 @@ import org.forester.phylogeny.data.SequenceRelation.SEQUENCE_RELATION_TYPE;
 import org.forester.phylogeny.iterators.PhylogenyNodeIterator;
 import org.forester.util.ForesterUtil;
 
-final class ControlPanel extends JPanel implements ActionListener {
+public final class ControlPanel extends JPanel implements ActionListener {
 
     enum NodeClickAction {
         ADD_NEW_NODE,
@@ -2467,7 +2467,7 @@ final class ControlPanel extends JPanel implements ActionListener {
     /**
      * Fit entire tree into window.
      */
-    void showWhole() {
+    public void showWhole() {
         if ((_mainpanel.getCurrentScrollPane() == null)
                 || _mainpanel.getCurrentTreePanel().getPhylogeny().isEmpty()) {
             return;
