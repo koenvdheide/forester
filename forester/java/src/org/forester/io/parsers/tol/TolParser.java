@@ -59,6 +59,7 @@ public class TolParser implements PhylogenyParser {
     final public static String W3C_XML_SCHEMA                             = "http://www.w3.org/2001/XMLSchema";
     final public static String JAXP_SCHEMA_SOURCE                         = "http://java.sun.com/xml/jaxp/properties/schemaSource";
     final public static String SAX_FEATURES_VALIDATION                    = "http://xml.org/sax/features/validation";
+    final public static String DISALLOW_DOCTYPE_DECL                      = "http://apache.org/xml/features/disallow-doctype-decl";
     final public static String APACHE_FEATURES_VALIDATION_SCHEMA          = "http://apache.org/xml/features/validation/schema";
     final public static String APACHE_FEATURES_VALIDATION_SCHEMA_FULL     = "http://apache.org/xml/features/validation/schema-full-checking";
     final public static String APACHE_PROPERTIES_SCHEMA_EXTERNAL_LOCATION = "http://apache.org/xml/properties/schema/external-schemaLocation";
@@ -140,6 +141,10 @@ public class TolParser implements PhylogenyParser {
         final SAXParserFactory factory = SAXParserFactory.newInstance();
         factory.setNamespaceAware( true );
         try {
+            // phyloXML and Tree of Life are schema-defined and need no DTD, so
+            // refuse one outright: an external entity in a doctype would
+            // otherwise be resolved, letting a crafted tree read local files
+            factory.setFeature( DISALLOW_DOCTYPE_DECL, true );
             if ( !ForesterUtil.isEmpty( getSchemaLocation() ) ) {
                 factory.setFeature( SAX_FEATURES_VALIDATION, true );
                 factory.setFeature( APACHE_FEATURES_VALIDATION_SCHEMA, true );
