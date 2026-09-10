@@ -199,20 +199,22 @@ public final class MainFrameApplication extends MainFrame {
         if (_configuration == null) {
             throw new IllegalArgumentException("configuration is null");
         }
-        try {
-            if (_configuration.isUseNativeUI()) {
-                UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
-            } else {
-                UIManager.setLookAndFeel(UIManager.getCrossPlatformLookAndFeelClassName());
+        if (!_configuration.isKeepLookAndFeel()) {
+            try {
+                if (_configuration.isUseNativeUI()) {
+                    UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+                } else {
+                    UIManager.setLookAndFeel(UIManager.getCrossPlatformLookAndFeelClassName());
+                }
+            } catch (final UnsupportedLookAndFeelException e) {
+                AptxUtil.dieWithSystemError("unsupported look and feel: " + e.toString());
+            } catch (final ClassNotFoundException e) {
+                AptxUtil.dieWithSystemError("class not found exception: " + e.toString());
+            } catch (final InstantiationException e) {
+                AptxUtil.dieWithSystemError("instantiation exception: " + e.toString());
+            } catch (final IllegalAccessException e) {
+                AptxUtil.dieWithSystemError("illegal access exception: " + e.toString());
             }
-        } catch (final UnsupportedLookAndFeelException e) {
-            AptxUtil.dieWithSystemError("unsupported look and feel: " + e.toString());
-        } catch (final ClassNotFoundException e) {
-            AptxUtil.dieWithSystemError("class not found exception: " + e.toString());
-        } catch (final InstantiationException e) {
-            AptxUtil.dieWithSystemError("instantiation exception: " + e.toString());
-        } catch (final IllegalAccessException e) {
-            AptxUtil.dieWithSystemError("illegal access exception: " + e.toString());
         }
         if ((current_dir != null) && current_dir.canRead() && current_dir.isDirectory()) {
             setCurrentDir(current_dir);
