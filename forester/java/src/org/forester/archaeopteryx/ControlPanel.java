@@ -441,7 +441,9 @@ public final class ControlPanel extends JPanel implements ActionListener {
             _show_sequence_relations = new JComboBox<String>();
             _show_sequence_relations.setFocusable(false);
             _show_sequence_relations.setMaximumRowCount(20);
-            _show_sequence_relations.setFont(ControlPanel.js_font);
+            if (!_configuration.isKeepLookAndFeel()) {
+                _show_sequence_relations.setFont(ControlPanel.js_font);
+            }
             if (!_configuration.isUseNativeUI()) {
                 _show_sequence_relations.setBackground(getConfiguration().getGuiButtonBackgroundColor());
                 _show_sequence_relations.setForeground(getConfiguration().getGuiButtonTextColor());
@@ -564,9 +566,13 @@ public final class ControlPanel extends JPanel implements ActionListener {
         add(spacer);
         final JLabel mainLabel = new JLabel("Sequence relations to display");
         final JLabel typeLabel = customizeLabel(new JLabel("(type) "), getConfiguration());
-        typeLabel.setFont(ControlPanel.js_font.deriveFont(7));
+        if (!getConfiguration().isKeepLookAndFeel()) {
+            typeLabel.setFont(ControlPanel.js_font.deriveFont(7));
+        }
         getSequenceRelationTypeBox().setFocusable(false);
-        _sequence_relation_type_box.setFont(ControlPanel.js_font);
+        if (!_configuration.isKeepLookAndFeel()) {
+            _sequence_relation_type_box.setFont(ControlPanel.js_font);
+        }
         if (!_configuration.isUseNativeUI()) {
             _sequence_relation_type_box.setBackground(getConfiguration().getGuiButtonBackgroundColor());
             _sequence_relation_type_box.setForeground(getConfiguration().getGuiButtonTextColor());
@@ -1034,7 +1040,9 @@ public final class ControlPanel extends JPanel implements ActionListener {
             setCheckbox(Configuration.width_branches, _configuration.doCheckOption(Configuration.width_branches));
         }
         final JLabel label = new JLabel("Display Data:");
-        label.setFont(ControlPanel.jcb_bold_font);
+        if (!getConfiguration().isKeepLookAndFeel()) {
+            label.setFont(ControlPanel.jcb_bold_font);
+        }
         if (!getConfiguration().isUseNativeUI()) {
             label.setForeground(getConfiguration().getGuiCheckboxTextColor());
         }
@@ -1448,7 +1456,9 @@ public final class ControlPanel extends JPanel implements ActionListener {
 
     void addJButton(final JButton jb, final JPanel p) {
         jb.setFocusPainted(false);
-        jb.setFont(ControlPanel.jcb_font);
+        if (!_configuration.isKeepLookAndFeel()) {
+            jb.setFont(ControlPanel.jcb_font);
+        }
         if (!_configuration.isUseNativeUI()) {
             jb.setBorder(BorderFactory.createLineBorder(getConfiguration().getGuiButtonBorderColor()));
             jb.setBackground(getConfiguration().getGuiButtonBackgroundColor());
@@ -1460,7 +1470,9 @@ public final class ControlPanel extends JPanel implements ActionListener {
 
     void addJCheckBox(final JCheckBox jcb, final JPanel p) {
         jcb.setFocusPainted(false);
-        jcb.setFont(ControlPanel.jcb_font);
+        if (!_configuration.isKeepLookAndFeel()) {
+            jcb.setFont(ControlPanel.jcb_font);
+        }
         if (!_configuration.isUseNativeUI()) {
             jcb.setBackground(getConfiguration().getGuiBackgroundColor());
             jcb.setForeground(getConfiguration().getGuiCheckboxTextColor());
@@ -1471,7 +1483,9 @@ public final class ControlPanel extends JPanel implements ActionListener {
 
     private final void setupJRadioButton(final JRadioButton rb) {
         rb.setFocusPainted(false);
-        rb.setFont(ControlPanel.jcb_font);
+        if (!_configuration.isKeepLookAndFeel()) {
+            rb.setFont(ControlPanel.jcb_font);
+        }
         if (!_configuration.isUseNativeUI()) {
             rb.setBackground(getConfiguration().getGuiBackgroundColor());
             rb.setForeground(getConfiguration().getGuiCheckboxTextColor());
@@ -2226,7 +2240,9 @@ public final class ControlPanel extends JPanel implements ActionListener {
 
     void setupSearchTools0() {
         final JLabel search_label = new JLabel("Search (A):");
-        search_label.setFont(ControlPanel.jcb_bold_font);
+        if (!getConfiguration().isKeepLookAndFeel()) {
+            search_label.setFont(ControlPanel.jcb_bold_font);
+        }
         if (!getConfiguration().isUseNativeUI()) {
             search_label.setForeground(getConfiguration().getGuiCheckboxTextColor());
         }
@@ -2234,7 +2250,9 @@ public final class ControlPanel extends JPanel implements ActionListener {
         search_label.setToolTipText(SEARCH_TIP_TEXT);
         _search_found_label_0 = new JLabel();
         getSearchFoundCountsLabel0().setVisible(false);
-        _search_found_label_0.setFont(ControlPanel.jcb_bold_font);
+        if (!getConfiguration().isKeepLookAndFeel()) {
+            _search_found_label_0.setFont(ControlPanel.jcb_bold_font);
+        }
         if (!getConfiguration().isUseNativeUI()) {
             _search_found_label_0.setForeground(getConfiguration().getGuiCheckboxTextColor());
         }
@@ -2286,7 +2304,9 @@ public final class ControlPanel extends JPanel implements ActionListener {
 
     void setupSearchTools1() {
         final JLabel search_label = new JLabel("Search (B):");
-        search_label.setFont(ControlPanel.jcb_bold_font);
+        if (!getConfiguration().isKeepLookAndFeel()) {
+            search_label.setFont(ControlPanel.jcb_bold_font);
+        }
         if (!getConfiguration().isUseNativeUI()) {
             search_label.setForeground(getConfiguration().getGuiCheckboxTextColor());
         }
@@ -2294,7 +2314,9 @@ public final class ControlPanel extends JPanel implements ActionListener {
         search_label.setToolTipText(SEARCH_TIP_TEXT);
         _search_found_label_1 = new JLabel();
         getSearchFoundCountsLabel1().setVisible(false);
-        _search_found_label_1.setFont(ControlPanel.jcb_bold_font);
+        if (!getConfiguration().isKeepLookAndFeel()) {
+            _search_found_label_1.setFont(ControlPanel.jcb_bold_font);
+        }
         if (!getConfiguration().isUseNativeUI()) {
             _search_found_label_1.setForeground(getConfiguration().getGuiCheckboxTextColor());
         }
@@ -2514,7 +2536,9 @@ public final class ControlPanel extends JPanel implements ActionListener {
         _click_to_combobox = new JComboBox<String>();
         _click_to_combobox.setFocusable(false);
         _click_to_combobox.setMaximumRowCount(14);
-        _click_to_combobox.setFont(ControlPanel.js_font);
+        if (!_configuration.isKeepLookAndFeel()) {
+            _click_to_combobox.setFont(ControlPanel.js_font);
+        }
         if (!_configuration.isUseNativeUI()) {
             _click_to_combobox.setBackground(getConfiguration().getGuiBackgroundColor());
         }
@@ -2757,7 +2781,9 @@ public final class ControlPanel extends JPanel implements ActionListener {
     }
 
     final static JLabel customizeLabel(final JLabel label, final Configuration configuration) {
-        label.setFont(ControlPanel.jcb_bold_font);
+        if (!configuration.isKeepLookAndFeel()) {
+            label.setFont(ControlPanel.jcb_bold_font);
+        }
         if (!configuration.isUseNativeUI()) {
             label.setForeground(configuration.getGuiCheckboxTextColor());
             label.setBackground(configuration.getGuiBackgroundColor());

@@ -1231,7 +1231,9 @@ public abstract class MainFrame extends JFrame implements ActionListener {
 
     void customizeCheckBoxMenuItem(final JCheckBoxMenuItem item, final boolean is_selected) {
         if (item != null) {
-            item.setFont(MainFrame.menu_font);
+            if (!getConfiguration().isKeepLookAndFeel()) {
+                item.setFont(MainFrame.menu_font);
+            }
             if (!getConfiguration().isUseNativeUI()) {
                 item.setBackground(getConfiguration().getGuiMenuBackgroundColor());
                 item.setForeground(getConfiguration().getGuiMenuTextColor());
@@ -1243,7 +1245,9 @@ public abstract class MainFrame extends JFrame implements ActionListener {
 
     JMenuItem customizeJMenuItem(final JMenuItem jmi) {
         if (jmi != null) {
-            jmi.setFont(MainFrame.menu_font);
+            if (!getConfiguration().isKeepLookAndFeel()) {
+                jmi.setFont(MainFrame.menu_font);
+            }
             if (!getConfiguration().isUseNativeUI()) {
                 jmi.setBackground(getConfiguration().getGuiMenuBackgroundColor());
                 jmi.setForeground(getConfiguration().getGuiMenuTextColor());
@@ -1255,7 +1259,9 @@ public abstract class MainFrame extends JFrame implements ActionListener {
 
     void customizeRadioButtonMenuItem(final JRadioButtonMenuItem item, final boolean is_selected) {
         if (item != null) {
-            item.setFont(MainFrame.menu_font);
+            if (!getConfiguration().isKeepLookAndFeel()) {
+                item.setFont(MainFrame.menu_font);
+            }
             if (!getConfiguration().isUseNativeUI()) {
                 item.setBackground(getConfiguration().getGuiMenuBackgroundColor());
                 item.setForeground(getConfiguration().getGuiMenuTextColor());
@@ -2018,7 +2024,9 @@ public abstract class MainFrame extends JFrame implements ActionListener {
     }
 
     static JMenuItem customizeMenuItemAsLabel(final JMenuItem label, final Configuration configuration) {
-        label.setFont(MainFrame.menu_font.deriveFont(Font.BOLD));
+        if (!configuration.isKeepLookAndFeel()) {
+            label.setFont(MainFrame.menu_font.deriveFont(Font.BOLD));
+        }
         if (!configuration.isUseNativeUI()) {
             label.setBackground(configuration.getGuiMenuBackgroundColor());
             label.setForeground(configuration.getGuiMenuTextColor());

@@ -1960,9 +1960,11 @@ public final class MainFrameApplication extends MainFrame {
         _file_jmenu.addSeparator();
         _file_jmenu.add(_exit_item = new JMenuItem("Exit"));
         customizeJMenuItem(_open_item);
-        _open_item.setFont(new Font(_open_item.getFont().getFontName(),
-                Font.BOLD,
-                _open_item.getFont().getSize() + 4));
+        if (!_configuration.isKeepLookAndFeel()) {
+            _open_item.setFont(new Font(_open_item.getFont().getFontName(),
+                    Font.BOLD,
+                    _open_item.getFont().getSize() + 4));
+        }
         customizeJMenuItem(_open_url_item);
         for (int i = 0; i < webservices_manager.getAvailablePhylogeniesWebserviceClients().size(); ++i) {
             customizeJMenuItem(_load_phylogeny_from_webservice_menu_items[i]);
