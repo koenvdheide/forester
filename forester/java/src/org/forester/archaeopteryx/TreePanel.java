@@ -4484,8 +4484,10 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
                 longest_txt_node = node;
             }
             boolean use_vis = false;
+            // null whenever the panel is not displayable, as when the
+            // layout is recalculated before the view is on screen
             final Graphics2D g = (Graphics2D) getGraphics();
-            if (getControlPanel().isUseVisualStyles()) {
+            if ((g != null) && getControlPanel().isUseVisualStyles()) {
                 use_vis = setFont(g, node, false);
             }
             if (!use_vis) {
