@@ -81,7 +81,7 @@ import org.forester.util.ForesterConstants;
 import org.forester.util.ForesterUtil;
 import org.forester.util.WindowsUtils;
 
-public abstract class MainFrame extends JFrame implements ActionListener {
+public abstract class MainFrame extends JPanel implements ActionListener {
 
     public final static NHFilter nhfilter = new NHFilter();
     public final static NHXFilter nhxfilter = new NHXFilter();
@@ -292,6 +292,7 @@ public abstract class MainFrame extends JFrame implements ActionListener {
     JMenu _process_menu;
     MainPanel _mainpanel;
     Container _contentpane;
+    JFrame _window;
     final LinkedList<TextFrame> _textframes = new LinkedList<TextFrame>();
     ;
     Configuration _configuration;
@@ -323,6 +324,21 @@ public abstract class MainFrame extends JFrame implements ActionListener {
         } catch (final Exception e) {
             e.printStackTrace();
             // Do nothing. Not important.
+        }
+    }
+
+    public Container getContentPane() {
+        return this;
+    }
+
+    public JMenuBar getJMenuBar() {
+        return _jmenubar;
+    }
+
+    void disposeWindow() {
+        if (_window != null) {
+            _window.setVisible(false);
+            _window.dispose();
         }
     }
 
@@ -1198,8 +1214,7 @@ public abstract class MainFrame extends JFrame implements ActionListener {
         if (_contentpane != null) {
             _contentpane.removeAll();
         }
-        setVisible(false);
-        dispose();
+        disposeWindow();
     }
 
     void colorRank() {

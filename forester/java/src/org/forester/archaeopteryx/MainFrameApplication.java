@@ -49,6 +49,7 @@ import java.util.regex.Pattern;
 import javax.swing.ButtonGroup;
 import javax.swing.JCheckBoxMenuItem;
 import javax.swing.JFileChooser;
+import javax.swing.JFrame;
 import javax.swing.JMenu;
 import javax.swing.JMenuBar;
 import javax.swing.JMenuItem;
@@ -144,7 +145,6 @@ public final class MainFrameApplication extends MainFrame {
         if (_configuration == null) {
             throw new IllegalArgumentException("configuration is null");
         }
-        setVisible(false);
         setOptions(Options.createInstance(_configuration));
         _mainpanel = new MainPanel(_configuration, this);
         _open_filechooser = null;
@@ -163,11 +163,13 @@ public final class MainFrameApplication extends MainFrame {
         _contentpane = getContentPane();
         _contentpane.setLayout(new BorderLayout());
         _contentpane.add(_mainpanel, BorderLayout.CENTER);
+        _window = new JFrame();
+        _window.setContentPane(this);
         // App is this big
-        setSize(MainFrameApplication.FRAME_X_SIZE, MainFrameApplication.FRAME_Y_SIZE);
+        _window.setSize(MainFrameApplication.FRAME_X_SIZE, MainFrameApplication.FRAME_Y_SIZE);
         // The window listener
-        setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE);
-        addWindowListener(new WindowAdapter() {
+        _window.setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE);
+        _window.addWindowListener(new WindowAdapter() {
 
             @Override
             public void windowClosing(final WindowEvent e) {
@@ -187,13 +189,14 @@ public final class MainFrameApplication extends MainFrame {
     }
 
     private MainFrameApplication(final Phylogeny[] phys, final Configuration config, final String title) {
-        this(phys, config, title, null);
+        this(phys, config, title, null, false);
     }
 
     private MainFrameApplication(final Phylogeny[] phys,
                                  final Configuration config,
                                  final String title,
-                                 final File current_dir) {
+                                 final File current_dir,
+                                 final boolean embedded) {
         super();
         _configuration = config;
         if (_configuration == null) {
@@ -219,13 +222,9 @@ public final class MainFrameApplication extends MainFrame {
         if ((current_dir != null) && current_dir.canRead() && current_dir.isDirectory()) {
             setCurrentDir(current_dir);
         }
-        // hide until everything is ready
-        setVisible(false);
         setOptions(Options.createInstance(_configuration));
         setInferenceManager(InferenceManager.createInstance(_configuration));
         setPhylogeneticInferenceOptions(PhylogeneticInferenceOptions.createInstance(_configuration));
-        // set title
-        setTitle(AptxConstants.PRG_NAME + " " + AptxConstants.VERSION + " (" + AptxConstants.PRG_DATE + ")");
         _mainpanel = new MainPanel(_configuration, this);
         // The file dialogs
         _open_filechooser = new JFileChooser();
@@ -291,62 +290,76 @@ public final class MainFrameApplication extends MainFrame {
         buildOptionsMenu();
         buildTypeMenu();
         buildHelpMenu();
-        setJMenuBar(_jmenubar);
         _jmenubar.add(_help_jmenu);
         _contentpane = getContentPane();
         _contentpane.setLayout(new BorderLayout());
         _contentpane.add(_mainpanel, BorderLayout.CENTER);
-        // App is this big
-        setSize(MainFrameApplication.FRAME_X_SIZE, MainFrameApplication.FRAME_Y_SIZE);
-        //        addWindowFocusListener( new WindowAdapter() {
-        //
-        //            @Override
-        //            public void windowGainedFocus( WindowEvent e ) {
-        //                requestFocusInWindow();
-        //            }
-        //        } );
-        // The window listener
-        setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE);
-        addWindowListener(new WindowAdapter() {
+        if (embedded) {
+            setSize(MainFrameApplication.FRAME_X_SIZE, MainFrameApplication.FRAME_Y_SIZE);
+        } else {
+            _window = new JFrame(AptxConstants.PRG_NAME + " " + AptxConstants.VERSION + " (" + AptxConstants.PRG_DATE + ")");
+            _window.setContentPane(this);
+            _window.setJMenuBar(_jmenubar);
+            // App is this big
+            _window.setSize(MainFrameApplication.FRAME_X_SIZE, MainFrameApplication.FRAME_Y_SIZE);
+            //        addWindowFocusListener( new WindowAdapter() {
+            //
+            //            @Override
+            //            public void windowGainedFocus( WindowEvent e ) {
+            //                requestFocusInWindow();
+            //            }
+            //        } );
+            // The window listener
+            _window.setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE);
+            _window.addWindowListener(new WindowAdapter() {
 
-            @Override
-            public void windowClosing(final WindowEvent e) {
-                if (isUnsavedDataPresent()) {
-                    final int r = JOptionPane.showConfirmDialog(null,
-                            "Exit despite potentially unsaved changes?",
-                            "Exit?",
-                            JOptionPane.YES_NO_OPTION);
-                    if (r != JOptionPane.YES_OPTION) {
-                        return;
+                @Override
+                public void windowClosing(final WindowEvent e) {
+                    if (isUnsavedDataPresent()) {
+                        final int r = JOptionPane.showConfirmDialog(null,
+                                "Exit despite potentially unsaved changes?",
+                                "Exit?",
+                                JOptionPane.YES_NO_OPTION);
+                        if (r != JOptionPane.YES_OPTION) {
+                            return;
+                        }
+                    } else {
+                        final int r = JOptionPane
+                                .showConfirmDialog(null, "Exit Archaeopteryx?", "Exit?", JOptionPane.YES_NO_OPTION);
+                        if (r != JOptionPane.YES_OPTION) {
+                            return;
+                        }
                     }
-                } else {
-                    final int r = JOptionPane
-                            .showConfirmDialog(null, "Exit Archaeopteryx?", "Exit?", JOptionPane.YES_NO_OPTION);
-                    if (r != JOptionPane.YES_OPTION) {
-                        return;
+                    exit();
+                }
+            });
+            // The component listener
+            _window.addComponentListener(new ComponentAdapter() {
+
+                @Override
+                public void componentResized(final ComponentEvent e) {
+                    if (_mainpanel.getCurrentTreePanel() != null) {
+                        _mainpanel.getCurrentTreePanel()
+                                .calcParametersForPainting(_mainpanel.getCurrentTreePanel().getWidth(),
+                                        _mainpanel.getCurrentTreePanel().getHeight());
                     }
                 }
-                exit();
-            }
-        });
-        // The component listener
-        addComponentListener(new ComponentAdapter() {
-
-            @Override
-            public void componentResized(final ComponentEvent e) {
-                if (_mainpanel.getCurrentTreePanel() != null) {
-                    _mainpanel.getCurrentTreePanel()
-                            .calcParametersForPainting(_mainpanel.getCurrentTreePanel().getWidth(),
-                                    _mainpanel.getCurrentTreePanel().getHeight());
-                }
-            }
-        });
-        requestFocusInWindow();
-        // addKeyListener( this );
-        setVisible(true);
+            });
+            requestFocusInWindow();
+            // addKeyListener( this );
+            _window.setVisible(true);
+        }
         if ((phys != null) && (phys.length > 0)) {
             AptxUtil.addPhylogeniesToTabs(phys, title, null, _configuration, _mainpanel);
             validate();
+            if (embedded) {
+                // validate() skips layout without a peer; the fits below need the
+                // viewport size. The fit inside addPhylogeniesToTabs runs at width
+                // zero and only terminates because min_base_font_size is below 4.
+                synchronized (getTreeLock()) {
+                    validateTree();
+                }
+            }
             getMainPanel().getControlPanel().showWholeAll();
             getMainPanel().getControlPanel().showWhole();
         }
@@ -454,8 +467,7 @@ public final class MainFrameApplication extends MainFrame {
     public void end() {
         _mainpanel.terminate();
         _contentpane.removeAll();
-        setVisible(false);
-        dispose();
+        disposeWindow();
     }
 
     @Override
@@ -2317,8 +2329,7 @@ public final class MainFrameApplication extends MainFrame {
         removeAllTextFrames();
         _mainpanel.terminate();
         _contentpane.removeAll();
-        setVisible(false);
-        dispose();
+        disposeWindow();
         // System.exit( 0 ); //TODO reconfirm that this is OK, then remove.
     }
 
@@ -2419,7 +2430,13 @@ public final class MainFrameApplication extends MainFrame {
                                            final Configuration config,
                                            final String title,
                                            final File current_dir) {
-        return new MainFrameApplication(phys, config, title, current_dir);
+        return new MainFrameApplication(phys, config, title, current_dir, false);
+    }
+
+    public static MainFrameApplication createEmbeddedInstance(final Phylogeny[] phys,
+                                                              final Configuration config,
+                                                              final String title) {
+        return new MainFrameApplication(phys, config, title, null, true);
     }
 
     static MainFrame createInstance(final Phylogeny[] phys, final Configuration config, final String title) {

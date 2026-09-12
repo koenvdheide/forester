@@ -26,6 +26,7 @@
 package org.forester.archaeopteryx.tools;
 
 import java.awt.Color;
+import java.awt.Dialog;
 import java.awt.FlowLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -42,6 +43,7 @@ import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JRadioButton;
 import javax.swing.JTextField;
+import javax.swing.SwingUtilities;
 import javax.swing.border.Border;
 import javax.swing.border.LineBorder;
 
@@ -95,7 +97,7 @@ public class PhyloInferenceDialog extends JDialog implements ActionListener {
     public PhyloInferenceDialog( final MainFrameApplication frame,
                                  final PhylogeneticInferenceOptions options,
                                  final boolean from_unaligned_seqs ) {
-        super( frame, true );
+        super( SwingUtilities.getWindowAncestor( frame ), Dialog.DEFAULT_MODALITY_TYPE );
         setVisible( false );
         _parent_frame = frame;
         _opts = options;
