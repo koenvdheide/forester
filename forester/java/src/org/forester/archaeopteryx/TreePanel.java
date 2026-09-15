@@ -2772,8 +2772,9 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
             } else {
                 drawStringX(sb_str, pos_x, pos_y, g);
             }
-            final FontMetrics fm = using_visual_font ? getFontMetrics(g.getFont())
-                    : getFontMetricsForLargeDefaultFont();
+            // g carries the font drawString just used, bold for a found node
+            // and visual-styled where that applies, so measure that one
+            final FontMetrics fm = getFontMetrics(g.getFont());
             _label_bounds.put(node.getId(),
                               new Rectangle2D.Float(pos_x,
                                                     pos_y - fm.getAscent(),
