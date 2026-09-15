@@ -282,6 +282,7 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
     private boolean _edited = false;
     private final Ellipse2D _ellipse = new Ellipse2D.Float();
     private int _external_node_index = 0;
+    private final Map<Long, Rectangle2D.Float> _label_bounds = new HashMap<>();
     private Set<Long> _found_nodes_0 = null;
     private Set<Long> _found_nodes_1 = null;
     private final FontRenderContext _frc = new FontRenderContext(null,
@@ -2771,6 +2772,13 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
             } else {
                 drawStringX(sb_str, pos_x, pos_y, g);
             }
+            final FontMetrics fm = using_visual_font ? getFontMetrics(g.getFont())
+                    : getFontMetricsForLargeDefaultFont();
+            _label_bounds.put(node.getId(),
+                              new Rectangle2D.Float(pos_x,
+                                                    pos_y - fm.getAscent(),
+                                                    fm.stringWidth(sb_str),
+                                                    fm.getAscent() + fm.getDescent()));
         }
         if (_sb.length() > 0) {
             if (!using_visual_font && !is_in_found_nodes) {
@@ -4776,6 +4784,33 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
      * @param y
      * @return pointer to the node at x,y, null if not found
      */
+    /**
+     * Returns the node at x,y, or the node whose label as last drawn covers
+     * x,y. Forester's own findNode tests only the node's box, so a click on a
+     * name misses it.
+     *
+     * @param x
+     * @param y
+     * @return the node, null if neither its box nor its label is at x,y
+     */
+    public final PhylogenyNode findNodeOrLabel(final int x, final int y) {
+        final PhylogenyNode on_box = findNode(x, y);
+        if (on_box != null) {
+            return on_box;
+        }
+        if ((_phylogeny == null) || _phylogeny.isEmpty()) {
+            return null;
+        }
+        for (final PhylogenyNodeIterator iter = _phylogeny.iteratorPreorder(); iter.hasNext(); ) {
+            final PhylogenyNode node = iter.next();
+            final Rectangle2D.Float bounds = _label_bounds.get(node.getId());
+            if ((bounds != null) && bounds.contains(x, y)) {
+                return node;
+            }
+        }
+        return null;
+    }
+
     public final PhylogenyNode findNode(final int x, final int y) {
         if ((_phylogeny == null) || _phylogeny.isEmpty()) {
             return null;
@@ -5406,6 +5441,9 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
         if ((_phylogeny == null) || _phylogeny.isEmpty()) {
             return;
         }
+        // rebuilt by paintNodeData below, so a label that is no longer drawn
+        // leaves no rectangle behind to be hit
+        _label_bounds.clear();
         if (_control_panel.isShowSequenceRelations()) {
             _query_sequence = _control_panel.getSelectedQuerySequence();
         }
