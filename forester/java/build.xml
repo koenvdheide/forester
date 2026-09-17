@@ -62,6 +62,20 @@
         </jar>
     </target>
 
+    <target name="jalviewjs-site" description="Package the Eclipse Java2Script output for JalviewJS">
+        <available file="../build/jalviewjs/swingjs/j2s/org/forester/archaeopteryx/TreePanel.js"
+                   property="jalviewjs.compiled"/>
+        <fail unless="jalviewjs.compiled" message="Transpile the forester Eclipse project before packaging JalviewJS."/>
+        <copy file="../resources/phyloxml_schema/1.20/phyloxml.xsd"
+              tofile="../build/jalviewjs/swingjs/j2s/resources/phyloxml.xsd"/>
+        <zip destfile="../build/forester-site.zip" level="9">
+            <fileset dir="../build/jalviewjs">
+                <include name="swingjs/j2s/org/forester/**/*.js"/>
+                <include name="swingjs/j2s/resources/phyloxml.xsd"/>
+            </fileset>
+        </zip>
+    </target>
+
     <target name="all" description="" depends="jar">
     </target>
 

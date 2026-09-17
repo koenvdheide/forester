@@ -1,0 +1,4 @@
+j2s.compiler.status=enable
+j2s.compiler.java.version=11
+j2s.include.tests=false
+j2s.site.directory=build/jalviewjs
