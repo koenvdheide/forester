@@ -4559,17 +4559,13 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
                 longest_txt = txt;
                 longest_txt_node = node;
             }
-            boolean use_vis = false;
-            // null whenever the panel is not displayable, as when the
-            // layout is recalculated before the view is on screen
-            final Graphics2D g = (Graphics2D) getGraphics();
-            if ((g != null) && getControlPanel().isUseVisualStyles()) {
-                use_vis = setFont(g, node, false);
-            }
-            if (!use_vis) {
+            final Font visual_font = getControlPanel().isUseVisualStyles()
+                    && node.getNodeData().getNodeVisualData() != null
+                    ? node.getNodeData().getNodeVisualData().getFont() : null;
+            if (visual_font == null) {
                 sum = getFontMetricsForLargeDefaultFont().stringWidth(sb.toString());
             } else {
-                sum = getFontMetrics(g.getFont()).stringWidth(sb.toString());
+                sum = getFontMetrics(visual_font).stringWidth(sb.toString());
             }
             if (getControlPanel().isShowBinaryCharacters() && node.getNodeData().isHasBinaryCharacters()) {
                 sum += getFontMetricsForLargeDefaultFont().stringWidth(node.getNodeData().getBinaryCharacters()
