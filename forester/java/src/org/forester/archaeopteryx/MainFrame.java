@@ -313,6 +313,11 @@ public abstract class MainFrame extends JPanel implements ActionListener {
         _save_filechooser = new JFileChooser();
         _save_filechooser.setMultiSelectionEnabled(false);
         _save_filechooser.setFileFilter(xmlfilter);
+        // SwingJS asks only for a filename, so select the format by its suffix.
+        if (/** @j2sNative true || */ false) {
+            _save_filechooser.setFileFilter(_save_filechooser.getAcceptAllFileFilter());
+            _save_filechooser.setDialogTitle("Save tree (.xml, .newick or .nex)");
+        }
         _save_filechooser.addChoosableFileFilter(nhfilter);
         _save_filechooser.addChoosableFileFilter(nexusfilter);
         _save_filechooser.addChoosableFileFilter(_save_filechooser.getAcceptAllFileFilter());
