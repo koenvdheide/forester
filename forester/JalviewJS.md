@@ -25,3 +25,14 @@ The browser profile does not bundle iText, OpenChart or Commons Codec classes.
 Jalview hides Archaeopteryx's inference menu and browser PDF export. Optional
 ImageIO writer discovery is disabled in JavaScript. Adding another viewer
 feature that uses an external library requires checking its browser support.
+
+## Current browser limits
+
+PDF export remains unavailable. Jalview disables Load Species Tree,
+Attach Molecular Sequences, Attach Vector/Expression Values and Replace Node
+Names in the browser until their file dialogs support asynchronous selection.
+These actions remain available on desktop.
+
+Restoring projects with multiple Archaeopteryx views is functional but slow.
+This is a known performance issue. Browser Save Tree As selects its format
+from the filename: `.xml`, `.newick` or `.nex`.
