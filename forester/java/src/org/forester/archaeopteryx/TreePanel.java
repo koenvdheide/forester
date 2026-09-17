@@ -82,6 +82,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.SortedSet;
+import java.util.function.Function;
 
 import javax.swing.BorderFactory;
 import javax.swing.JColorChooser;
@@ -321,6 +322,7 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
     private float _partition_threshold = 0f;
     private final boolean _phy_has_branch_lengths;
     private Phylogeny _phylogeny = null;
+    private Function<Phylogeny, Map<PhylogenyNode, List<Color>>> _branch_colour_provider;
     private final Path2D.Float _polygon = new Path2D.Float();
     private final StringBuffer _popup_buffer = new StringBuffer();
     private final QuadCurve2D _quad_curve = new QuadCurve2D.Float();
@@ -439,6 +441,12 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
      */
     public final Phylogeny getPhylogeny() {
         return _phylogeny;
+    }
+
+    public final void setBranchColourProvider(
+            final Function<Phylogeny, Map<PhylogenyNode, List<Color>>> provider) {
+        _branch_colour_provider = provider;
+        repaint();
     }
 
     public final TreeColorSet getTreeColorSet() {
@@ -659,14 +667,9 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
                                                                        final Graphics g,
                                                                        final boolean to_pdf,
                                                                        final boolean to_graphics_file) {
-        final NodeClickAction action = _control_panel.getActionWhenNodeClicked();
         if ((to_pdf || to_graphics_file) && getOptions().isPrintBlackAndWhite()) {
             g.setColor(Color.BLACK);
-        } else if (((action == NodeClickAction.COPY_SUBTREE) || (action == NodeClickAction.CUT_SUBTREE)
-                || (action == NodeClickAction.DELETE_NODE_OR_SUBTREE) || (action == NodeClickAction.PASTE_SUBTREE)
-                || (action == NodeClickAction.ADD_NEW_NODE)) && (getCutOrCopiedTree() != null)
-                && (getCopiedAndPastedNodes() != null) && !to_pdf && !to_graphics_file
-                && getCopiedAndPastedNodes().contains(node.getId())) {
+        } else if (isBranchEditHighlighted(node, to_pdf, to_graphics_file)) {
             g.setColor(getTreeColorSet().getFoundColor0());
         } else if (getControlPanel().isUseVisualStyles() && (PhylogenyMethods.getBranchColorValue(node) != null)) {
             g.setColor(PhylogenyMethods.getBranchColorValue(node));
@@ -675,6 +678,17 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
         } else {
             g.setColor(getTreeColorSet().getBranchColor());
         }
+    }
+
+    private boolean isBranchEditHighlighted(final PhylogenyNode node,
+                                            final boolean to_pdf,
+                                            final boolean to_graphics_file) {
+        final NodeClickAction action = _control_panel.getActionWhenNodeClicked();
+        return ((action == NodeClickAction.COPY_SUBTREE) || (action == NodeClickAction.CUT_SUBTREE)
+                || (action == NodeClickAction.DELETE_NODE_OR_SUBTREE) || (action == NodeClickAction.PASTE_SUBTREE)
+                || (action == NodeClickAction.ADD_NEW_NODE)) && (getCutOrCopiedTree() != null)
+                && (getCopiedAndPastedNodes() != null) && !to_pdf && !to_graphics_file
+                && getCopiedAndPastedNodes().contains(node.getId());
     }
 
     final private void blast(final PhylogenyNode node) {
@@ -2065,7 +2079,9 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
                                               final float y2,
                                               final PhylogenyNode node,
                                               final boolean to_pdf,
-                                              final boolean to_graphics_file) {
+                                              final boolean to_graphics_file,
+                                              final Map<PhylogenyNode, List<Color>> branch_colours,
+                                              final boolean vector) {
         assignGraphicsForBranchWithColorForParentBranch(node, false, g, to_pdf, to_graphics_file);
         if (getPhylogenyGraphicsType() == PHYLOGENY_GRAPHICS_TYPE.TRIANGULAR) {
             drawLine(x1, y1, x2, y2, g);
@@ -2140,7 +2156,7 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
                     if (x1c < x2a) {
                         drawLine(x1c, y2, x2a, y2, g);
                     }
-                } else {
+                } else if (!paintProviderBranch(g, x1a, x2a, y2, node, branch_colours, to_pdf, to_graphics_file, vector)) {
                     drawLine(x1a, y2, x2a, y2, g);
                 }
             } else {
@@ -2155,7 +2171,7 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
                     if (x1c < x2a) {
                         drawRectFilled(x1c, y2 - (w / 2), x2a - x1c, w, g);
                     }
-                } else {
+                } else if (!paintProviderBranch(g, x1a, x2a, y2, node, branch_colours, to_pdf, to_graphics_file, vector)) {
                     drawRectFilled(x1a, y2 - (w / 2), x2a - x1a, w, g);
                 }
             }
@@ -3171,13 +3187,65 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
         }
     }
 
+    private boolean paintProviderBranch(final Graphics2D g,
+                                        final float x1,
+                                        final float x2,
+                                        final float y,
+                                        final PhylogenyNode node,
+                                        final Map<PhylogenyNode, List<Color>> branch_colours,
+                                        final boolean to_pdf,
+                                        final boolean to_graphics_file,
+                                        final boolean vector) {
+        if ((branch_colours == null) || isBranchEditHighlighted(node, to_pdf, to_graphics_file)) {
+            return false;
+        }
+        final List<Color> colours = branch_colours.get(node);
+        if ((colours == null) || colours.isEmpty() || (getYdistance() <= 0)) {
+            return false;
+        }
+        final float branch_width = getControlPanel().isWidthBranches()
+                && (PhylogenyMethods.getBranchWidthValue(node) != 1)
+                ? (float) PhylogenyMethods.getBranchWidthValue(node) : ((BasicStroke) g.getStroke()).getLineWidth();
+        // Keep the complete bundle within half the separation of adjacent leaf rows.
+        final float width = Math.min(branch_width, getYdistance() / (2 * colours.size() - 1));
+        final AffineTransform transform = g.getTransform();
+        final double normal_scale = Math.abs(transform.getDeterminant())
+                / Math.hypot(transform.getScaleX(), transform.getShearY());
+        final boolean segmented = !vector && (colours.size() > 1) && (width * normal_scale < 1);
+        final Graphics2D strokes = (Graphics2D) g.create();
+        try {
+            strokes.setStroke(new BasicStroke(segmented ? branch_width : width,
+                    BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER));
+            if (segmented) {
+                // Subpixel parallel strokes can hide colours on raster output.
+                final double segment_length = (x2 - x1) / (double) colours.size();
+                for (int i = 0; i < colours.size(); ++i) {
+                    strokes.setColor(colours.get(i));
+                    drawLine(x1 + i * segment_length, y, x1 + (i + 1) * segment_length, y, strokes);
+                }
+            } else {
+                float stripe_y = y - width * (colours.size() - 1);
+                for (final Color colour : colours) {
+                    strokes.setColor(colour);
+                    drawLine(x1, stripe_y, x2, stripe_y, strokes);
+                    stripe_y += 2 * width;
+                }
+            }
+        } finally {
+            strokes.dispose();
+        }
+        return true;
+    }
+
     final private void paintNodeRectangular(final Graphics2D g,
                                             final PhylogenyNode node,
                                             final boolean to_pdf,
                                             final boolean dynamically_hide,
                                             final int dynamic_hiding_factor,
                                             final boolean to_graphics_file,
-                                            final boolean disallow_shortcutting) {
+                                            final boolean disallow_shortcutting,
+                                            final Map<PhylogenyNode, List<Color>> branch_colours,
+                                            final boolean vector) {
         final boolean is_in_found_nodes = isInFoundNodes(node) || isInCurrentExternalNodes(node);
         if (node.isCollapse()) {
             if ((!node.isRoot() && !node.getParent().isCollapse())) {
@@ -3241,7 +3309,9 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
                             y2,
                             child_node,
                             to_pdf,
-                            to_graphics_file);
+                            to_graphics_file,
+                            branch_colours,
+                            vector);
                 }
                 child_node.setXcoord(new_x);
                 child_node.setYcoord(y2);
@@ -5429,7 +5499,18 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
                                 final int graphics_file_height,
                                 final int graphics_file_x,
                                 final int graphics_file_y) {
-        paintPhylogeny(g, to_pdf, true, graphics_file_width, graphics_file_height, graphics_file_x, graphics_file_y);
+        paintFile(g, to_pdf, graphics_file_width, graphics_file_height, graphics_file_x, graphics_file_y, to_pdf);
+    }
+
+    public final void paintFile(final Graphics2D g,
+                                final boolean to_pdf,
+                                final int graphics_file_width,
+                                final int graphics_file_height,
+                                final int graphics_file_x,
+                                final int graphics_file_y,
+                                final boolean vector) {
+        paintPhylogeny(g, to_pdf, true, graphics_file_width, graphics_file_height,
+                graphics_file_x, graphics_file_y, vector);
     }
 
     final void paintPhylogeny(final Graphics2D g,
@@ -5439,6 +5520,18 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
                               final int graphics_file_height,
                               final int graphics_file_x,
                               final int graphics_file_y) {
+        paintPhylogeny(g, to_pdf, to_graphics_file, graphics_file_width, graphics_file_height,
+                graphics_file_x, graphics_file_y, to_pdf);
+    }
+
+    private void paintPhylogeny(final Graphics2D g,
+                                final boolean to_pdf,
+                                final boolean to_graphics_file,
+                                final int graphics_file_width,
+                                final int graphics_file_height,
+                                final int graphics_file_x,
+                                final int graphics_file_y,
+                                final boolean vector) {
         if ((_phylogeny == null) || _phylogeny.isEmpty()) {
             return;
         }
@@ -5514,9 +5607,14 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
                     _nodes_in_preorder[i++] = it.next();
                 }
             }
+            final Map<PhylogenyNode, List<Color>> branch_colours = (_branch_colour_provider != null)
+                    && (getPhylogenyGraphicsType() == PHYLOGENY_GRAPHICS_TYPE.RECTANGULAR)
+                    && getControlPanel().isUseVisualStyles()
+                    && !((to_pdf || to_graphics_file) && getOptions().isPrintBlackAndWhite())
+                    ? _branch_colour_provider.apply(_phylogeny) : null;
             final boolean disallow_shortcutting = (dynamic_hiding_factor < 40)
                     /* || getControlPanel().isUseVisualStyles() || getOptions().isShowDefaultNodeShapesForMarkedNodes()*/ //TODO check if this is really not needed.
-                    || to_graphics_file || to_pdf;
+                    || to_graphics_file || to_pdf || ((branch_colours != null) && !branch_colours.isEmpty());
             for (final PhylogenyNode element : _nodes_in_preorder) {
                 paintNodeRectangular(g,
                         element,
@@ -5524,7 +5622,9 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
                         getControlPanel().isDynamicallyHideData() && (dynamic_hiding_factor > 1),
                         dynamic_hiding_factor,
                         to_graphics_file,
-                        disallow_shortcutting);
+                        disallow_shortcutting,
+                        branch_colours,
+                        vector);
             }
             if (getOptions().isShowScale() && getControlPanel().isDrawPhylogram() && (getScaleDistance() > 0.0)) {
                 if (!(to_graphics_file || to_pdf)) {
