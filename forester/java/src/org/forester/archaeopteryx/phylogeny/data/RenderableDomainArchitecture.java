@@ -29,6 +29,7 @@ package org.forester.archaeopteryx.phylogeny.data;
 import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Dimension;
+import java.awt.FontMetrics;
 import java.awt.Graphics2D;
 import java.awt.Stroke;
 import java.awt.geom.Rectangle2D;
@@ -100,7 +101,7 @@ public final class RenderableDomainArchitecture extends DomainArchitecture imple
         final Color color_two = getColorTwo( color_one );
         double step = 1;
         if ( to_pdf ) {
-            step = 0.05;
+            step = Math.max( 0.05, heigth / 140.0 );
         }
         for( double i = 0; i < heigth; i += step ) {
             g.setColor( org.forester.util.ForesterUtil
@@ -122,7 +123,7 @@ public final class RenderableDomainArchitecture extends DomainArchitecture imple
         final Color color_two = getColorTwo( color_one );
         double step = 1;
         if ( to_pdf ) {
-            step = 0.05;
+            step = Math.max( 0.05, heigth / 140.0 );
         }
         for( double i = 0; i < heigth; i += step ) {
             g.setColor( org.forester.util.ForesterUtil
@@ -226,19 +227,6 @@ public final class RenderableDomainArchitecture extends DomainArchitecture imple
                 }
                 final float xa = start + ( d.getFrom() * f );
                 final float xb = xa + ( d.getLength() * f );
-                if ( tree_panel.getMainPanel().getOptions().isShowDomainLabels()
-                        && ( tree_panel.getMainPanel().getTreeFontSet().getFontMetricsSmall().getHeight() > 4 ) ) {
-                    g.setFont( tree_panel.getMainPanel().getTreeFontSet().getSmallFont() );
-                    if ( !to_pdf ) {
-                        g.setColor( tree_panel.getTreeColorSet().getDomainLabelColor() );
-                    }
-                    else {
-                        g.setColor( AptxConstants.DOMAIN_LABEL_COLOR_FOR_PDF );
-                    }
-                    g.drawString( d.getName(), xa, y1
-                                  + tree_panel.getMainPanel().getTreeFontSet().getFontMetricsSmall().getAscent()
-                                  + _rendering_height );
-                }
                 if ( TreePanel.SPECIAL_DOMAIN_COLORING && ( _node_name.indexOf( "~" ) > 1 )
                         && ( d.getName().equals( SPECIAL_DOMAIN ) )
                         && ( _node_name.indexOf( "~" + special_domain_count + "-" ) < 1 ) ) {
@@ -246,6 +234,17 @@ public final class RenderableDomainArchitecture extends DomainArchitecture imple
                 }
                 else {
                     drawDomain( xa, y1, xb - xa, _rendering_height, d.getName(), g, to_pdf );
+                }
+                if ( tree_panel.getMainPanel().getOptions().isShowDomainLabels() ) {
+                    final FontMetrics fm = tree_panel.getMainPanel().getTreeFontSet().getFontMetricsSmall();
+                    if ( ( _rendering_height >= fm.getHeight() ) && ( fm.stringWidth( d.getName() ) + 4 <= xb - xa ) ) {
+                        // the fill is a hashed colour of unknown darkness, so the label is black or white by luminance
+                        final Color fill = getColorOne( d.getName() );
+                        final int luminance = ( 299 * fill.getRed() + 587 * fill.getGreen() + 114 * fill.getBlue() ) / 1000;
+                        g.setFont( tree_panel.getMainPanel().getTreeFontSet().getSmallFont() );
+                        g.setColor( luminance > 128 ? Color.BLACK : Color.WHITE );
+                        g.drawString( d.getName(), xa + 2, y1 + ( _rendering_height + fm.getAscent() - fm.getDescent() ) / 2 );
+                    }
                 }
             }
         }

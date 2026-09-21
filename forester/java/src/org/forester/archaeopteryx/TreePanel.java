@@ -3358,13 +3358,8 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
                 cce.printStackTrace();
             }
             if (rds != null) {
-                final int default_height = 7;
-                float y = getYdistance();
-                if (getControlPanel().isDynamicallyHideData()) {
-                    y = getTreeFontSet().getFontMetricsLarge().getHeight();
-                }
-                final int h = y < default_height ? ForesterUtil.roundToInt(y) : default_height;
-                rds.setRenderingHeight(h > 1 ? h : 2);
+                final int h = Math.max(1, ForesterUtil.roundToInt(getYdistance()) - 2);
+                rds.setRenderingHeight(h);
                 if (getControlPanel().isDrawPhylogram()) {
                     if (getOptions().isLineUpRendarableNodeData()) {
                         if (getOptions().isRightLineUpDomains()) {
@@ -4449,6 +4444,8 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
     final void calcParametersForPainting(final int x, final int y) {
         // updateStyle(); not needed?
         if ((_phylogeny != null) && !_phylogeny.isEmpty()) {
+            // every caller fits the whole tree to the view, which discards the zoom the strips followed
+            _domain_structure_width = AptxConstants.DOMAIN_STRUCTURE_DEFAULT_WIDTH;
             initNodeData();
             calculateLongestExtNodeInfo();
             if ((getLongestExtNodeInfo() > (x * 0.6))
@@ -6260,15 +6257,15 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
     }
 
     final void zoomInDomainStructure() {
-        if (_domain_structure_width < 2000) {
-            _domain_structure_width *= 1.2;
-        }
+        scaleDomainStructureWidth(1.2f);
     }
 
     final void zoomOutDomainStructure() {
-        if (_domain_structure_width > 20) {
-            _domain_structure_width *= 0.8;
-        }
+        scaleDomainStructureWidth(0.8f);
+    }
+
+    final void scaleDomainStructureWidth(final float factor) {
+        _domain_structure_width = Math.max(20.0, Math.min(2000.0, _domain_structure_width * factor));
     }
 
     private final static void colorizeNodesHelper(final Color c, final PhylogenyNode node) {

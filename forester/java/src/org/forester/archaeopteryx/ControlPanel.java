@@ -2678,6 +2678,11 @@ public final class ControlPanel extends JPanel implements ActionListener {
         final JScrollBar sb = getMainPanel().getCurrentScrollPane().getHorizontalScrollBar();
         final TreePanel treepanel = getMainPanel().getCurrentTreePanel();
         treepanel.multiplyUrtFactor(1f);
+        if (isShowDomainArchitectures()) {
+            treepanel.scaleDomainStructureWidth(factor);
+            treepanel.initNodeData();
+            treepanel.calculateLongestExtNodeInfo();
+        }
         if ((treepanel.getPhylogenyGraphicsType() == PHYLOGENY_GRAPHICS_TYPE.CIRCULAR)
                 || (treepanel.getPhylogenyGraphicsType() == PHYLOGENY_GRAPHICS_TYPE.UNROOTED)
                 || isDrawPhylogram(getMainPanel().getCurrentTabIndex())
@@ -2724,6 +2729,11 @@ public final class ControlPanel extends JPanel implements ActionListener {
         treepanel.multiplyUrtFactor(1f);
         if ((treepanel.getXdistance() * factor) > 0.0) {
             final JScrollBar sb = getMainPanel().getCurrentScrollPane().getHorizontalScrollBar();
+            if (isShowDomainArchitectures()) {
+                treepanel.scaleDomainStructureWidth(factor);
+                treepanel.initNodeData();
+                treepanel.calculateLongestExtNodeInfo();
+            }
             if ((treepanel.getPhylogenyGraphicsType() == PHYLOGENY_GRAPHICS_TYPE.CIRCULAR)
                     || (treepanel.getPhylogenyGraphicsType() == PHYLOGENY_GRAPHICS_TYPE.UNROOTED)
                     || isDrawPhylogram(getMainPanel().getCurrentTabIndex())
