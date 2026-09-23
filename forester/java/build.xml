@@ -10,6 +10,16 @@
     <property name="forester_jar" value="forester.jar"/>
     <property name="archaeopteryx_applets_jar" value="archaeopteryx_applets.jar"/>
 
+    <target name="source-revision" description="Validate the source commit used for packaging">
+        <fail message="Pass -Dforester.source.revision=&lt;full Git commit&gt; for the source being built.">
+            <condition>
+                <not>
+                    <matches string="${forester.source.revision}" pattern="^[0-9a-f]{40}$"/>
+                </not>
+            </condition>
+        </fail>
+    </target>
+
     <target name="clean" description="Delete all generated files">
         <delete dir="${classes.dir}" failonerror="false"/>
         <delete file="${forester_jar}"/>
@@ -33,7 +43,7 @@
         </javac>
     </target>
 
-    <target name="jar" description="JARs the classes files" depends="compile,copy_resources">
+    <target name="jar" description="JARs the classes files" depends="source-revision,compile,copy_resources">
         <unjar src="${itextjar}" dest="${classes.dir}">
             <patternset>
                 <include name="**/*.class"/>
@@ -58,20 +68,25 @@
              index="true">
             <manifest>
                 <attribute name="Main-Class" value="org.forester.archaeopteryx.Archaeopteryx"/>
+                <attribute name="Forester-Source-Revision" value="${forester.source.revision}"/>
             </manifest>
         </jar>
     </target>
 
-    <target name="jalviewjs-site" description="Package the Eclipse Java2Script output for JalviewJS">
+    <target name="jalviewjs-site" description="Package the Eclipse Java2Script output for JalviewJS"
+            depends="source-revision">
         <available file="../build/jalviewjs/swingjs/j2s/org/forester/archaeopteryx/TreePanel.js"
                    property="jalviewjs.compiled"/>
         <fail unless="jalviewjs.compiled" message="Transpile the forester Eclipse project before packaging JalviewJS."/>
         <copy file="../resources/phyloxml_schema/1.20/phyloxml.xsd"
               tofile="../build/jalviewjs/swingjs/j2s/resources/phyloxml.xsd"/>
+        <echo file="../build/jalviewjs/swingjs/j2s/resources/forester-source.properties"
+              encoding="UTF-8">forester.source.revision=${forester.source.revision}${line.separator}</echo>
         <zip destfile="../build/forester-site.zip" level="9">
             <fileset dir="../build/jalviewjs">
                 <include name="swingjs/j2s/org/forester/**/*.js"/>
                 <include name="swingjs/j2s/resources/phyloxml.xsd"/>
+                <include name="swingjs/j2s/resources/forester-source.properties"/>
             </fileset>
         </zip>
     </target>

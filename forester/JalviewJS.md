@@ -1,6 +1,9 @@
 # Building the JalviewJS library
 
-Use the same Forester source checkout for the desktop jar and browser library.
+`jalview-2.12-integration` is the common source branch for the desktop jar and
+browser library. Build both from the same clean, committed revision. Record
+`git rev-parse HEAD`, then export that commit with `git archive` to a build
+copy. Build in that copy so the desktop target cannot delete tracked classes.
 The Java2Script profile is `forester/.j2s`; its output goes to
 `forester/build/jalviewjs`.
 
@@ -8,18 +11,23 @@ The Java2Script profile is `forester/.j2s`; its output goes to
    `jalviewjs/resources/SwingJSPlugin/swingjs/net.sf.j2s.core-j11.jar` into
    Eclipse. The current Jalview build uses Eclipse 2024-03 and Java 11 source
    compatibility.
-2. Import the existing `forester` Eclipse project and run a clean build.
+2. Import the exported `forester` Eclipse project into a fresh workspace and run a clean build.
    Verify the Java2Script build reports zero errors.
-3. From `forester`, run `ant -f java/build.xml jalviewjs-site`.
-4. Copy `forester/build/forester-site.zip` to Jalview's
+3. From the exported `forester` directory, run
+   `ant -f java/build.xml -Dforester.source.revision=<full-commit> jar jalviewjs-site`,
+   using the commit exported above. Packaging requires a full 40-character hash.
+4. Copy `forester/java/forester.jar` to Jalview's `jalview-app/libs/forester.jar`
+   and `forester/build/forester-site.zip` to Jalview's
    `jalviewjs/resources/libjs/forester-site.zip`, then run
    `./gradlew jalviewjs:buildSite` in Jalview.
 
 The archive contains the transpiled Forester classes and `phyloxml.xsd`.
 Jalview supplies its Archaeopteryx configuration and its own wrappers and
-alignment bindings. The desktop jar remains built by `java/build.xml`'s `jar`
-target in a copy of the source tree, because that target cleans tracked class
-files.
+alignment bindings. The jar manifest records `Forester-Source-Revision`; the browser archive records
+`forester.source.revision` in `swingjs/j2s/resources/forester-source.properties`.
+Check that both contain the exported commit before installing them together.
+The revision argument labels the build; it does not verify the source or detect
+stale Java2Script output. Always export the named commit and transpile it afresh.
 
 The browser profile does not bundle iText, OpenChart or Commons Codec classes.
 Jalview hides Archaeopteryx's inference menu and browser PDF export. Optional
