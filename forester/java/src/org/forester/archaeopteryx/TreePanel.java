@@ -312,6 +312,7 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
     private boolean _ov_on = false;
     private final Rectangle2D _ov_rectangle = new Rectangle2D.Float();
     private final Rectangle _ov_virtual_rectangle = new Rectangle();
+    private Rectangle _paint_visible_rect;
     private float _ov_x_correction_factor = 0.0f;
     private float _ov_x_distance = 0;
     private int _ov_x_position = 0;
@@ -546,7 +547,18 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
     final public void paintComponent(final Graphics g) {
         final Graphics2D g2d = (Graphics2D) g;
         g2d.setRenderingHints(_rendering_hints);
-        paintPhylogeny(g2d, false, false, 0, 0, 0, 0);
+        final Rectangle previous = _paint_visible_rect;
+        _paint_visible_rect = getVisibleRect();
+        try {
+            paintPhylogeny(g2d, false, false, 0, 0, 0, 0);
+        } finally {
+            _paint_visible_rect = previous;
+        }
+    }
+
+    private Rectangle getPaintingVisibleRect() {
+        // SwingJS walks the component hierarchy for every getVisibleRect() call.
+        return _paint_visible_rect != null ? _paint_visible_rect : getVisibleRect();
     }
 
     @Override
@@ -1516,20 +1528,22 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
     }
 
     final private boolean isNodeDataInvisible(final PhylogenyNode node) {
+        final Rectangle visible = getPaintingVisibleRect();
         int y_dist = 40;
         if (getControlPanel().isShowTaxonomyImages()) {
             y_dist = 40 + (int) getYdistance();
         }
-        return ((node.getYcoord() < (getVisibleRect().getMinY() - y_dist))
-                || (node.getYcoord() > (getVisibleRect().getMaxY() + y_dist))
-                || ((node.getParent() != null) && (node.getParent().getXcoord() > getVisibleRect().getMaxX())));
+        return ((node.getYcoord() < (visible.getMinY() - y_dist))
+                || (node.getYcoord() > (visible.getMaxY() + y_dist))
+                || ((node.getParent() != null) && (node.getParent().getXcoord() > visible.getMaxX())));
     }
 
     final private boolean isNodeDataInvisibleUnrootedCirc(final PhylogenyNode node) {
-        return ((node.getYcoord() < (getVisibleRect().getMinY() - 20))
-                || (node.getYcoord() > (getVisibleRect().getMaxY() + 20))
-                || (node.getXcoord() < (getVisibleRect().getMinX() - 20))
-                || (node.getXcoord() > (getVisibleRect().getMaxX() + 20)));
+        final Rectangle visible = getPaintingVisibleRect();
+        return ((node.getYcoord() < (visible.getMinY() - 20))
+                || (node.getYcoord() > (visible.getMaxY() + 20))
+                || (node.getXcoord() < (visible.getMinX() - 20))
+                || (node.getXcoord() > (visible.getMaxX() + 20)));
     }
 
     final private boolean isNonLinedUpCladogram() {
@@ -2082,6 +2096,7 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
                                               final boolean to_graphics_file,
                                               final Map<PhylogenyNode, List<Color>> branch_colours,
                                               final boolean vector) {
+        final Rectangle visible = getPaintingVisibleRect();
         assignGraphicsForBranchWithColorForParentBranch(node, false, g, to_pdf, to_graphics_file);
         if (getPhylogenyGraphicsType() == PHYLOGENY_GRAPHICS_TYPE.TRIANGULAR) {
             drawLine(x1, y1, x2, y2, g);
@@ -2108,10 +2123,10 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
                     || (getPhylogenyGraphicsType() == PHYLOGENY_GRAPHICS_TYPE.EURO_STYLE)
                     || (getPhylogenyGraphicsType() == PHYLOGENY_GRAPHICS_TYPE.ROUNDED)) {
                 if (!to_graphics_file && !to_pdf
-                        && (((y2 < (getVisibleRect().getMinY() - 20))
-                        && (y1 < (getVisibleRect().getMinY() - 20)))
-                        || ((y2 > (getVisibleRect().getMaxY() + 20))
-                        && (y1 > (getVisibleRect().getMaxY() + 20))))) {
+                        && (((y2 < (visible.getMinY() - 20))
+                        && (y1 < (visible.getMinY() - 20)))
+                        || ((y2 > (visible.getMaxY() + 20))
+                        && (y1 > (visible.getMaxY() + 20))))) {
                     // Do nothing.
                 } else {
                     if (getPhylogenyGraphicsType() == PHYLOGENY_GRAPHICS_TYPE.EURO_STYLE) {
@@ -2140,8 +2155,8 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
                 }
             }
             // draw the horizontal line
-            if (!to_graphics_file && !to_pdf && ((y2 < (getVisibleRect().getMinY() - 20))
-                    || (y2 > (getVisibleRect().getMaxY() + 20)))) {
+            if (!to_graphics_file && !to_pdf && ((y2 < (visible.getMinY() - 20))
+                    || (y2 > (visible.getMaxY() + 20)))) {
                 return;
             }
             float x1_r = 0;
