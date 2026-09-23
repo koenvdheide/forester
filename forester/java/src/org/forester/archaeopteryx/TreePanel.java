@@ -3226,27 +3226,30 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
         final double normal_scale = Math.abs(transform.getDeterminant())
                 / Math.hypot(transform.getScaleX(), transform.getShearY());
         final boolean segmented = !vector && (colours.size() > 1) && (width * normal_scale < 1);
-        final Graphics2D strokes = (Graphics2D) g.create();
+        // Per-branch graphics clones make large provider-coloured trees slow in SwingJS.
+        final Stroke old_stroke = g.getStroke();
+        final Color old_color = g.getColor();
         try {
-            strokes.setStroke(new BasicStroke(segmented ? branch_width : width,
+            g.setStroke(new BasicStroke(segmented ? branch_width : width,
                     BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER));
             if (segmented) {
                 // Subpixel parallel strokes can hide colours on raster output.
                 final double segment_length = (x2 - x1) / (double) colours.size();
                 for (int i = 0; i < colours.size(); ++i) {
-                    strokes.setColor(colours.get(i));
-                    drawLine(x1 + i * segment_length, y, x1 + (i + 1) * segment_length, y, strokes);
+                    g.setColor(colours.get(i));
+                    drawLine(x1 + i * segment_length, y, x1 + (i + 1) * segment_length, y, g);
                 }
             } else {
                 float stripe_y = y - width * (colours.size() - 1);
                 for (final Color colour : colours) {
-                    strokes.setColor(colour);
-                    drawLine(x1, stripe_y, x2, stripe_y, strokes);
+                    g.setColor(colour);
+                    drawLine(x1, stripe_y, x2, stripe_y, g);
                     stripe_y += 2 * width;
                 }
             }
         } finally {
-            strokes.dispose();
+            g.setStroke(old_stroke);
+            g.setColor(old_color);
         }
         return true;
     }
