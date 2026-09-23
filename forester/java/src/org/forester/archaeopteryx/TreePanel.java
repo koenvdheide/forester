@@ -2096,7 +2096,6 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
                                               final boolean to_graphics_file,
                                               final Map<PhylogenyNode, List<Color>> branch_colours,
                                               final boolean vector) {
-        final Rectangle visible = getPaintingVisibleRect();
         assignGraphicsForBranchWithColorForParentBranch(node, false, g, to_pdf, to_graphics_file);
         if (getPhylogenyGraphicsType() == PHYLOGENY_GRAPHICS_TYPE.TRIANGULAR) {
             drawLine(x1, y1, x2, y2, g);
@@ -2123,10 +2122,10 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
                     || (getPhylogenyGraphicsType() == PHYLOGENY_GRAPHICS_TYPE.EURO_STYLE)
                     || (getPhylogenyGraphicsType() == PHYLOGENY_GRAPHICS_TYPE.ROUNDED)) {
                 if (!to_graphics_file && !to_pdf
-                        && (((y2 < (visible.getMinY() - 20))
-                        && (y1 < (visible.getMinY() - 20)))
-                        || ((y2 > (visible.getMaxY() + 20))
-                        && (y1 > (visible.getMaxY() + 20))))) {
+                        && (((y2 < (getPaintingVisibleRect().getMinY() - 20))
+                        && (y1 < (getPaintingVisibleRect().getMinY() - 20)))
+                        || ((y2 > (getPaintingVisibleRect().getMaxY() + 20))
+                        && (y1 > (getPaintingVisibleRect().getMaxY() + 20))))) {
                     // Do nothing.
                 } else {
                     if (getPhylogenyGraphicsType() == PHYLOGENY_GRAPHICS_TYPE.EURO_STYLE) {
@@ -2155,8 +2154,8 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
                 }
             }
             // draw the horizontal line
-            if (!to_graphics_file && !to_pdf && ((y2 < (visible.getMinY() - 20))
-                    || (y2 > (visible.getMaxY() + 20)))) {
+            if (!to_graphics_file && !to_pdf && ((y2 < (getPaintingVisibleRect().getMinY() - 20))
+                    || (y2 > (getPaintingVisibleRect().getMaxY() + 20)))) {
                 return;
             }
             float x1_r = 0;
