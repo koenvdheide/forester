@@ -278,6 +278,7 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
     private StringBuilder _current_external_nodes_data_buffer = new StringBuilder();
     private int _current_external_nodes_data_buffer_change_counter = 0;
     private int _domain_structure_e_value_thr_exp = AptxConstants.DOMAIN_STRUCTURE_E_VALUE_THR_DEFAULT_EXP;
+    private float _domain_structure_fit_y_distance = 1.0f;
     private double _domain_structure_width = AptxConstants.DOMAIN_STRUCTURE_DEFAULT_WIDTH;
     private int _dynamic_hiding_factor = 0;
     private boolean _edited = false;
@@ -3375,7 +3376,9 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
                 cce.printStackTrace();
             }
             if (rds != null) {
-                final int h = Math.max(1, ForesterUtil.roundToInt(getYdistance()) - 2);
+                // Fit starts with slim strips; only subsequent vertical zoom increases their height.
+                final int h = Math.max(1, Math.min(ForesterUtil.roundToInt(getYdistance()) - 2,
+                        ForesterUtil.roundToInt(7 * getYdistance() / _domain_structure_fit_y_distance)));
                 rds.setRenderingHeight(h);
                 if (getControlPanel().isDrawPhylogram()) {
                     if (getOptions().isLineUpRendarableNodeData()) {
@@ -4511,6 +4514,7 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
             }
             setXdistance(xdist);
             setYdistance(ydist);
+            _domain_structure_fit_y_distance = Math.max(1.0f, ydist);
             setOvXDistance(ov_xdist);
             final double height = _phylogeny.calculateHeight(!_options.isCollapsedWithAverageHeigh());
             //final double height = PhylogenyMethods.calculateMaxDepth( _phylogeny );
