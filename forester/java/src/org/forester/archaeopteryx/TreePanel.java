@@ -37,6 +37,7 @@ import java.awt.Graphics2D;
 import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.RenderingHints;
+import java.awt.Shape;
 import java.awt.Stroke;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -284,7 +285,7 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
     private boolean _edited = false;
     private final Ellipse2D _ellipse = new Ellipse2D.Float();
     private int _external_node_index = 0;
-    private final Map<Long, Rectangle2D.Float> _label_bounds = new HashMap<>();
+    private final Map<Long, Shape> _label_bounds = new HashMap<>();
     private Set<Long> _found_nodes_0 = null;
     private Set<Long> _found_nodes_1 = null;
     private final FontRenderContext _frc = new FontRenderContext(null,
@@ -3128,32 +3129,28 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
             } else {
                 y_coord = node.getYcoord() + (getFontMetrics(g.getFont()).getAscent() / 3.0f);
             }
+            final AffineTransform label_transform = new AffineTransform();
+            boolean left = (m > HALF_PI) && (m < ONEHALF_PI);
             if (radial_labels) {
                 need_to_reset = true;
-                boolean left = false;
-                if ((m > HALF_PI) && (m < ONEHALF_PI)) {
+                if (left) {
                     m -= PI;
-                    left = true;
                 }
                 g.rotate(m, x_coord, node.getYcoord());
-                if (left) {
-                    if (!using_visual_font) {
-                        g.translate(-(getFontMetricsForLargeDefaultFont().getStringBounds(sb_str, g).getWidth()),
-                                0);
-                    } else {
-                        g.translate(-(getFontMetrics(g.getFont()).getStringBounds(sb_str, g).getWidth()), 0);
-                    }
-                }
-            } else {
-                if ((m > HALF_PI) && (m < ONEHALF_PI)) {
-                    need_to_reset = true;
-                    if (!using_visual_font) {
-                        g.translate(-getFontMetricsForLargeDefaultFont().getStringBounds(sb_str, g).getWidth(), 0);
-                    } else {
-                        g.translate(-getFontMetrics(g.getFont()).getStringBounds(sb_str, g).getWidth(), 0);
-                    }
-                }
+                label_transform.rotate(m, x_coord, node.getYcoord());
             }
+            if (left) {
+                need_to_reset = true;
+                final double offset = -(using_visual_font ? getFontMetrics(g.getFont())
+                        : getFontMetricsForLargeDefaultFont()).getStringBounds(sb_str, g).getWidth();
+                g.translate(offset, 0);
+                label_transform.translate(offset, 0);
+            }
+            // Mouse coordinates exclude the graphics device's scale and translation.
+            final FontMetrics fm = getFontMetrics(g.getFont());
+            _label_bounds.put(node.getId(), label_transform.createTransformedShape(
+                    new Rectangle2D.Float(x_coord, y_coord - fm.getAscent(),
+                            fm.stringWidth(sb_str), fm.getAscent() + fm.getDescent())));
             TreePanel.drawString(sb_str, x_coord, y_coord, g);
             if (need_to_reset) {
                 g.setTransform(_at);
@@ -4888,7 +4885,7 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
         }
         for (final PhylogenyNodeIterator iter = _phylogeny.iteratorPreorder(); iter.hasNext(); ) {
             final PhylogenyNode node = iter.next();
-            final Rectangle2D.Float bounds = _label_bounds.get(node.getId());
+            final Shape bounds = _label_bounds.get(node.getId());
             if ((bounds != null) && bounds.contains(x, y)) {
                 return node;
             }
@@ -4992,7 +4989,7 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
         return _ov_virtual_rectangle;
     }
 
-    final PHYLOGENY_GRAPHICS_TYPE getPhylogenyGraphicsType() {
+    public final PHYLOGENY_GRAPHICS_TYPE getPhylogenyGraphicsType() {
         return _graphics_type;
     }
 
