@@ -29,6 +29,7 @@
 package org.forester.archaeopteryx;
 
 import java.awt.BorderLayout;
+import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.event.AdjustmentEvent;
 import java.awt.event.AdjustmentListener;
@@ -80,7 +81,14 @@ public class MainPanel extends JPanel implements ComponentListener {
         _treepanels = new ArrayList<TreePanel>();
         initialize();
         _control_panel = new ControlPanel(this, configuration);
-        add(_control_panel, BorderLayout.WEST);
+        if (/** @j2sNative true || */ false) {
+            final JScrollPane scroll = new JScrollPane(_control_panel,
+                    JScrollPane.VERTICAL_SCROLLBAR_ALWAYS, JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+            scroll.setBorder(null);
+            add(scroll, BorderLayout.WEST);
+        } else {
+            add(_control_panel, BorderLayout.WEST);
+        }
         setupTreeGraphic(configuration, getControlPanel());
         getControlPanel().showWhole();
     }
@@ -165,6 +173,10 @@ public class MainPanel extends JPanel implements ComponentListener {
 
     public ControlPanel getControlPanel() {
         return _control_panel;
+    }
+
+    public Component getControlPanelComponent() {
+        return ((BorderLayout) getLayout()).getLayoutComponent(BorderLayout.WEST);
     }
 
     public Set<Long> getCopiedAndPastedNodes() {

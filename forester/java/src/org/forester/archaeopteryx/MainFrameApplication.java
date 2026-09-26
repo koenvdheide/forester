@@ -1911,6 +1911,9 @@ public final class MainFrameApplication extends MainFrame {
         customizeJMenuItem(_gsdi_item);
         customizeJMenuItem(_gsdir_item);
         customizeJMenuItem(_load_species_tree_item);
+        if (/** @j2sNative true || */ false) {
+            _load_species_tree_item.setEnabled(false);
+        }
         _analysis_menu.addSeparator();
         _analysis_menu.add(_lineage_inference = new JMenuItem(INFER_ANCESTOR_TAXONOMIES));
         customizeJMenuItem(_lineage_inference);
@@ -1951,6 +1954,9 @@ public final class MainFrameApplication extends MainFrame {
         _save_all_item.setEnabled(false);
         _file_jmenu.addSeparator();
         _file_jmenu.add(_write_to_pdf_item = new JMenuItem("Export to PDF file ..."));
+        if (/** @j2sNative true || */ false) {
+            _write_to_pdf_item.setVisible(false);
+        }
         if (AptxUtil.canWriteFormat("tif") || AptxUtil.canWriteFormat("tiff")
                 || AptxUtil.canWriteFormat("TIF")) {
             _file_jmenu.add(_write_to_tif_item = new JMenuItem("Export to TIFF file..."));
@@ -2226,6 +2232,9 @@ public final class MainFrameApplication extends MainFrame {
             _replace_names_item.setToolTipText("to replace external node names using a tab separated mapping file");
             _tools_menu.addSeparator();
             customizeJMenuItem(_replace_names_item);
+            if (/** @j2sNative true || */ false) {
+                _replace_names_item.setEnabled(false);
+            }
         }
         _tools_menu.add(_confcolor_item = new JMenuItem("Colorize Branches Depending on Confidence"));
         customizeJMenuItem(_confcolor_item);
@@ -2302,10 +2311,16 @@ public final class MainFrameApplication extends MainFrame {
         _tools_menu.addSeparator();
         _tools_menu.add(_read_values_jmi = new JMenuItem("Attach Vector/Expression Values"));
         customizeJMenuItem(_read_values_jmi);
+        if (/** @j2sNative true || */ false) {
+            _read_values_jmi.setEnabled(false);
+        }
         _read_values_jmi.setToolTipText("To attach vector (e.g. gene expression) values to tree nodes (beta)");
         _jmenubar.add(_tools_menu);
         _tools_menu.add(_read_seqs_jmi = new JMenuItem("Attach Molecular Sequences"));
         customizeJMenuItem(_read_seqs_jmi);
+        if (/** @j2sNative true || */ false) {
+            _read_seqs_jmi.setEnabled(false);
+        }
         _read_seqs_jmi
                 .setToolTipText("To attach molecular sequences to tree nodes (from Fasta-formatted file) (beta)");
         _jmenubar.add(_tools_menu);
