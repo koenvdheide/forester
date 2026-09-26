@@ -27,7 +27,6 @@ package org.forester.io.parsers.phyloxml;
 
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -45,6 +44,7 @@ import javax.xml.parsers.SAXParser;
 import javax.xml.parsers.SAXParserFactory;
 
 import org.forester.io.parsers.PhylogenyParser;
+import org.forester.io.parsers.util.ParserUtils;
 import org.forester.io.parsers.util.PhylogenyParserException;
 import org.forester.phylogeny.Phylogeny;
 import org.forester.util.ForesterConstants;
@@ -188,9 +188,10 @@ public class PhyloXmlParser implements PhylogenyParser {
             }
             if ( getSource() instanceof File ) {
                 if ( !getSource().toString().toLowerCase().endsWith( ".zip" ) ) {
-                    final InputStream is = new FileInputStream( (File) getSource() );
-                    final InputStreamReader isr = new InputStreamReader( is, ForesterConstants.UTF_8 );
-                    xml_reader.parse( new InputSource( new BufferedReader( isr ) ) );
+                    try ( InputStream is = ParserUtils.createInputStream( ( File ) getSource() ) ) {
+                        final InputStreamReader isr = new InputStreamReader( is, ForesterConstants.UTF_8 );
+                        xml_reader.parse( new InputSource( new BufferedReader( isr ) ) );
+                    }
                 }
                 else {
                     final Reader reader = getReaderFromZipFile();

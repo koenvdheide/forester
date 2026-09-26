@@ -389,6 +389,14 @@ public final class Test {
             System.out.println("failed.");
             failed++;
         }
+        System.out.print("Compressed tree input: ");
+        if (TestCompressedTreeInput.test()) {
+            System.out.println("OK.");
+            succeeded++;
+        } else {
+            System.out.println("failed.");
+            failed++;
+        }
         System.out.print("NHX parsing with quotes: ");
         if (Test.testNHXParsingQuotes()) {
             System.out.println("OK.");
