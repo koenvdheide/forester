@@ -398,6 +398,7 @@ public abstract class MainFrame extends javax.swing.JPanel implements ActionList
     JMenu _process_menu;
     private EqualizerIcon _process_anim_icon;   // the gentle equalizer-bars activity indicator on the process menu
     private Timer         _process_anim_timer;
+    private volatile boolean _closed;
     MainPanel _mainpanel;
     Container _contentpane;
     Configuration _configuration;
@@ -961,6 +962,9 @@ public abstract class MainFrame extends javax.swing.JPanel implements ActionList
     }
 
     private void doUpdateProcessMenu() {
+        if (_closed) {
+            return;
+        }
         if (_process_pool.size() > 0) {
             if (_process_menu == null) {
                 _process_menu = createMenu("", getConfiguration());
@@ -1402,7 +1406,17 @@ public abstract class MainFrame extends javax.swing.JPanel implements ActionList
         _jmenubar.add(_view_jmenu);
     }
 
+    public final boolean isClosed() {
+        return _closed;
+    }
+
     void close() {
+        if (_closed) {
+            return;
+        }
+        _closed = true;
+        _process_pool.requestCancelAll();
+        stopProcessAnimation();
         if (_mainpanel != null) {
             _mainpanel.terminate();
         }

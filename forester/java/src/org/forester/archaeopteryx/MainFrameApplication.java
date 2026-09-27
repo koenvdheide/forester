@@ -123,7 +123,6 @@ public final class MainFrameApplication extends MainFrame {
     private boolean _repsel_by_cutoff = true;
     private int _repsel_pick_index = 0;
     private final List<java.awt.Window> _owned_windows = new ArrayList<>();
-    private boolean _ended;
 
     private MainFrameApplication(final Phylogeny[] phys, final Configuration config) {
         _configuration = config;
@@ -417,7 +416,7 @@ public final class MainFrameApplication extends MainFrame {
     }
 
     private boolean showOwnedWindow(final java.awt.Window window) {
-        if (_ended) {
+        if (isClosed()) {
             window.dispose();
             return false;
         }
@@ -434,15 +433,11 @@ public final class MainFrameApplication extends MainFrame {
     }
 
     public void end() {
-        _ended = true;
+        super.close();
         for (final java.awt.Window window : new ArrayList<>(_owned_windows)) {
             window.dispose();
         }
         _owned_windows.clear();
-        _mainpanel.terminate();
-        _contentpane.removeAll();
-        setVisible(false);
-        dispose();
     }
 
     @Override
@@ -2122,10 +2117,7 @@ public final class MainFrameApplication extends MainFrame {
             new GuiPreferences().saveFrom(getOptions());
             new DirectoryPreferences().saveFrom(_current_dirs);
         }
-        _mainpanel.terminate();
-        _contentpane.removeAll();
-        setVisible(false);
-        dispose();
+        end();
         if (!_embedded && _launched_as_standalone_application) {
             // Standalone app only: force JVM termination. Disposing the frame is not enough -- a heavyweight
             // rollover Popup (TreePanel/PopupFactory) leaves a cached, still-displayable native window, and the

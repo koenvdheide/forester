@@ -164,6 +164,7 @@
         <run-embedded-test class="EmbeddedTreeLifecycleTest"/>
         <run-embedded-test class="EmbeddedWindowLifecycleTest"/>
         <run-embedded-test class="TypomaticButtonCloseTest"/>
+        <run-embedded-test class="EmbeddedWorkerCloseTest"/>
         <run-embedded-test class="RootingGuardsTest"/>
         <run-embedded-test class="SubSuperTreeButtonsTest"/>
         <run-embedded-test class="CladeLegendSectionsTest"/>

@@ -70,6 +70,14 @@ public class ProcessPool {
         return id;
     }
 
+    public synchronized void requestCancelAll() {
+        for( final ProcessRunning process : getProcesses() ) {
+            if ( process.getProcess() != null ) {
+                process.getProcess().requestCancel();
+            }
+        }
+    }
+
     public synchronized boolean removeProcess( final long id ) {
         final int i = getProcessIndexById( id );
         if ( i >= 0 ) {

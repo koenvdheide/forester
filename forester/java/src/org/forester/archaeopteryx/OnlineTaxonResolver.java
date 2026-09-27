@@ -90,6 +90,10 @@ public final class OnlineTaxonResolver extends RunnableProcess {
             end( _mf );
         }
         final String err = error;
-        SwingUtilities.invokeLater( () -> _completion.finished( err ) );
+        SwingUtilities.invokeLater( () -> {
+            if ( !_mf.isClosed() ) {
+                _completion.finished( err );
+            }
+        } );
     }
 }

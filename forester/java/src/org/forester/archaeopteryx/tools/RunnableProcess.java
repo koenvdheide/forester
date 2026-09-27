@@ -55,6 +55,9 @@ public abstract class RunnableProcess implements Runnable, CancelFlag {
 
     public void start( final MainFrame mf, final String name ) {
         setProcessId( mf.getProcessPool().addProcess( name, this ) );
+        if ( mf.isClosed() ) {
+            requestCancel();
+        }
         mf.updateProcessMenu();
     }
 
