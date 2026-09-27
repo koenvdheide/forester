@@ -139,6 +139,13 @@ public final class TypomaticJButton extends JButton implements ActionListener, M
     }
 
     @Override
+    public void removeNotify() {
+        pressed = false;
+        timer.stop();
+        super.removeNotify();
+    }
+
+    @Override
     final public void setEnabled( final boolean e ) {
         if ( e != super.isEnabled() ) {
             pressed = false;
