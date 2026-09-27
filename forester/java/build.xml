@@ -143,6 +143,35 @@
         </zip>
     </target>
 
+    <target name="test-embedded" depends="compile"
+            description="Run embedding and affected window regressions (requires a display or xvfb-run)">
+        <macrodef name="run-embedded-test">
+            <attribute name="class"/>
+            <sequential>
+                <java classname="org.forester.archaeopteryx.@{class}" fork="true" dir="${basedir}/../.."
+                      failonerror="true" timeout="120000">
+                    <classpath>
+                        <pathelement location="${classes.dir}"/>
+                        <pathelement location="${flatlafjar}"/>
+                        <fileset dir="${jars.dir}" includes="*.jar"/>
+                    </classpath>
+                </java>
+            </sequential>
+        </macrodef>
+        <run-embedded-test class="EmbeddedDefaultsTest"/>
+        <run-embedded-test class="EmbeddedNodeDialogTest"/>
+        <run-embedded-test class="EmbeddedLabelHitTest"/>
+        <run-embedded-test class="EmbeddedTreeLifecycleTest"/>
+        <run-embedded-test class="EmbeddedWindowLifecycleTest"/>
+        <run-embedded-test class="RootingGuardsTest"/>
+        <run-embedded-test class="SubSuperTreeButtonsTest"/>
+        <run-embedded-test class="CladeLegendSectionsTest"/>
+        <run-embedded-test class="CladeLevelsRenderTest"/>
+        <run-embedded-test class="ControlPanelBorderTest"/>
+        <run-embedded-test class="LayoutButtonsTest"/>
+        <run-embedded-test class="PerTabViewStateTest"/>
+    </target>
+
     <target name="all" description="" depends="jar">
     </target>
 
