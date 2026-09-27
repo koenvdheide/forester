@@ -1341,7 +1341,7 @@ public final class MainFrameApplication extends MainFrame {
      * a file on a volume that is merely unmounted comes back when the volume does.
      */
     void rebuildOpenRecentMenu() {
-        if (_embedded || _open_recent_menu == null) {
+        if (_open_recent_menu == null) {
             return;
         }
         _open_recent_menu.removeAll();
