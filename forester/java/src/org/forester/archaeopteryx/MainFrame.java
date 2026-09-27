@@ -426,7 +426,7 @@ public abstract class MainFrame extends JPanel implements ActionListener {
     JMenu _process_menu;
     private EqualizerIcon _process_anim_icon;   // the gentle equalizer-bars activity indicator on the process menu
     private Timer         _process_anim_timer;
-    private boolean _closed;
+    private volatile boolean _closed;
     private final List<Window> _viewer_windows = new ArrayList<>();
     /** Every viewer not yet disposed, standalone or nested in a host's window; weak, so a viewer a host drops
      *  without end() can still be collected. */
@@ -883,6 +883,7 @@ public abstract class MainFrame extends JPanel implements ActionListener {
      */
     public void dispose() {
         _closed = true;
+        _process_pool.requestCancelAll();
         LIVE_VIEWERS.remove(this);
         stopProcessAnimation();
         for (final Window window : new ArrayList<>(_viewer_windows)) {
