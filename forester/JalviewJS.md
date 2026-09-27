@@ -8,7 +8,7 @@ The Java2Script profile is `forester/.j2s`; its output goes to
 `forester/build/jalviewjs`.
 
 1. Install the Java2Script compiler from the target Jalview checkout's
-   `jalviewjs/resources/SwingJSPlugin/swingjs/net.sf.j2s.core-j11.jar` into
+   `jalviewjs/resources/SwingJSPlugin/swingjs/j2s.core.jar` into
    Eclipse. The current Jalview build uses Eclipse 2024-03 and Java 11 source
    compatibility.
 2. Import the exported `forester` Eclipse project into a fresh workspace and run a clean build.
