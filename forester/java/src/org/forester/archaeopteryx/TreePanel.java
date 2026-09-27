@@ -419,7 +419,7 @@ public final class TreePanel extends JPanel implements MouseWheelListener {
     private final NodeFrame[] _node_frames = new NodeFrame[TreePanel.MAX_NODE_FRAMES];
     /** The per-tab Tree Properties window, or null while closed (see openTreePropertiesFrame). */
     private TreePropertiesFrame _tree_properties_frame;
-    private JDialog _delete_node_dialog;
+    private JDialog _node_dialog;
     /** The per-tab "Tree as Text" window, or null while closed (see openTreeTextFrame). */
     private TreeTextFrame _tree_text_frame;
     /** The node menu last opened by a click (see {@link #showNodeMenu}); null until the first click. */
@@ -448,7 +448,6 @@ public final class TreePanel extends JPanel implements MouseWheelListener {
     private Function<Phylogeny, Map<PhylogenyNode, List<Color>>> _branch_colour_provider;
     private final Map<PhylogenyNode, Path2D> _label_bounds = new java.util.IdentityHashMap<>();
     private AffineTransform _label_base_inverse;
-    private boolean _partition_tree;
     private float _partition_threshold;
     private TreeChangeListener _tree_change_listener;
     private TreeChangeListener.Kind _pending_tree_change = TreeChangeListener.Kind.EDIT;
@@ -749,9 +748,7 @@ public final class TreePanel extends JPanel implements MouseWheelListener {
                                         final boolean to_graphics_file,
                                         final boolean vector) {
         if ((branch_colours == null) || isBranchEditHighlighted(node, to_pdf, to_graphics_file)
-                || ((getOptions().getSupportVisualization() == Options.SUPPORT_VISUALIZATION.COLOR_BRANCHES)
-                    && !node.isExternal() && node.getBranchData().isHasConfidences()
-                    && (PhylogenyMethods.getConfidenceValue(node) >= 0.0))) {
+                || isBranchSupportColoured(node)) {
             return false;
         }
         final List<Color> colours = branch_colours.get(node);
@@ -795,6 +792,12 @@ public final class TreePanel extends JPanel implements MouseWheelListener {
         return true;
     }
 
+    private boolean isBranchSupportColoured(final PhylogenyNode node) {
+        return (getOptions().getSupportVisualization() == Options.SUPPORT_VISUALIZATION.COLOR_BRANCHES)
+                && !node.isExternal() && node.getBranchData().isHasConfidences()
+                && (PhylogenyMethods.getConfidenceValue(node) >= 0.0);
+    }
+
     private boolean isBranchEditHighlighted(final PhylogenyNode node,
                                             final boolean to_pdf,
                                             final boolean to_graphics_file) {
@@ -806,41 +809,32 @@ public final class TreePanel extends JPanel implements MouseWheelListener {
                 && getCopiedAndPastedNodes().contains(node.getId());
     }
 
+    public final float getPartitionThreshold() {
+        return _partition_threshold;
+    }
+
     public final void setPartitionThreshold(final float threshold) {
-        _partition_tree = true;
         _partition_threshold = threshold;
         repaint();
     }
 
     public final void clearPartitionLine() {
-        _partition_tree = false;
         _partition_threshold = 0f;
         repaint();
-    }
-
-    private int calculatePartitionLineX() {
-        if (!_partition_tree || (_phylogeny == null) || _phylogeny.isEmpty()) {
-            return 0;
-        }
-        final float root_x = _phylogeny.getRoot().getXcoord();
-        final PhylogenyNode furthest_node = PhylogenyMethods.calculateNodeWithMaxDistanceToRoot(_phylogeny);
-        final float furthest_node_x = furthest_node.getXcoord();
-        return Math.round(root_x + ((furthest_node_x - root_x) * _partition_threshold));
     }
 
     private void paintPartitionLine(final Graphics2D g,
                                     final boolean to_graphics_file,
                                     final int graphics_file_y,
                                     final int graphics_file_height) {
-        if (!_partition_tree
+        if ((_partition_threshold <= 0f)
                 || (getPhylogenyGraphicsType() == PHYLOGENY_GRAPHICS_TYPE.UNROOTED)
                 || (getPhylogenyGraphicsType() == PHYLOGENY_GRAPHICS_TYPE.CIRCULAR)) {
             return;
         }
-        if (_partition_threshold <= 0f) {
-            return;
-        }
-        final int partition_line_x = calculatePartitionLineX();
+        final float root_x = _phylogeny.getRoot().getXcoord();
+        final PhylogenyNode furthest_node = PhylogenyMethods.calculateNodeWithMaxDistanceToRoot(_phylogeny);
+        final int partition_line_x = Math.round(root_x + ((furthest_node.getXcoord() - root_x) * _partition_threshold));
         final Color color = g.getColor();
         g.setColor(Color.RED);
         if (to_graphics_file) {
@@ -1050,20 +1044,16 @@ public final class TreePanel extends JPanel implements MouseWheelListener {
             msg = "How to add the new, empty node to node" + label + "?";
         }
         final Object[] options = {"As sibling", "As descendant", "Cancel"};
-        final int r = JOptionPane.showOptionDialog(this,
-                msg,
-                "Addition of Empty New Node",
-                JOptionPane.CLOSED_OPTION,
-                JOptionPane.QUESTION_MESSAGE,
-                null,
-                options,
-                options[2]);
-        boolean add_as_sibling = true;
-        if (r == 1) {
-            add_as_sibling = false;
-        } else if (r != 0) {
-            return;
-        }
+        final JOptionPane pane = new JOptionPane(msg, JOptionPane.QUESTION_MESSAGE,
+                JOptionPane.CLOSED_OPTION, null, options, options[2]);
+        showNodeDialog(pane, "Addition of Empty New Node", choice -> {
+            if (options[0].equals(choice) || options[1].equals(choice)) {
+                addEmptyNodeConfirmed(node, options[0].equals(choice));
+            }
+        });
+    }
+
+    private void addEmptyNodeConfirmed(final PhylogenyNode node, final boolean add_as_sibling) {
         final Phylogeny phy = new Phylogeny();
         phy.setRoot(new PhylogenyNode());
         phy.setRooted(true);
@@ -1097,14 +1087,9 @@ public final class TreePanel extends JPanel implements MouseWheelListener {
                                                                        final boolean to_graphics_file) {
         if ((to_pdf || to_graphics_file) && getOptions().isExportBlackAndWhite()) {
             g.setColor(Color.BLACK);
-        } else if ((getCutOrCopiedTree() != null) && (getCopiedAndPastedNodes() != null) && !to_pdf
-                && !to_graphics_file && getCopiedAndPastedNodes().contains(node.getId())) {
-            // held by Cut/Copy (or just pasted) -- an editing state, not a search hit; shown until the next edit
-            // (fadeClipboardHighlight), there being no cut/copy "mode" to be in or out of any more
-            g.setColor(CLIPBOARD_HIGHLIGHT);
-        } else if ((getOptions().getSupportVisualization() == Options.SUPPORT_VISUALIZATION.COLOR_BRANCHES)
-                && !node.isExternal() && node.getBranchData().isHasConfidences()
-                && (PhylogenyMethods.getConfidenceValue(node) >= 0.0)) {
+        } else if (isBranchEditHighlighted(node, to_pdf, to_graphics_file)) {
+            g.setColor(CLIPBOARD_HIGHLIGHT); // held by Cut/Copy -- an editing state, not a search hit
+        } else if (isBranchSupportColoured(node)) {
             g.setColor(supportBranchColor(node, to_pdf));
         } else if (shows(DisplayOption.USE_STYLE) && (PhylogenyMethods.getBranchColorValue(node) != null)) {
             g.setColor(PhylogenyMethods.getBranchColorValue(node));
@@ -1698,19 +1683,36 @@ public final class TreePanel extends JPanel implements MouseWheelListener {
         }
         final String label = createASimpleTextRepresentationOfANode(node);
         final String[] options = deleteOptionsFor(node);
-        final int r = JOptionPane.showOptionDialog(this,
-                "Delete" + label + "?",
-                node.isExternal() ? "Delete Node" : "Delete Node/Subtree",
-                JOptionPane.CLOSED_OPTION,
-                JOptionPane.QUESTION_MESSAGE,
-                null,
-                options,
-                options[options.length - 1]);
-        if ((r < 0) || (r == (options.length - 1))) {
-            return; // closed, or Cancel
+        final JOptionPane pane = new JOptionPane("Delete" + label + "?", JOptionPane.QUESTION_MESSAGE,
+                JOptionPane.CLOSED_OPTION, null, options, options[options.length - 1]);
+        showNodeDialog(pane, node.isExternal() ? "Delete Node" : "Delete Node/Subtree", choice -> {
+            if (choice != null && !options[options.length - 1].equals(choice)) {
+                setNodeInPreorderToNull();
+                deleteNodeOrSubtreeConfirmed(node, !DELETE_ENTIRE_SUBTREE.equals(choice));
+            }
+        });
+    }
+
+    private void showNodeDialog(final JOptionPane pane, final String title,
+                                final java.util.function.Consumer<Object> action) {
+        if (_node_dialog != null) {
+            _node_dialog.dispose();
         }
-        setNodeInPreorderToNull();
-        deleteNodeOrSubtreeConfirmed(node, !DELETE_ENTIRE_SUBTREE.equals(options[r]));
+        final Phylogeny tree = _phylogeny;
+        final JDialog dialog = pane.createDialog(this, title);
+        _node_dialog = dialog;
+        pane.addPropertyChangeListener(event -> {
+            if (!JOptionPane.VALUE_PROPERTY.equals(event.getPropertyName())
+                    || pane.getValue() == JOptionPane.UNINITIALIZED_VALUE || _node_dialog != dialog) {
+                return;
+            }
+            _node_dialog = null;
+            dialog.dispose();
+            if (_phylogeny == tree) {
+                action.accept(pane.getValue());
+            }
+        });
+        dialog.setVisible(true);
     }
 
     private static final String DELETE_ENTIRE_SUBTREE = "Entire subtree";
@@ -7939,21 +7941,13 @@ public final class TreePanel extends JPanel implements MouseWheelListener {
         }
         final String label = createASimpleTextRepresentationOfANode(getCutOrCopiedTree().getRoot());
         final Object[] options = {"As sibling", "As descendant", "Cancel"};
-        final int r = JOptionPane.showOptionDialog(this,
-                "How to paste subtree" + label + "?",
-                "Paste Subtree",
-                JOptionPane.CLOSED_OPTION,
-                JOptionPane.QUESTION_MESSAGE,
-                null,
-                options,
-                options[2]);
-        boolean paste_as_sibling = true;
-        if (r == 1) {
-            paste_as_sibling = false;
-        } else if (r != 0) {
-            return;
-        }
-        pasteSubtreeConfirmed(node, paste_as_sibling);
+        final JOptionPane pane = new JOptionPane("How to paste subtree" + label + "?", JOptionPane.QUESTION_MESSAGE,
+                JOptionPane.CLOSED_OPTION, null, options, options[2]);
+        showNodeDialog(pane, "Paste Subtree", choice -> {
+            if (options[0].equals(choice) || options[1].equals(choice)) {
+                pasteSubtreeConfirmed(node, options[0].equals(choice));
+            }
+        });
     }
 
     void pasteSubtreeConfirmed(final PhylogenyNode node, final boolean paste_as_sibling) {
@@ -18434,9 +18428,12 @@ public final class TreePanel extends JPanel implements MouseWheelListener {
         if ((_phylogeny == null) || (_phylogeny.getNumberOfExternalNodes() < 2)) {
             return;
         }
-        if (refuseReroot() || !confirmRerootDespiteNodeData(PhylogenyMethods::midpointRoot)) {
-            return;
+        if (!refuseReroot()) {
+            confirmRerootDespiteNodeData(PhylogenyMethods::midpointRoot, this::midpointRootConfirmed);
         }
+    }
+
+    private void midpointRootConfirmed() {
         pushUndoCheckpoint("Midpoint-Root");
         setNodeInPreorderToNull();
         setWaitCursor();
@@ -18491,26 +18488,36 @@ public final class TreePanel extends JPanel implements MouseWheelListener {
         return true;
     }
 
-    // Before re-rooting a tree whose internal nodes carry data: re-roots a COPY the same way and, when that changes
-    // the clade of any data-carrying node, warns with the counts (Re-root / Cancel). True to go ahead.
-    private boolean confirmRerootDespiteNodeData(final java.util.function.Consumer<Phylogeny> reroot) {
+    // Check the same reroot on a copy before asking about internal-node data.
+    private void confirmRerootDespiteNodeData(final java.util.function.Consumer<Phylogeny> reroot,
+                                             final Runnable confirmed) {
         final int with_data = Rerooting.internalNodesWithData(_phylogeny);
         if (with_data == 0) {
-            return true;
+            confirmed.run();
+            return;
         }
         final Phylogeny copy = _phylogeny.copy();
         reroot.accept(copy);
         final int affected = Rerooting.dataNodesWhoseCladeChanges(_phylogeny, copy);
         if (affected == 0) {
-            return true;
+            confirmed.run();
+            return;
         }
         final String warning = Rerooting.dataWarning(with_data, affected);
         if (_reroot_confirm_for_test != null) {
-            return _reroot_confirm_for_test.test(warning);
+            if (_reroot_confirm_for_test.test(warning)) {
+                confirmed.run();
+            }
+            return;
         }
-        final Object[] options = { "Re-root", "Cancel" };
-        return JOptionPane.showOptionDialog(this, warning, "Re-root tree", JOptionPane.DEFAULT_OPTION,
-                JOptionPane.WARNING_MESSAGE, null, options, options[1]) == 0;
+        final Object[] options = {"Re-root", "Cancel"};
+        final JOptionPane pane = new JOptionPane(warning, JOptionPane.WARNING_MESSAGE,
+                JOptionPane.DEFAULT_OPTION, null, options, options[1]);
+        showNodeDialog(pane, "Re-root tree", choice -> {
+            if (options[0].equals(choice)) {
+                confirmed.run();
+            }
+        });
     }
 
     // Appends a provenance sentence to the tree's description, never overwriting it. Callers push their undo
@@ -18524,9 +18531,12 @@ public final class TreePanel extends JPanel implements MouseWheelListener {
         if ((_phylogeny == null) || (_phylogeny.getNumberOfExternalNodes() < 2)) {
             return;
         }
-        if (refuseReroot() || !confirmRerootDespiteNodeData(PhylogenyMethods::madRoot)) {
-            return;
+        if (!refuseReroot()) {
+            confirmRerootDespiteNodeData(PhylogenyMethods::madRoot, this::madRootConfirmed);
         }
+    }
+
+    private void madRootConfirmed() {
         pushUndoCheckpoint("MAD-Root");
         setNodeInPreorderToNull();
         setWaitCursor();
@@ -19206,11 +19216,13 @@ public final class TreePanel extends JPanel implements MouseWheelListener {
             return;
         }
         _label_base_inverse = null;
-        _label_bounds.clear();
-        try {
-            _label_base_inverse = g.getTransform().createInverse();
-        } catch (final NoninvertibleTransformException e) {
-            // A zero-scale canvas has no pickable labels.
+        if (!to_pdf && !to_graphics_file) {
+            _label_bounds.clear();
+            try {
+                _label_base_inverse = g.getTransform().createInverse();
+            } catch (final NoninvertibleTransformException e) {
+                // A zero-scale canvas has no pickable labels.
+            }
         }
         refreshCollapsedRowWeights(); // collapsing, undo and tree swaps all change the rows; one refresh per paint
         // Start this paint's record of the domain tracks actually drawn (see _domains_painted). A partial repaint
@@ -19798,9 +19810,9 @@ public final class TreePanel extends JPanel implements MouseWheelListener {
 
     /** Closes the tree windows unconditionally (the tab is going away); close() also stops their refresh timers. */
     private void closeTreeWindows() {
-        if (_delete_node_dialog != null) {
-            final JDialog dialog = _delete_node_dialog;
-            _delete_node_dialog = null;
+        if (_node_dialog != null) {
+            final JDialog dialog = _node_dialog;
+            _node_dialog = null;
             dialog.dispose();
         }
         if (_tree_properties_frame != null) {
@@ -19890,9 +19902,14 @@ public final class TreePanel extends JPanel implements MouseWheelListener {
             return;
         }
         final long target_id = node.getId();
-        if (!node.isRoot() && !confirmRerootDespiteNodeData(copy -> copy.reRoot(copy.getNode(target_id)))) {
-            return;
+        if (node.isRoot()) {
+            reRootConfirmed(node);
+        } else {
+            confirmRerootDespiteNodeData(copy -> copy.reRoot(copy.getNode(target_id)), () -> reRootConfirmed(node));
         }
+    }
+
+    private void reRootConfirmed(final PhylogenyNode node) {
         pushUndoCheckpoint("Re-Root");
         final boolean rerooted = !node.isRoot();
         if (rerooted) {
