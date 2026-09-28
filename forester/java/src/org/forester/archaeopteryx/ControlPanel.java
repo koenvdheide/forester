@@ -2499,14 +2499,14 @@ public final class ControlPanel extends JPanel implements ActionListener {
         _mainpanel.getCurrentTreePanel().updateOvSettings();
         _mainpanel.getCurrentTreePanel().validate();
         _mainpanel.validate();
-        _mainpanel.getCurrentTreePanel().calcParametersForPainting(_mainpanel.getSizeOfViewport().width,
+        _mainpanel.getCurrentTreePanel().fitToViewport(_mainpanel.getSizeOfViewport().width,
                 _mainpanel.getSizeOfViewport().height);
         _mainpanel.getCurrentTreePanel().resetPreferredSize();
         _mainpanel.adjustJScrollPane();
         _mainpanel.getCurrentTreePanel().repaint();
         _mainpanel.getCurrentTreePanel().validate();
         _mainpanel.validate();
-        _mainpanel.getCurrentTreePanel().calcParametersForPainting(_mainpanel.getSizeOfViewport().width,
+        _mainpanel.getCurrentTreePanel().fitToViewport(_mainpanel.getSizeOfViewport().width,
                 _mainpanel.getSizeOfViewport().height);
         _mainpanel.getCurrentTreePanel().resetPreferredSize();
         _mainpanel.adjustJScrollPane();
@@ -2518,7 +2518,7 @@ public final class ControlPanel extends JPanel implements ActionListener {
         for (final TreePanel tree_panel : _mainpanel.getTreePanels()) {
             if (tree_panel != null) {
                 tree_panel.validate();
-                tree_panel.calcParametersForPainting(_mainpanel.getSizeOfViewport().width,
+                tree_panel.fitToViewport(_mainpanel.getSizeOfViewport().width,
                         _mainpanel.getSizeOfViewport().height);
                 tree_panel.resetPreferredSize();
                 tree_panel.repaint();

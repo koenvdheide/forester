@@ -321,7 +321,6 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
     private float _ov_y_distance = 0;
     private int _ov_y_position = 0;
     private int _ov_y_start = 0;
-    private boolean _partition_tree = false;
     private float _partition_threshold = 0f;
     private final boolean _phy_has_branch_lengths;
     private Phylogeny _phylogeny = null;
@@ -4455,14 +4454,18 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
         }
     }
 
+    final void fitToViewport(final int x, final int y) {
+        _domain_structure_width = AptxConstants.DOMAIN_STRUCTURE_DEFAULT_WIDTH;
+        calcParametersForPainting(x, y);
+        _domain_structure_fit_y_distance = Math.max(1.0f, getYdistance());
+    }
+
     /**
      * Set parameters for printing the displayed tree
      */
     final void calcParametersForPainting(final int x, final int y) {
         // updateStyle(); not needed?
         if ((_phylogeny != null) && !_phylogeny.isEmpty()) {
-            // every caller fits the whole tree to the view, which discards the zoom the strips followed
-            _domain_structure_width = AptxConstants.DOMAIN_STRUCTURE_DEFAULT_WIDTH;
             initNodeData();
             calculateLongestExtNodeInfo();
             if ((getLongestExtNodeInfo() > (x * 0.6))
@@ -4511,7 +4514,6 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
             }
             setXdistance(xdist);
             setYdistance(ydist);
-            _domain_structure_fit_y_distance = Math.max(1.0f, ydist);
             setOvXDistance(ov_xdist);
             final double height = _phylogeny.calculateHeight(!_options.isCollapsedWithAverageHeigh());
             //final double height = PhylogenyMethods.calculateMaxDepth( _phylogeny );
@@ -4860,16 +4862,8 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
     }
 
     /**
-     * Find the node, if any, at the given location
-     *
-     * @param x
-     * @param y
-     * @return pointer to the node at x,y, null if not found
-     */
-    /**
-     * Returns the node at x,y, or the node whose label as last drawn covers
-     * x,y. Forester's own findNode tests only the node's box, so a click on a
-     * name misses it.
+     * Returns the node at x,y, or the node whose label as last drawn covers x,y.
+     * findNode tests only the node's box.
      *
      * @param x
      * @param y
@@ -4893,6 +4887,13 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
         return null;
     }
 
+    /**
+     * Find the node, if any, at the given location
+     *
+     * @param x
+     * @param y
+     * @return pointer to the node at x,y, null if not found
+     */
     public final PhylogenyNode findNode(final int x, final int y) {
         if ((_phylogeny == null) || _phylogeny.isEmpty()) {
             return null;
@@ -4935,7 +4936,7 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
         return _found_nodes_0;
     }
 
-    public final Set<Long> getFoundNodes1() {
+    final Set<Long> getFoundNodes1() {
         return _found_nodes_1;
     }
 
@@ -5509,15 +5510,6 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
                                 final int graphics_file_width,
                                 final int graphics_file_height,
                                 final int graphics_file_x,
-                                final int graphics_file_y) {
-        paintFile(g, to_pdf, graphics_file_width, graphics_file_height, graphics_file_x, graphics_file_y, to_pdf);
-    }
-
-    public final void paintFile(final Graphics2D g,
-                                final boolean to_pdf,
-                                final int graphics_file_width,
-                                final int graphics_file_height,
-                                final int graphics_file_x,
                                 final int graphics_file_y,
                                 final boolean vector) {
         paintPhylogeny(g, to_pdf, true, graphics_file_width, graphics_file_height,
@@ -5758,15 +5750,17 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
                                     final boolean to_graphics_file,
                                     final int graphics_file_y,
                                     final int graphics_file_height) {
-        if (!_partition_tree
-                || (getPhylogenyGraphicsType() == PHYLOGENY_GRAPHICS_TYPE.UNROOTED)
+        if ((getPhylogenyGraphicsType() == PHYLOGENY_GRAPHICS_TYPE.UNROOTED)
                 || (getPhylogenyGraphicsType() == PHYLOGENY_GRAPHICS_TYPE.CIRCULAR)) {
             return;
         }
         if (_partition_threshold <= 0f) {
             return;
         }
-        final int partition_line_x = calculatePartitionLineX();
+        final float root_x = _phylogeny.getRoot().getXcoord();
+        final PhylogenyNode furthest_node = PhylogenyMethods.calculateNodeWithMaxDistanceToRoot(_phylogeny);
+        final float furthest_node_x = furthest_node.getXcoord();
+        final int partition_line_x = Math.round(root_x + ((furthest_node_x - root_x) * _partition_threshold));
         final Color color = g.getColor();
         g.setColor(Color.RED);
         if (to_graphics_file) {
@@ -5906,18 +5900,16 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
         _found_nodes_0 = found_nodes;
     }
 
-    public final void setFoundNodes1(final Set<Long> found_nodes) {
+    final void setFoundNodes1(final Set<Long> found_nodes) {
         _found_nodes_1 = found_nodes;
     }
 
     public final void setPartitionThreshold(final float threshold) {
-        _partition_tree = true;
         _partition_threshold = threshold;
         repaint();
     }
 
     public final void clearPartitionLine() {
-        _partition_tree = false;
         _partition_threshold = 0f;
         repaint();
     }
@@ -5995,16 +5987,6 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
 
     final void setTinyFonts() {
         getTreeFontSet().tinyFonts();
-    }
-
-    private int calculatePartitionLineX() {
-        if (!_partition_tree || (_phylogeny == null) || _phylogeny.isEmpty()) {
-            return 0;
-        }
-        final float root_x = _phylogeny.getRoot().getXcoord();
-        final PhylogenyNode furthest_node = PhylogenyMethods.calculateNodeWithMaxDistanceToRoot(_phylogeny);
-        final float furthest_node_x = furthest_node.getXcoord();
-        return Math.round(root_x + ((furthest_node_x - root_x) * _partition_threshold));
     }
 
     public final void setTreeFile(final File treefile) {

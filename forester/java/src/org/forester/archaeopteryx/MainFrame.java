@@ -1066,9 +1066,6 @@ public abstract class MainFrame extends JPanel implements ActionListener {
         _file_jmenu.add(_save_item = new JMenuItem("Save Tree As..."));
         _file_jmenu.addSeparator();
         _file_jmenu.add(_write_to_pdf_item = new JMenuItem("Export to PDF file ..."));
-        if (/** @j2sNative true || */ false) {
-            _write_to_pdf_item.setVisible(false);
-        }
         if (AptxUtil.canWriteFormat("tif") || AptxUtil.canWriteFormat("tiff") || AptxUtil.canWriteFormat("TIF")) {
             _file_jmenu.add(_write_to_tif_item = new JMenuItem("Export to TIFF file..."));
         }
