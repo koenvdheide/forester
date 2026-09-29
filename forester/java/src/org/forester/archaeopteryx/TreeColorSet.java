@@ -114,10 +114,6 @@ public final class TreeColorSet {
         return domain_base_color;
     }
 
-    private void setColorForDefault( final int i, final Color color ) {
-        _color_schemes[ 0 ][ i ] = color;
-    }
-
     Color getBackgroundColor() {
         return background_color;
     }
@@ -187,13 +183,17 @@ public final class TreeColorSet {
     }
 
     void setColorforDefault( final String color_field_name, final Color color ) {
+        setColorForScheme( color_field_name, color, DARK_COLOR_SCHEME );
+    }
+
+    private void setColorForScheme( final String color_field_name, final Color color, final int scheme ) {
         final String query = color_field_name.trim().replace( '_', ' ' );
         boolean found = false;
         int i = 0;
         for( final String cf : COLOR_FIELDS ) {
             if ( query.equalsIgnoreCase( cf ) ) {
                 found = true;
-                setColorForDefault( i, color );
+                _color_schemes[ scheme ][ i ] = color;
                 break;
             }
             ++i;
@@ -263,6 +263,10 @@ public final class TreeColorSet {
     }
 
     static TreeColorSet createInstance( final Configuration configuration ) {
+        return createInstance( configuration, DARK_COLOR_SCHEME );
+    }
+
+    static TreeColorSet createInstance( final Configuration configuration, final int scheme ) {
         final TreeColorSet tcs = new TreeColorSet();
         if ( ( configuration != null ) && ( configuration.getDisplayColors() != null )
                 && ( configuration.getDisplayColors().size() > 0 ) ) {
@@ -270,7 +274,7 @@ public final class TreeColorSet {
             for( final String field : colors.keySet() ) {
                 final Color color = colors.get( field );
                 try {
-                    tcs.setColorforDefault( field, color );
+                    tcs.setColorForScheme( field, color, scheme );
                 }
                 catch ( final IllegalArgumentException ex ) {
                     ForesterUtil.printWarningMessage( AptxConstants.PRG_NAME, ex.getMessage() );
