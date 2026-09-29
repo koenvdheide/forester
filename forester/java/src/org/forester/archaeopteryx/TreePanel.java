@@ -16524,7 +16524,7 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
 
     /** Maps a device (mouse) point back to LOGICAL node-coordinate space via R inverse, for hit-testing in a
      *  vertical orientation. A pass-through (returns the point as-is) in the horizontal orientation. */
-    private Point2D.Double toLogicalPoint(final int x, final int y) {
+    Point2D.Double toLogicalPoint(final int x, final int y) {
         if (isVerticalOrientation() && (_orientation_R_inverse != null)) {
             final Point2D.Double p = new Point2D.Double(x, y);
             _orientation_R_inverse.transform(p, p);
@@ -16537,7 +16537,7 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
      *  screen-culls (which compare against node getXcoord()/getYcoord()) stay correct in EVERY orientation. In a
      *  vertical orientation the device visible rect's corners are mapped back through R-inverse and their bounding box
      *  returned (a 90-degree rotation keeps the box axis-aligned); a pass-through of getVisibleRect() in horizontal. */
-    private Rectangle2D.Double logicalVisibleRect() {
+    Rectangle2D.Double logicalVisibleRect() {
         final Rectangle v = getVisibleRect();
         if ((v.width <= 0) || (v.height <= 0)) {
             return null; // no meaningful viewport (offscreen render / not-yet-realized) -> never cull
