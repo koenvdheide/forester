@@ -349,6 +349,8 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
     private ControlPanel _control_panel = null;
     private int _domain_structure_e_value_thr_exp = AptxConstants.DOMAIN_STRUCTURE_E_VALUE_THR_DEFAULT_EXP;
     private double _domain_structure_width = AptxConstants.DOMAIN_STRUCTURE_DEFAULT_WIDTH;
+    private boolean _domain_structures_follow_tree_zoom;
+    private float _domain_structure_fit_y_distance = 1.0f;
     // The radial layouts' own track width, unset (<= 0) until first used there: it starts at the smaller of the
     // rectangular width and a fifth of the radius, so the first sight is unchanged, and the d+ / d- buttons then step
     // it on its own. Until 2026-09-13 the rectangular width was CAPPED at that fifth on every redraw, so the buttons
@@ -671,6 +673,40 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
             final Function<Phylogeny, Map<PhylogenyNode, List<Color>>> provider) {
         _branch_colour_provider = provider;
         repaint();
+    }
+
+    /** Makes rectangular domain tracks follow the tree zoom, with slim strips at fit. */
+    final void setDomainStructuresFollowTreeZoom(final boolean follow) {
+        _domain_structures_follow_tree_zoom = follow;
+    }
+
+    final void resetDomainStructureWidth() {
+        if (_domain_structures_follow_tree_zoom && !isRadialLayout()) {
+            _domain_structure_width = AptxConstants.DOMAIN_STRUCTURE_DEFAULT_WIDTH;
+        }
+    }
+
+    final void resetDomainStructureHeight() {
+        if (_domain_structures_follow_tree_zoom && !isRadialLayout()) {
+            _domain_structure_fit_y_distance = Math.max(1.0f, getYdistance());
+        }
+    }
+
+    final void scaleDomainStructuresWithTree(final float factor) {
+        if (_domain_structures_follow_tree_zoom && shows(DisplayOption.SHOW_DOMAIN_ARCHITECTURES)) {
+            _domain_structure_width = Math.max(DOMAIN_WIDTH_MIN,
+                    Math.min(DOMAIN_WIDTH_MAX, _domain_structure_width * factor));
+            initNodeData();
+            calculateLongestExtNodeInfo();
+        }
+    }
+
+    private int domainStructureHeight() {
+        if (_domain_structures_follow_tree_zoom) {
+            return Math.max(1, Math.min(ForesterUtil.roundToInt(getYdistance()) - 2,
+                    ForesterUtil.roundToInt(7 * getYdistance() / _domain_structure_fit_y_distance)));
+        }
+        return TreePanelUtil.domainBoxHeight(getYdistance(), DOMAIN_STRUCTURE_HEIGHT_MIN, DOMAIN_STRUCTURE_HEIGHT_MAX);
     }
 
     private boolean paintProviderBranch(final Graphics2D g,
@@ -4571,8 +4607,7 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
         // (which pinned it to a fixed size, so it neither responded to vertical zoom NOR shrank when the rows pack
         // tight, crowding the boxes). Clamped into [MIN, MAX] so it stays readable zoomed out and bars-not-blocks
         // zoomed in (shared with the other domain-height site via TreePanelUtil.domainBoxHeight).
-        final float yd = getYdistance();
-        final int hgt = TreePanelUtil.domainBoxHeight(yd, DOMAIN_STRUCTURE_HEIGHT_MIN, DOMAIN_STRUCTURE_HEIGHT_MAX);
+        final int hgt = domainStructureHeight();
         rds.setRenderingHeight(hgt);
         // draw in the COMMON aligned column (past the deepest tip + the longest label's depth footprint) so every
         // tip's track lines up -- the alignment the horizontal layout gives via alignedPhylogramDomainColumnX(), and
@@ -4715,8 +4750,9 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
                 cce.printStackTrace();
             }
             if (rds != null) {
-                final float y = getYdistance(); // track the actual row spacing (see the horizontal path above)
-                final int h = TreePanelUtil.domainBoxHeight(y, DOMAIN_STRUCTURE_HEIGHT_MIN, DOMAIN_STRUCTURE_HEIGHT_MAX);
+                final int h = domainStructureHeight();
+                final boolean draw_labels = !_domain_structures_follow_tree_zoom
+                        || (h >= g.getFontMetrics(getTreeFontSet().getSmallFont()).getHeight());
                 rds.setRenderingHeight(h);
                 // Domain architectures always line up in a common right-edge column, so they can be
                 // compared across tips; the phylogram column is past the deepest tip + longest
@@ -4726,10 +4762,10 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
                             node.getYcoord() - (h / 2.0f),
                             g,
                             this,
-                            to_pdf);
+                            to_pdf, draw_labels);
                 } else {
                     rds.render(getPhylogeny().getFirstExternalNode().getXcoord()
-                            + _length_of_longest_text, node.getYcoord() - (h / 2.0f), g, this, to_pdf);
+                            + _length_of_longest_text, node.getYcoord() - (h / 2.0f), g, this, to_pdf, draw_labels);
                 }
             }
         }
