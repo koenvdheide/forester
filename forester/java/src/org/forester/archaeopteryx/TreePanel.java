@@ -789,15 +789,7 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
         repaint();
     }
 
-    public final void clearPartitionLine() {
-        _partition_threshold = 0f;
-        repaint();
-    }
-
-    private void paintPartitionLine(final Graphics2D g,
-                                    final boolean to_graphics_file,
-                                    final int graphics_file_y,
-                                    final int graphics_file_height) {
+    private void paintPartitionLine(final Graphics2D g, final Rectangle bounds, final boolean monochrome) {
         if ((_partition_threshold <= 0f)
                 || (getPhylogenyGraphicsType() == PHYLOGENY_GRAPHICS_TYPE.UNROOTED)
                 || (getPhylogenyGraphicsType() == PHYLOGENY_GRAPHICS_TYPE.CIRCULAR)) {
@@ -805,16 +797,16 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
         }
         final float root_x = _phylogeny.getRoot().getXcoord();
         final PhylogenyNode furthest_node = PhylogenyMethods.calculateNodeWithMaxDistanceToRoot(_phylogeny);
-        final int partition_line_x = Math.round(root_x + ((furthest_node.getXcoord() - root_x) * _partition_threshold));
+        final Point2D.Double partition_point = screenPoint(
+                root_x + ((furthest_node.getXcoord() - root_x) * _partition_threshold), 0);
         final Color color = g.getColor();
-        g.setColor(Color.RED);
-        if (to_graphics_file) {
-            g.drawLine(partition_line_x,
-                    graphics_file_y,
-                    partition_line_x,
-                    graphics_file_y + graphics_file_height);
+        g.setColor(monochrome ? Color.BLACK : Color.RED);
+        if (isVerticalOrientation()) {
+            final int y = (int) Math.round(partition_point.y);
+            g.drawLine(bounds.x, y, bounds.x + bounds.width, y);
         } else {
-            g.drawLine(partition_line_x, 0, partition_line_x, getHeight());
+            final int x = (int) Math.round(partition_point.x);
+            g.drawLine(x, bounds.y, x, bounds.y + bounds.height);
         }
         g.setColor(color);
     }
@@ -15687,13 +15679,16 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
                     paintGeologicTimeAxisVertical(g, to_pdf, to_graphics_file);
                 }
             }
-            paintPartitionLine(g, to_graphics_file, graphics_file_y, graphics_file_height);
             paintHoverPreview(g, !(to_pdf || to_graphics_file)); // translucent select/deselect hover preview (rides R)
             paintFoundNodeHalos(g, to_pdf, to_graphics_file); // pulsing (screen) / static-glow (export) hit halos
             // restore the upright base frame before the viewport-fixed chrome (scale bar, tree name, overview, legends)
             if (vertical) {
                 g.setTransform(orientation_saved);
             }
+            paintPartitionLine(g, (to_pdf || to_graphics_file)
+                    ? new Rectangle(graphics_file_x, graphics_file_y, graphics_file_width, graphics_file_height)
+                    : new Rectangle(0, 0, getWidth(), getHeight()),
+                    (to_pdf || to_graphics_file) && getOptions().isExportBlackAndWhite());
             // the geologic time axis takes over the bottom strip; suppress the numeric scale bar + axis when it is on
             final boolean geo_axis = geologicAxisApplies();
             final boolean calendar_axis = calendarAxisApplies();
