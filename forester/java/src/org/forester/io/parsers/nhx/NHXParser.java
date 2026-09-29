@@ -23,7 +23,6 @@ package org.forester.io.parsers.nhx;
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -266,7 +265,7 @@ public final class NHXParser implements PhylogenyParser, IteratingPhylogenyParse
             if (!ForesterUtil.isEmpty(error)) {
                 throw new PhylogenyParserException(error);
             }
-            final InputStream is = new FileInputStream(f);
+            final InputStream is = ParserUtils.createInputStream(f);
             final InputStreamReader isr = new InputStreamReader(is, getEncoding());
             _nhx_source = new BufferedReader(isr);
         } else if (nhx_source instanceof URL) {
