@@ -177,6 +177,12 @@ public final class TreeColorSchemeTest {
         if ( !new Color( 0x00, 0xA0, 0x00 ).equals( tcs.getFoundColor1() ) ) {
             return false;
         }
+        tcs.setFoundColors( Color.ORANGE, Color.PINK, Color.BLUE );
+        if ( !Color.ORANGE.equals( tcs.getFoundColor0() )
+                || !Color.PINK.equals( tcs.getFoundColor1() )
+                || !Color.BLUE.equals( tcs.getFoundColor0and1() ) ) {
+            return false;
+        }
         // ---- reconciliation event colors: Okabe-Ito (colorblind-safe), same in both themes; NOT the old pure
         //      red/green/yellow primaries (duplication-vs-speciation was the classic red-green confusion pair) ----
         for ( final int s : new int[] { 0, 1 } ) {
