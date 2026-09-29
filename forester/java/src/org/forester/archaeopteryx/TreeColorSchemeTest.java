@@ -21,6 +21,7 @@
 package org.forester.archaeopteryx;
 
 import java.awt.Color;
+import java.util.TreeMap;
 
 /**
  * Unit tests for {@link TreeColorSet}: Archaeopteryx now has exactly two tree color schemes -- Dark
@@ -35,7 +36,48 @@ public final class TreeColorSchemeTest {
         System.exit( ok ? 0 : 1 );
     }
 
+    private static boolean configuredColorsFollowTheme() {
+        final Color background = new Color( 12, 34, 56 );
+        final Configuration config = new Configuration();
+        config.setUi( Configuration.UI.FLAT_LIGHT );
+        final TreeMap<String, Color> colors = new TreeMap<>();
+        colors.put( TreeColorSet.BACKGROUND, background );
+        config.setDisplayColors( colors );
+        for ( final int scheme : new int[] { 0, 1 } ) {
+            final TreeColorSet configured = TreeColorSet.createInstance( config, scheme );
+            configured.setColorSchema( scheme );
+            if ( !background.equals( configured.getBackgroundColor() ) ) {
+                System.out.println( "Configured background lost in scheme " + scheme );
+                return false;
+            }
+            final TreeColorSet defaults = TreeColorSet.createInstance();
+            defaults.setColorSchema( 1 - scheme );
+            configured.setColorSchema( 1 - scheme );
+            if ( !defaults.getBackgroundColor().equals( configured.getBackgroundColor() ) ) {
+                System.out.println( "Configured background changed the other theme" );
+                return false;
+            }
+        }
+        final TreeColorSet standalone = TreeColorSet.createInstance( config );
+        final TreeColorSet defaults = TreeColorSet.createInstance();
+        standalone.setColorSchema( 0 );
+        if ( !background.equals( standalone.getBackgroundColor() ) ) {
+            System.out.println( "Standalone configured colours lost in the dark scheme" );
+            return false;
+        }
+        standalone.setColorSchema( 1 );
+        defaults.setColorSchema( 1 );
+        if ( !defaults.getBackgroundColor().equals( standalone.getBackgroundColor() ) ) {
+            System.out.println( "Standalone configured colours must stay in the dark scheme" );
+            return false;
+        }
+        return true;
+    }
+
     public static boolean test() {
+        if ( !configuredColorsFollowTheme() ) {
+            return false;
+        }
         // exactly two schemes, named Dark and Light
         if ( ( TreeColorSet.SCHEME_NAMES.length != 2 ) || !"Dark".equals( TreeColorSet.SCHEME_NAMES[ 0 ] )
                 || !"Light".equals( TreeColorSet.SCHEME_NAMES[ 1 ] ) ) {
