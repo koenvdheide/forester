@@ -154,6 +154,13 @@ public final class TreeColorSet {
         return duplication_or_specation_color;
     }
 
+    /** Overrides the current highlight colours; a later preset or theme selection replaces them. */
+    void setFoundColors( final Color first, final Color second, final Color both ) {
+        found_color_0 = first;
+        found_color_1 = second;
+        found_color_0_and_1 = both;
+    }
+
     Color getFoundColor0() {
         return found_color_0;
     }
