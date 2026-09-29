@@ -170,6 +170,12 @@ public final class RenderableDomainArchitecture extends DomainArchitecture imple
         return lum > 0.55 ? new Color( 20, 26, 29 ) : Color.WHITE;
     }
 
+    /** Black or white label ink by fill luminance, as the Jalview integration drew domain labels. */
+    private static Color luminanceInk( final Color c ) {
+        final int luminance = ( ( 299 * c.getRed() ) + ( 587 * c.getGreen() ) + ( 114 * c.getBlue() ) ) / 1000;
+        return luminance > 128 ? Color.BLACK : Color.WHITE;
+    }
+
     @Override
     public ProteinDomain getDomain( final int i ) {
         return _domain_structure.getDomain( i );
@@ -261,10 +267,11 @@ public final class RenderableDomainArchitecture extends DomainArchitecture imple
                 if ( on_domain_labels && ( d.getName() != null ) ) { // a nameless domain still draws its box, just no label
                     final FontMetrics fm = tree_panel.getMainPanel().getTreeFontSet().getFontMetricsSmall();
                     final int tw = fm.stringWidth( d.getName() );
-                    if ( tw <= ( ( xb - xa ) - 4 ) ) { // fits centred inside the box, else drop it
+                    final boolean left = tree_panel.isDomainLabelsLeftAligned();
+                    if ( ( tw <= ( ( xb - xa ) - 4 ) ) && ( !left || ( _rendering_height >= fm.getHeight() ) ) ) { // fits inside the box, else drop it
                         g.setFont( tree_panel.getMainPanel().getTreeFontSet().getSmallFont() );
-                        g.setColor( contrastInk( base ) );
-                        final float tx = xa + ( ( ( xb - xa ) - tw ) / 2f );
+                        g.setColor( left ? luminanceInk( base ) : contrastInk( base ) );
+                        final float tx = left ? xa + 2 : xa + ( ( ( xb - xa ) - tw ) / 2f );
                         final float ty = y1 + ( ( _rendering_height + fm.getAscent() - fm.getDescent() ) / 2f );
                         g.drawString( d.getName(), tx, ty );
                     }

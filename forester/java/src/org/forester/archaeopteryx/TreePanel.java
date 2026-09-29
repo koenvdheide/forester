@@ -133,6 +133,17 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
         return color == null ? RenderableDomainArchitecture.colorFor(name) : color;
     }
 
+    private boolean _domain_labels_left_aligned;
+
+    /** The Jalview integration's domain labels: left-aligned, black or white by fill luminance, on tall enough strips. */
+    void setDomainLabelsLeftAligned(final boolean left_aligned) {
+        _domain_labels_left_aligned = left_aligned;
+    }
+
+    public boolean isDomainLabelsLeftAligned() {
+        return _domain_labels_left_aligned;
+    }
+
     final private class SubtreeColorizationActionListener implements ActionListener {
 
         JColorChooser _chooser = null;

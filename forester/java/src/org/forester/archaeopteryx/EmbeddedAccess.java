@@ -142,6 +142,10 @@ public final class EmbeddedAccess {
         panel.setDomainStructuresFollowTreeZoom(follow);
     }
 
+    public static void setDomainLabelsLeftAligned(final TreePanel panel, final boolean left_aligned) {
+        panel.setDomainLabelsLeftAligned(left_aligned);
+    }
+
     public static void setFont(final MainFrame frame, final Font font) {
         frame.getOptions().setBaseFont(font);
         frame.getMainPanel().getTreeFontSet().setBaseFont(font);
