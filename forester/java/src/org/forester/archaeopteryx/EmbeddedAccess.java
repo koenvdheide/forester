@@ -22,6 +22,8 @@ package org.forester.archaeopteryx;
 
 import java.awt.Color;
 import java.awt.Font;
+import java.awt.geom.Point2D;
+import java.awt.geom.Rectangle2D;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
@@ -99,6 +101,14 @@ public final class EmbeddedAccess {
 
     public static PhylogenyNode findNode(final TreePanel panel, final int x, final int y) {
         return panel.findNode(x, y);
+    }
+
+    public static Point2D.Double logicalPoint(final TreePanel panel, final int x, final int y) {
+        return panel.toLogicalPoint(x, y);
+    }
+
+    public static Rectangle2D.Double logicalVisibleRect(final TreePanel panel) {
+        return panel.logicalVisibleRect();
     }
 
     public static Set<Long> selectedNodes(final TreePanel panel) {
