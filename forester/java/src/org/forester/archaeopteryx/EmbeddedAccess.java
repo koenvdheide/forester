@@ -20,6 +20,7 @@
 
 package org.forester.archaeopteryx;
 
+import java.awt.Color;
 import java.awt.Font;
 import java.io.File;
 import java.util.ArrayList;
@@ -141,6 +142,10 @@ public final class EmbeddedAccess {
         frame.getMainPanel().setTreeColorSet(TreeColorSet.createInstance(frame.getConfiguration(),
                 ui == Configuration.UI.FLAT_LIGHT ? TreeColorSet.LIGHT_COLOR_SCHEME : TreeColorSet.DARK_COLOR_SCHEME));
         frame.updateTreeCanvasColors(ui);
+    }
+
+    public static void setFoundColors(final MainFrame frame, final Color first, final Color second, final Color both) {
+        frame.getMainPanel().getTreeColorSet().setFoundColors(first, second, both);
     }
 
     public static void setMinConfidenceFraction(final MainFrame frame, final double fraction) {
