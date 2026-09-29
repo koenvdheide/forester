@@ -189,4 +189,36 @@ public final class EmbeddedAccess {
     public static void setOverviewPlacement(final MainFrame frame, final Options.OVERVIEW_PLACEMENT_TYPE placement) {
         frame.getOptions().setOvPlacement(placement);
     }
+
+    public static void setPulseFoundNodes(final MainFrame frame, final boolean pulse) {
+        frame.getOptions().setPulseFoundNodes(pulse);
+    }
+
+    public static void setDimNonMatches(final MainFrame frame, final boolean dim) {
+        frame.getOptions().setDimNonMatches(dim);
+    }
+
+    public static void setAutoColorNewTrees(final MainFrame frame, final boolean auto) {
+        frame.getOptions().setAutoColorNewTrees(auto);
+    }
+
+    public static void setUseItalicScientificNames(final MainFrame frame, final boolean italic) {
+        frame.getOptions().setUseItalicScientificNames(italic);
+    }
+
+    public static void setShowTreeName(final MainFrame frame, final boolean show) {
+        frame.getOptions().setShowTreeName(show);
+    }
+
+    public static void setInternalLabelsAboveBranch(final MainFrame frame, final boolean above) {
+        frame.getOptions().setInternalLabelsAboveBranch(above);
+    }
+
+    public static void setOutlineFontsInVectorExport(final MainFrame frame, final boolean outline) {
+        frame.getOptions().setOutlineFontsInVectorExport(outline);
+    }
+
+    public static void setShowMsa(final TreePanel panel, final boolean show) {
+        panel.getOptions().setShowMsa(show);
+    }
 }
