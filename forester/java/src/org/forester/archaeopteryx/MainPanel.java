@@ -21,6 +21,7 @@
 package org.forester.archaeopteryx;
 
 import java.awt.BorderLayout;
+import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.event.ComponentEvent;
 import java.awt.event.ComponentListener;
@@ -206,6 +207,10 @@ public class MainPanel extends JPanel implements ComponentListener {
 
     public ControlPanel getControlPanel() {
         return _control_panel;
+    }
+
+    public Component getControlPanelComponent() {
+        return ((BorderLayout) getLayout()).getLayoutComponent(BorderLayout.WEST);
     }
 
     public Set<Long> getCopiedAndPastedNodes() {
