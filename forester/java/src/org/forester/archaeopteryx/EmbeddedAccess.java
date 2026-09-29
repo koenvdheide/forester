@@ -137,7 +137,10 @@ public final class EmbeddedAccess {
     }
 
     public static void applyDisplayColours(final MainFrame frame) {
-        frame.getMainPanel().setTreeColorSet(TreeColorSet.createInstance(frame.getConfiguration()));
+        final Configuration.UI ui = frame.getConfiguration().getUi();
+        frame.getMainPanel().setTreeColorSet(TreeColorSet.createInstance(frame.getConfiguration(),
+                ui == Configuration.UI.FLAT_LIGHT ? TreeColorSet.LIGHT_COLOR_SCHEME : TreeColorSet.DARK_COLOR_SCHEME));
+        frame.updateTreeCanvasColors(ui);
     }
 
     public static void setMinConfidenceFraction(final MainFrame frame, final double fraction) {

@@ -55,6 +55,7 @@ public final class EmbeddedDefaultsTest {
                     checkDefaults();
                     checkDetachedViewState();
                     checkLoadOrder();
+                    checkDisplayColours();
                     checkAddedTreeFitsLikeConstructedTree();
                     checkClickToFallbackAfterHostSelection();
                 } catch (final Exception e) {
@@ -195,6 +196,37 @@ public final class EmbeddedDefaultsTest {
                     || !time.serialize().equals(restored.currentTimeAxisConfig().serialize())
                     || !profile.serialize().equals(restored.getLastImportProfile().serialize())) {
                 throw new AssertionError("Inactive-tab view state must survive the ordinary load path");
+            }
+        } finally {
+            frame.end();
+        }
+    }
+
+    private static void checkDisplayColours() throws Exception {
+        final Color background = new Color(12, 34, 56);
+        final Configuration config = new Configuration();
+        config.setUi(Configuration.UI.FLAT_LIGHT);
+        final java.util.TreeMap<String, Color> colours = new java.util.TreeMap<>();
+        colours.put(TreeColorSet.BACKGROUND, background);
+        config.setDisplayColors(colours);
+        final MainFrameApplication frame = MainFrameApplication.createEmbeddedInstance(new Phylogeny[0], config,
+                "Display colours");
+        try {
+            final MainPanel main = frame.getMainPanel();
+            main.addPhylogenyInNewTab(tree(), config, "first", "");
+            EmbeddedAccess.applyDisplayColours(frame);
+            final TreePanel panel = main.getCurrentTreePanel();
+            if (!background.equals(panel.getBackground())) {
+                throw new AssertionError("Display colours must hold on screen");
+            }
+            final ExportTheme theme = ExportTheme.applyIf(panel, true);
+            try {
+                if (!background.equals(main.getTreeColorSet().getBackgroundColor())
+                        || !background.equals(panel.getBackground())) {
+                    throw new AssertionError("Display colours must hold on screen and through the export theme");
+                }
+            } finally {
+                theme.restore();
             }
         } finally {
             frame.end();
