@@ -20,6 +20,7 @@
 
 package org.forester.io.parsers.util;
 
+import java.io.BufferedInputStream;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
@@ -33,6 +34,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.zip.GZIPInputStream;
 
 import org.forester.io.parsers.PhylogenyParser;
 import org.forester.io.parsers.nexus.NexusPhylogeniesParser;
@@ -93,7 +95,8 @@ public final class ParserUtils {
     final public static PhylogenyParser createParserDependingFileContents( final File file,
                                                                            final boolean phyloxml_validate_against_xsd )
                                                                                    throws FileNotFoundException, IOException {
-        return createParserFromFirstLine( ForesterUtil.getFirstLine( file ), phyloxml_validate_against_xsd );
+        return createParserFromFirstLine( ForesterUtil.getFirstLine( createInputStream( file ) ),
+                                          phyloxml_validate_against_xsd );
     }
 
     /**
@@ -170,6 +173,26 @@ public final class ParserUtils {
         return parser;
     }
 
+    /** Opens plain or gzip-compressed file input. The caller closes the stream. */
+    public static InputStream createInputStream( final File file ) throws IOException {
+        final BufferedInputStream input = new BufferedInputStream( new FileInputStream( file ) );
+        try {
+            input.mark( 2 );
+            final boolean gzip = input.read() == 0x1f && input.read() == 0x8b;
+            input.reset();
+            return gzip ? new GZIPInputStream( input ) : input;
+        }
+        catch ( final IOException e ) {
+            try {
+                input.close();
+            }
+            catch ( final IOException close ) {
+                e.addSuppressed( close );
+            }
+            throw e;
+        }
+    }
+
     public static BufferedReader createReader( final Object source, final String encoding ) throws IOException, FileNotFoundException {
         BufferedReader reader = null;
         if ( ( source instanceof File ) || ( source instanceof String ) ) {
@@ -189,7 +212,7 @@ public final class ParserUtils {
             else if ( !f.canRead() ) {
                 throw new IOException( "[" + f.getAbsolutePath() + "] is not a readable" );
             }
-            final InputStream is = new FileInputStream( f );
+            final InputStream is = createInputStream( f );
             final InputStreamReader isr = new InputStreamReader( is, encoding );
             reader = new BufferedReader( isr );
         }
