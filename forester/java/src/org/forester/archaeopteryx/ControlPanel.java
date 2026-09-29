@@ -3808,6 +3808,7 @@ final class ControlPanel extends JPanel implements ActionListener {
                 || _mainpanel.getCurrentTreePanel().getPhylogeny().isEmpty()) {
             return;
         }
+        getCurrentTreePanel().resetDomainStructureWidth();
         getCurrentTreePanel().updateSetOfCollapsedExternalNodes();
         displayedPhylogenyMightHaveChanged(true);
         _mainpanel.getCurrentTreePanel().updateOvSettings();
@@ -3836,6 +3837,7 @@ final class ControlPanel extends JPanel implements ActionListener {
         _mainpanel.adjustJScrollPane();
         _mainpanel.getCurrentTreePanel().repaint();
         _mainpanel.getCurrentTreePanel().updateOvSizes();
+        getCurrentTreePanel().resetDomainStructureHeight();
     }
 
     /**
@@ -3851,6 +3853,9 @@ final class ControlPanel extends JPanel implements ActionListener {
             return;
         }
         final TreePanel tp = getCurrentTreePanel();
+        if (!tp.isVerticalOrientation()) {
+            tp.resetDomainStructureWidth();
+        }
         tp.updateSetOfCollapsedExternalNodes();
         displayedPhylogenyMightHaveChanged(true); // recalc longest-ext-node info (e.g. now with domains)
         tp.updateOvSettings();
@@ -3870,6 +3875,9 @@ final class ControlPanel extends JPanel implements ActionListener {
         _mainpanel.adjustJScrollPane();
         tp.repaint();
         tp.updateOvSizes();
+        if (tp.isVerticalOrientation()) {
+            tp.resetDomainStructureHeight();
+        }
     }
 
     /** The vertical-orientation analog of {@link #fitWidth()}: fit the depth (branch-length) axis -- which is drawn
@@ -3882,6 +3890,9 @@ final class ControlPanel extends JPanel implements ActionListener {
             return;
         }
         final TreePanel tp = getCurrentTreePanel();
+        if (tp.isVerticalOrientation()) {
+            tp.resetDomainStructureWidth();
+        }
         tp.updateSetOfCollapsedExternalNodes();
         displayedPhylogenyMightHaveChanged(true);
         tp.updateOvSettings();
@@ -3903,6 +3914,9 @@ final class ControlPanel extends JPanel implements ActionListener {
         _mainpanel.adjustJScrollPane();
         tp.repaint();
         tp.updateOvSizes();
+        if (!tp.isVerticalOrientation()) {
+            tp.resetDomainStructureHeight();
+        }
     }
 
     private boolean isVerticalOrientation() {
@@ -4128,9 +4142,11 @@ final class ControlPanel extends JPanel implements ActionListener {
     void showWholeAll() {
         for (final TreePanel tree_panel : _mainpanel.getTreePanels()) {
             if (tree_panel != null) {
+                tree_panel.resetDomainStructureWidth();
                 tree_panel.validate();
                 tree_panel.calcParametersForPainting(_mainpanel.getSizeOfViewport().width,
                         _mainpanel.getSizeOfViewport().height);
+                tree_panel.resetDomainStructureHeight();
                 tree_panel.resetPreferredSize();
                 tree_panel.repaint();
             }
@@ -4305,6 +4321,7 @@ final class ControlPanel extends JPanel implements ActionListener {
         if (zoomRadial(treepanel, factor)) {
             return;
         }
+        treepanel.scaleDomainStructuresWithTree(factor);
         treepanel.multiplyUrtFactor(1f);
         if ((treepanel.getPhylogenyGraphicsType() == PHYLOGENY_GRAPHICS_TYPE.CIRCULAR)
                 || (treepanel.getPhylogenyGraphicsType() == PHYLOGENY_GRAPHICS_TYPE.UNROOTED)
@@ -4391,6 +4408,7 @@ final class ControlPanel extends JPanel implements ActionListener {
         if (zoomRadial(treepanel, factor)) {
             return;
         }
+        treepanel.scaleDomainStructuresWithTree(factor);
         treepanel.multiplyUrtFactor(1f);
         if ((treepanel.getXdistance() * factor) > 0.0) {
             final JScrollBar sb = depthScrollBar();

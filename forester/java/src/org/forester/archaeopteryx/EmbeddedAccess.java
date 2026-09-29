@@ -127,6 +127,10 @@ public final class EmbeddedAccess {
         return panel.shows(option);
     }
 
+    public static void setDomainStructuresFollowTreeZoom(final TreePanel panel, final boolean follow) {
+        panel.setDomainStructuresFollowTreeZoom(follow);
+    }
+
     public static void setFont(final MainFrame frame, final Font font) {
         frame.getOptions().setBaseFont(font);
         frame.getMainPanel().getTreeFontSet().setBaseFont(font);
