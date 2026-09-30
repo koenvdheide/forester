@@ -57,6 +57,7 @@ public final class EmbeddedDefaultsTest {
                     checkLoadOrder();
                     checkDisplayColours();
                     checkAddedTreeFitsLikeConstructedTree();
+                    checkRepeatedFitKeepsFontSize();
                     checkClickToFallbackAfterHostSelection();
                 } catch (final Exception e) {
                     throw new AssertionError(e);
@@ -250,6 +251,25 @@ public final class EmbeddedDefaultsTest {
         } finally {
             constructed.end();
             added.end();
+        }
+    }
+
+    private static void checkRepeatedFitKeepsFontSize() throws Exception {
+        final MainFrameApplication frame = MainFrameApplication.createEmbeddedInstance(
+                new Phylogeny[] { longLabelTree() }, new Configuration(), "a");
+        try {
+            final TreePanel panel = frame.getMainPanel().getCurrentTreePanel();
+            final TreeFontSet fonts = frame.getMainPanel().getTreeFontSet();
+            for (int width = 100; width < 700; width++) {
+                panel.calcParametersForPainting(width, 400);
+                final int size = fonts.getLargeFont().getSize();
+                panel.calcParametersForPainting(width, 400);
+                if (fonts.getLargeFont().getSize() != size) {
+                    throw new AssertionError("A second fit at width " + width + " changed the font size");
+                }
+            }
+        } finally {
+            frame.end();
         }
     }
 

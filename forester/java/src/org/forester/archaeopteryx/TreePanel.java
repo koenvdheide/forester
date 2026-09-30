@@ -7187,6 +7187,11 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
                         - TreeFontSet.FONT_SIZE_CHANGE_STEP))) {
                     getMainPanel().getTreeFontSet().increaseFontSize();
                     calculateLongestExtNodeInfo();
+                    if (getLongestExtNodeInfo() > (x * 0.7)) {
+                        getMainPanel().getTreeFontSet().decreaseFontSize(getConfiguration().getMinBaseFontSize(), true);
+                        calculateLongestExtNodeInfo();
+                        break;
+                    }
                 }
             }
             // the overlap auto-fit above may have changed the displayed font size -> reflect it in the slider
