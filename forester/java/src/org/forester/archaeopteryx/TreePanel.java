@@ -8618,6 +8618,11 @@ public final class TreePanel extends JPanel implements MouseWheelListener {
                         - TreeFontSet.FONT_SIZE_CHANGE_STEP))) {
                     getMainPanel().getTreeFontSet().increaseFontSize();
                     calculateLongestExtNodeInfo();
+                    if (getLongestExtNodeInfo() > (x * 0.7)) {
+                        getMainPanel().getTreeFontSet().decreaseFontSize(getConfiguration().getMinBaseFontSize(), true);
+                        calculateLongestExtNodeInfo();
+                        break;
+                    }
                 }
             }
             // The labels have settled: now divide the width for real, once, for every reserve below to read.
