@@ -34,6 +34,7 @@ import java.awt.Rectangle;
 import java.awt.RenderingHints;
 import java.awt.Shape;
 import java.awt.Stroke;
+import java.awt.dnd.DragSource;
 import java.awt.Toolkit;
 import java.awt.Window;
 import java.awt.event.ActionEvent;
@@ -405,6 +406,7 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
     private PhylogenyNode _ext_node_with_longest_txt_info = null;
     private MainPanel _main_panel = null;
     private double _max_distance_to_root = -1;
+    private MouseEvent _mouse_press = null;
     /** The node hover card (null = none): canvas state painted as the last overlay -- never a popup window. */
     private NodeHoverCard _hover_card;
     private PhylogenyNode _hover_card_node;
@@ -14952,6 +14954,37 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
         setArrowCursor();
         setEdited(true);
         repaint();
+    }
+
+    @Override
+    protected void processMouseEvent(final MouseEvent e) {
+        // AWT on Windows and macOS sends no click once the pointer has moved
+        // between press and release, so clicks within the drag threshold are made here
+        if (e.getID() == MouseEvent.MOUSE_CLICKED) {
+            return;
+        }
+        super.processMouseEvent(e);
+        if (e.getID() == MouseEvent.MOUSE_PRESSED) {
+            _mouse_press = e;
+        } else if ((e.getID() == MouseEvent.MOUSE_RELEASED) && isNearMousePress(e)
+                && (e.getButton() == _mouse_press.getButton())) {
+            super.processMouseEvent(new MouseEvent(this, MouseEvent.MOUSE_CLICKED, e.getWhen(), e.getModifiersEx(),
+                    e.getX(), e.getY(), e.getXOnScreen(), e.getYOnScreen(), e.getClickCount(), false, e.getButton()));
+        }
+    }
+
+    @Override
+    protected void processMouseMotionEvent(final MouseEvent e) {
+        if (!isNearMousePress(e)) {
+            _mouse_press = null;
+        }
+        super.processMouseMotionEvent(e);
+    }
+
+    private boolean isNearMousePress(final MouseEvent e) {
+        return (_mouse_press != null)
+                && (Math.abs(e.getXOnScreen() - _mouse_press.getXOnScreen()) <= DragSource.getDragThreshold())
+                && (Math.abs(e.getYOnScreen() - _mouse_press.getYOnScreen()) <= DragSource.getDragThreshold());
     }
 
     final void mouseClicked(final MouseEvent e) {
