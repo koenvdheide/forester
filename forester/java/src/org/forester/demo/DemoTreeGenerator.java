@@ -220,7 +220,77 @@ public final class DemoTreeGenerator {
     //       demo exercises the tolerance between the two conventions. Two tips were dated only to the month and to the
     //       year; BEAST sampled their dates, so they carry a height HPD: a sampling-date uncertainty. A strict clock:
     //       one rate on every branch, so no Color-by field competes with the time axis the demo is about.
-    private record BeastClade(int taxon, double date, double lo, double hi, double posterior, BeastClade... kids) {
+    private static final class BeastClade {
+        private final int taxon;
+        private final double date;
+        private final double lo;
+        private final double hi;
+        private final double posterior;
+        private final BeastClade[] kids;
+
+        private BeastClade(int taxon, double date, double lo, double hi, double posterior, BeastClade... kids) {
+            this.taxon = taxon;
+            this.date = date;
+            this.lo = lo;
+            this.hi = hi;
+            this.posterior = posterior;
+            this.kids = kids;
+        }
+
+        public int taxon() {
+            return taxon;
+        }
+
+        public double date() {
+            return date;
+        }
+
+        public double lo() {
+            return lo;
+        }
+
+        public double hi() {
+            return hi;
+        }
+
+        public double posterior() {
+            return posterior;
+        }
+
+        public BeastClade[] kids() {
+            return kids;
+        }
+
+        @Override
+        public boolean equals(final Object value) {
+            if (!(value instanceof BeastClade)) {
+                return false;
+            }
+            final BeastClade other = (BeastClade) value;
+            return taxon == other.taxon
+                    && Double.compare(date, other.date) == 0
+                    && Double.compare(lo, other.lo) == 0
+                    && Double.compare(hi, other.hi) == 0
+                    && Double.compare(posterior, other.posterior) == 0
+                    && java.util.Objects.equals(kids, other.kids);
+        }
+
+        @Override
+        public int hashCode() {
+            int result = 0;
+            result = 31 * result + java.util.Objects.hashCode(taxon);
+            result = 31 * result + java.util.Objects.hashCode(date);
+            result = 31 * result + java.util.Objects.hashCode(lo);
+            result = 31 * result + java.util.Objects.hashCode(hi);
+            result = 31 * result + java.util.Objects.hashCode(posterior);
+            result = 31 * result + java.util.Objects.hashCode(kids);
+            return result;
+        }
+
+        @Override
+        public String toString() {
+            return "BeastClade[taxon=" + taxon + ", date=" + date + ", lo=" + lo + ", hi=" + hi + ", posterior=" + posterior + ", kids=" + kids + "]";
+        }
     }
 
     private static final String BEAST_STRICT_CLOCK_RATE = "0.004";

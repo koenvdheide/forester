@@ -1355,11 +1355,13 @@ public final class MainFrameApplication extends MainFrame {
         try {
             final PhylogenyParser parser = ParserUtils.createParserDependingOnFileType(file,
                     getConfiguration().isValidatePhyloXmlAgainstSchema());
-            if (parser instanceof NexusPhylogeniesParser nex) {
+            if (parser instanceof NexusPhylogeniesParser) {
+                final NexusPhylogeniesParser nex = (NexusPhylogeniesParser) parser;
                 setSpecialOptionsForNexParser(nex);
                 nhx_or_nexus = true;
             }
-            else if (parser instanceof NHXParser nhx) {
+            else if (parser instanceof NHXParser) {
+                final NHXParser nhx = (NHXParser) parser;
                 setSpecialOptionsForNhxParser(nhx);
                 nhx_or_nexus = true;
             }
@@ -1456,10 +1458,12 @@ public final class MainFrameApplication extends MainFrame {
                                     .createParserDependingOnFileType(file,
                                             getConfiguration()
                                                     .isValidatePhyloXmlAgainstSchema());
-                            if (parser instanceof NexusPhylogeniesParser nex) {
+                            if (parser instanceof NexusPhylogeniesParser) {
+                                final NexusPhylogeniesParser nex = (NexusPhylogeniesParser) parser;
                                 setSpecialOptionsForNexParser(nex);
                                 nhx_or_nexus = true;
-                            } else if (parser instanceof NHXParser nhx) {
+                            } else if (parser instanceof NHXParser) {
+                                final NHXParser nhx = (NHXParser) parser;
                                 setSpecialOptionsForNhxParser(nhx);
                                 nhx_or_nexus = true;
                             }

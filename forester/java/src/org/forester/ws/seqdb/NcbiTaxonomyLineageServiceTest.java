@@ -28,35 +28,33 @@ package org.forester.ws.seqdb;
 public final class NcbiTaxonomyLineageServiceTest {
 
     // A realistic esearch response (taxonomy db) for a scientific-name query.
-    private static final String ESEARCH = """
-            <?xml version="1.0" encoding="UTF-8"?>
-            <eSearchResult><Count>1</Count><RetMax>1</RetMax><RetStart>0</RetStart>
-            <IdList><Id>9682</Id></IdList></eSearchResult>""";
+    private static final String ESEARCH = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" +
+            "<eSearchResult><Count>1</Count><RetMax>1</RetMax><RetStart>0</RetStart>\n" +
+            "<IdList><Id>9682</Id></IdList></eSearchResult>";
 
     // A realistic efetch taxonomy response for the genus Felis. Note the DOCTYPE referencing a remote
     // DTD: parsing must NOT reach out for it (success here proves external-DTD loading is disabled),
     // and the trailing "no rank" entry must be skipped.
-    private static final String EFETCH_FELIS = """
-            <?xml version="1.0" encoding="UTF-8"?>
-            <!DOCTYPE TaxaSet PUBLIC "-//NLM//DTD Taxon, 14th January 2002//EN" "https://www.ncbi.nlm.nih.gov/entrez/query/DTD/taxon.dtd">
-            <TaxaSet>
-              <Taxon>
-                <TaxId>9682</TaxId>
-                <ScientificName>Felis</ScientificName>
-                <OtherNames><GenbankCommonName>cats</GenbankCommonName></OtherNames>
-                <Rank>genus</Rank>
-                <LineageEx>
-                  <Taxon><TaxId>131567</TaxId><ScientificName>cellular organisms</ScientificName><Rank>no rank</Rank></Taxon>
-                  <Taxon><TaxId>2759</TaxId><ScientificName>Eukaryota</ScientificName><Rank>superkingdom</Rank></Taxon>
-                  <Taxon><TaxId>33208</TaxId><ScientificName>Metazoa</ScientificName><Rank>kingdom</Rank></Taxon>
-                  <Taxon><TaxId>7711</TaxId><ScientificName>Chordata</ScientificName><Rank>phylum</Rank></Taxon>
-                  <Taxon><TaxId>40674</TaxId><ScientificName>Mammalia</ScientificName><Rank>class</Rank></Taxon>
-                  <Taxon><TaxId>33554</TaxId><ScientificName>Carnivora</ScientificName><Rank>order</Rank></Taxon>
-                  <Taxon><TaxId>9681</TaxId><ScientificName>Felidae</ScientificName><Rank>family</Rank></Taxon>
-                  <Taxon><TaxId>338152</TaxId><ScientificName>Felinae</ScientificName><Rank>subfamily</Rank></Taxon>
-                </LineageEx>
-              </Taxon>
-            </TaxaSet>""";
+    private static final String EFETCH_FELIS = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" +
+            "<!DOCTYPE TaxaSet PUBLIC \"-//NLM//DTD Taxon, 14th January 2002//EN\" \"https://www.ncbi.nlm.nih.gov/entrez/query/DTD/taxon.dtd\">\n" +
+            "<TaxaSet>\n" +
+            "  <Taxon>\n" +
+            "    <TaxId>9682</TaxId>\n" +
+            "    <ScientificName>Felis</ScientificName>\n" +
+            "    <OtherNames><GenbankCommonName>cats</GenbankCommonName></OtherNames>\n" +
+            "    <Rank>genus</Rank>\n" +
+            "    <LineageEx>\n" +
+            "      <Taxon><TaxId>131567</TaxId><ScientificName>cellular organisms</ScientificName><Rank>no rank</Rank></Taxon>\n" +
+            "      <Taxon><TaxId>2759</TaxId><ScientificName>Eukaryota</ScientificName><Rank>superkingdom</Rank></Taxon>\n" +
+            "      <Taxon><TaxId>33208</TaxId><ScientificName>Metazoa</ScientificName><Rank>kingdom</Rank></Taxon>\n" +
+            "      <Taxon><TaxId>7711</TaxId><ScientificName>Chordata</ScientificName><Rank>phylum</Rank></Taxon>\n" +
+            "      <Taxon><TaxId>40674</TaxId><ScientificName>Mammalia</ScientificName><Rank>class</Rank></Taxon>\n" +
+            "      <Taxon><TaxId>33554</TaxId><ScientificName>Carnivora</ScientificName><Rank>order</Rank></Taxon>\n" +
+            "      <Taxon><TaxId>9681</TaxId><ScientificName>Felidae</ScientificName><Rank>family</Rank></Taxon>\n" +
+            "      <Taxon><TaxId>338152</TaxId><ScientificName>Felinae</ScientificName><Rank>subfamily</Rank></Taxon>\n" +
+            "    </LineageEx>\n" +
+            "  </Taxon>\n" +
+            "</TaxaSet>";
 
     public static void main( final String[] args ) {
         final boolean ok = test();

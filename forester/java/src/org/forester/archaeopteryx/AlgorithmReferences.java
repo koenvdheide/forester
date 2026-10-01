@@ -37,7 +37,45 @@ import org.forester.util.ForesterConstants;
 final class AlgorithmReferences {
 
     /** One algorithm and its main citation (or, for an unpublished method, a short description). */
-    record Reference(String algorithm, String citation) {}
+    static final class Reference {
+        private final String algorithm;
+        private final String citation;
+
+        Reference(String algorithm, String citation) {
+            this.algorithm = algorithm;
+            this.citation = citation;
+        }
+
+        public String algorithm() {
+            return algorithm;
+        }
+
+        public String citation() {
+            return citation;
+        }
+
+        @Override
+        public boolean equals(final Object value) {
+            if (!(value instanceof Reference)) {
+                return false;
+            }
+            final Reference other = (Reference) value;
+            return java.util.Objects.equals(algorithm, other.algorithm)
+                    && java.util.Objects.equals(citation, other.citation);
+        }
+
+        @Override
+        public int hashCode() {
+            int result = 0;
+            result = 31 * result + java.util.Objects.hashCode(algorithm);
+            result = 31 * result + java.util.Objects.hashCode(citation);
+            return result;
+        }
+
+        @Override
+        public String toString() {
+            return "Reference[algorithm=" + algorithm + ", citation=" + citation + "]";
+        }}
 
     static List<Reference> all() {
         final List<Reference> refs = new ArrayList<>();
