@@ -137,7 +137,7 @@ public final class DomainRadialWidthTest {
             } );
         }
         finally {
-            SwingUtilities.invokeAndWait( () -> ( (JFrame) mf[ 0 ] ).dispose() );
+            SwingUtilities.invokeAndWait( () -> ( mf[ 0 ]._window ).dispose() );
         }
         return ok[ 0 ];
     }

@@ -82,7 +82,7 @@ public final class LayoutButtonsTest {
                     body.accept( mf[ 0 ], ok );
                 }
                 finally {
-                    ( ( JFrame ) mf[ 0 ] ).dispose();
+                    ( mf[ 0 ]._window ).dispose();
                 }
             } );
             return ok[ 0 ];
@@ -108,8 +108,8 @@ public final class LayoutButtonsTest {
      * X+/X- kept their zoom labels instead of becoming the rotate pair.
      */
     private static void noTreeStillSwitches( final MainFrame frame, final boolean[] ok ) {
-        frame.setSize( 900, 600 );
-        ( ( JFrame ) frame ).validate();
+        frame._window.setSize( 900, 600 );
+        ( frame._window ).validate();
         final ControlPanel cp = frame.getMainPanel().getControlPanel();
         cp.getLayoutButton( LayoutIcon.Kind.CIRCULAR ).doClick();
         if ( cp.selectedLayoutKind() != LayoutIcon.Kind.CIRCULAR ) {
@@ -135,8 +135,8 @@ public final class LayoutButtonsTest {
     }
 
     private static void perTabDisplayTypeSurvivesTabSwitch( final MainFrame frame, final boolean[] ok ) {
-        frame.setSize( 1000, 700 );
-        ( ( JFrame ) frame ).validate();
+        frame._window.setSize( 1000, 700 );
+        ( frame._window ).validate();
         final ControlPanel cp = frame.getMainPanel().getControlPanel();
         final javax.swing.JTabbedPane tabs = frame.getMainPanel().getTabbedPane();
         if ( tabs.getTabCount() != 2 ) {
@@ -191,8 +191,8 @@ public final class LayoutButtonsTest {
      * the new tree is drawn rectangular.
      */
     private static void newTreeResyncsLayoutRow( final MainFrame frame, final boolean[] ok ) {
-        frame.setSize( 1000, 700 );
-        ( ( JFrame ) frame ).validate();
+        frame._window.setSize( 1000, 700 );
+        ( frame._window ).validate();
         final ControlPanel cp = frame.getMainPanel().getControlPanel();
         click( cp, LayoutIcon.Kind.CIRCULAR );
         if ( cp.selectedLayoutKind() != LayoutIcon.Kind.CIRCULAR ) {
@@ -217,8 +217,8 @@ public final class LayoutButtonsTest {
     }
 
     private static void exercise( final MainFrame frame, final boolean[] ok ) {
-        frame.setSize( 1000, 700 );
-        ( ( JFrame ) frame ).validate();
+        frame._window.setSize( 1000, 700 );
+        ( frame._window ).validate();
         final ControlPanel cp = frame.getMainPanel().getControlPanel();
         final TreePanel tp = frame.getCurrentTreePanel();
         if ( ( cp == null ) || ( tp == null ) ) {

@@ -137,7 +137,7 @@ public final class HeatmapMatrixRenderTest {
                     fail( ok, "unexpected: " + t );
                 }
                 finally {
-                    ( (JFrame) frame ).dispose();
+                    ( frame._window ).dispose();
                 }
             } );
             return ok[ 0 ];

@@ -120,7 +120,7 @@ public final class DomainArchitectureVerticalRenderTest {
                     fail( ok, "unexpected: " + t );
                 }
                 finally {
-                    ( (JFrame) frame ).dispose();
+                    ( frame._window ).dispose();
                 }
             } );
             return ok[ 0 ];

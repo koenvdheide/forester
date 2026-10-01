@@ -135,7 +135,7 @@ public final class FossilRangeBarRenderTest {
                     fail( ok, "unexpected: " + t );
                 }
                 finally {
-                    ( (JFrame) frame ).dispose();
+                    ( frame._window ).dispose();
                 }
             } );
             return ok[ 0 ];
@@ -283,7 +283,7 @@ public final class FossilRangeBarRenderTest {
                     fail( ok, "unexpected: " + t );
                 }
                 finally {
-                    ( (JFrame) frame ).dispose();
+                    ( frame._window ).dispose();
                 }
             } );
             return ok[ 0 ];

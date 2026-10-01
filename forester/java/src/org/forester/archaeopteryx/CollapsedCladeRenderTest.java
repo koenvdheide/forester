@@ -100,7 +100,7 @@ public final class CollapsedCladeRenderTest {
         finally {
             if ( mf[ 0 ] != null ) {
                 try {
-                    SwingUtilities.invokeAndWait( () -> ( (JFrame) mf[ 0 ] ).dispose() );
+                    SwingUtilities.invokeAndWait( () -> ( mf[ 0 ]._window ).dispose() );
                 }
                 catch ( final Exception e ) {
                     // nothing left to release

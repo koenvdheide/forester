@@ -72,7 +72,7 @@ public final class SettingsDialogTest {
             final boolean[] ok = { true };
             SwingUtilities.invokeAndWait( () -> {
                 // the menu bar must carry a "Settings" launcher and no longer the old "Options"/"Type" menus
-                final JMenuBar bar = ( (JFrame) mf[ 0 ] ).getJMenuBar();
+                final JMenuBar bar = ( mf[ 0 ]._window ).getJMenuBar();
                 boolean has_settings = false;
                 boolean has_old = false;
                 for ( int i = 0; i < bar.getMenuCount(); ++i ) {
@@ -225,8 +225,24 @@ public final class SettingsDialogTest {
                 if ( !saw_shape || !saw_fill ) {
                     ok[ 0 ] = TestFail.here(); // the combos we mean to check must actually be present
                 }
+                for ( final javax.swing.JButton b : buttons ) {
+                    if ( "Close".equals( b.getText() ) ) {
+                        b.doClick();
+                    }
+                }
+                if ( dlg.isDisplayable() ) {
+                    System.out.println( "Settings Close must dispose the dialog" );
+                    ok[ 0 ] = TestFail.here();
+                }
+                dlg.pack();
+                dlg.dispatchEvent( new java.awt.event.WindowEvent( dlg,
+                        java.awt.event.WindowEvent.WINDOW_CLOSING ) );
+                if ( dlg.isDisplayable() ) {
+                    System.out.println( "Settings window close must dispose the dialog" );
+                    ok[ 0 ] = TestFail.here();
+                }
                 dlg.dispose();
-                ( (JFrame) mf[ 0 ] ).dispose();
+                ( mf[ 0 ]._window ).dispose();
             } );
             return ok[ 0 ];
         }

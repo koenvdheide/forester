@@ -843,7 +843,7 @@ public final class RadialNodeContentRenderTest {
                     fail( ok, "unexpected: " + t );
                 }
                 finally {
-                    ( (JFrame) frame ).dispose();
+                    ( frame._window ).dispose();
                 }
             } );
         }

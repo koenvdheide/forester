@@ -1472,7 +1472,9 @@ public final class AptxUtil {
                     }
                     main_panel.addPhylogenyInNewTab(phy, configuration, my_name, full_path);
                     main_panel.getCurrentTreePanel().setTreeFile(new File(my_name_for_file));
-                    lookAtSomeTreePropertiesForAptxControlSettings(phy, main_panel.getControlPanel());
+                    if (main_panel.getMainFrame() == null || !main_panel.getMainFrame()._embedded) {
+                        lookAtSomeTreePropertiesForAptxControlSettings(phy, main_panel.getControlPanel());
+                    }
                     ++i;
                 }
             }

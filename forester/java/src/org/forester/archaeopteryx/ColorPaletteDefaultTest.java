@@ -87,7 +87,7 @@ public final class ColorPaletteDefaultTest {
                     fail( ok, "unexpected: " + t );
                 }
                 finally {
-                    ( (JFrame) frame ).dispose();
+                    ( frame._window ).dispose();
                 }
             } );
             return ok[ 0 ];

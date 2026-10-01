@@ -118,7 +118,7 @@ import org.forester.util.ForesterConstants;
 import org.forester.util.ForesterUtil;
 import org.forester.util.WindowsUtils;
 
-public abstract class MainFrame extends JFrame implements ActionListener {
+public abstract class MainFrame extends javax.swing.JPanel implements ActionListener {
 
     /**
      * Installs the FlatLaf look-and-feel (light or dark) -- the only look-and-feel Archaeopteryx uses. It is
@@ -418,6 +418,36 @@ public abstract class MainFrame extends JFrame implements ActionListener {
     // the rank last chosen in "Annotate Clades by Rank", pre-selected next time (per session); null = first use
     private String _last_clade_rank;
     final ProcessPool _process_pool;
+
+    JFrame _window;
+    boolean _embedded;
+    private Runnable _embedded_defaults;
+
+    public void setEmbeddedDefaults(final Runnable defaults) {
+        _embedded_defaults = defaults;
+        defaults.run();
+        applyOptionsToMenuStates(getOptions());
+    }
+
+    void validateEmbeddedTree() {
+        synchronized (getTreeLock()) {
+            validateTree();
+        }
+    }
+
+    public Container getContentPane() {
+        return this;
+    }
+
+    public JMenuBar getJMenuBar() {
+        return _jmenubar;
+    }
+
+    public void dispose() {
+        if (_window != null) {
+            _window.dispose();
+        }
+    }
 
     MainFrame() {
         _process_pool = ProcessPool.createInstance();
@@ -914,11 +944,11 @@ public abstract class MainFrame extends JFrame implements ActionListener {
                     }
                 }
                 for (final PhylogenyNode n : to_delete) {
-                    phy.deleteSubtree(n, true);
+                    getCurrentTreePanel().deleteSubtreePreservingConnection(n);
                 }
             } else {
                 for (final PhylogenyNode n : nodes) {
-                    phy.deleteSubtree(n, true);
+                    getCurrentTreePanel().deleteSubtreePreservingConnection(n);
                 }
             }
             resetSearch();
@@ -1168,7 +1198,7 @@ public abstract class MainFrame extends JFrame implements ActionListener {
      * no frame (or no menu bar) to put a marker on, and without this that error would never be surfaced at all.
      */
     void showErrorIndicatorIfAnyLogged() {
-        if ((ErrorLog.instance() != null) && ErrorLog.instance().hasErrors()) {
+        if (!_embedded && (ErrorLog.instance() != null) && ErrorLog.instance().hasErrors()) {
             showErrorIndicator();
         }
     }
@@ -1178,15 +1208,15 @@ public abstract class MainFrame extends JFrame implements ActionListener {
     static void showErrorIndicatorOnAllFrames() {
         javax.swing.SwingUtilities.invokeLater(() -> {
             for (final java.awt.Window w : java.awt.Window.getWindows()) {
-                if (w instanceof MainFrame) {
-                    ((MainFrame) w).showErrorIndicator();
+                if ((w instanceof JFrame) && (((JFrame) w).getContentPane() instanceof MainFrame)) {
+                    ((MainFrame) ((JFrame) w).getContentPane()).showErrorIndicator();
                 }
             }
         });
     }
 
     void showErrorIndicator() {
-        if ((_jmenubar == null) || (_error_indicator_menu != null)) {
+        if (_embedded || (_jmenubar == null) || (_error_indicator_menu != null)) {
             return;
         }
         _error_indicator_menu = createMenu("⚠ error logged", getConfiguration());
@@ -1267,12 +1297,14 @@ public abstract class MainFrame extends JFrame implements ActionListener {
         _help_jmenu.addSeparator();
         _help_jmenu.add(_keyboard_shortcuts_item = new JMenuItem("Keyboard Shortcuts"));
         _help_jmenu.addSeparator();
-        _help_jmenu.add(_error_log_item = new JMenuItem("Show Error Log"));
-        customizeJMenuItem(_error_log_item);
-        _error_log_item.setToolTipText("Open the file Archaeopteryx writes unexpected errors to. An installed "
-                + "Archaeopteryx has no console, so this is where a stack trace goes -- attach it to a bug report.");
-        _error_log_item.addActionListener(e -> showErrorLog());
-        _help_jmenu.addSeparator();
+        if (!_embedded) {
+            _help_jmenu.add(_error_log_item = new JMenuItem("Show Error Log"));
+            customizeJMenuItem(_error_log_item);
+            _error_log_item.setToolTipText("Open the file Archaeopteryx writes unexpected errors to. An installed "
+                    + "Archaeopteryx has no console, so this is where a stack trace goes -- attach it to a bug report.");
+            _error_log_item.addActionListener(e -> showErrorLog());
+            _help_jmenu.addSeparator();
+        }
         _help_jmenu.add(_about_item = new JMenuItem("About"));
         customizeJMenuItem(_help_item);
         customizeJMenuItem(_website_item);
@@ -1335,7 +1367,9 @@ public abstract class MainFrame extends JFrame implements ActionListener {
                 + "(categorical fields as color strips), ordered by View → Order Matrix Columns.<br><i>Import "
                 + "Annotations (CSV/TSV) first if the tree has no per-tip data yet.</i></html>");
         final JMenu order_menu = createMenu("Order Matrix Columns", getConfiguration());
-        order_menu.setFont(MainFrame.menu_font); // createMenu sets the font only in custom-colors mode
+        if (!_embedded) {
+            order_menu.setFont(MainFrame.menu_font);
+        }
         order_menu.setToolTipText("How this tab's heat-map matrix orders its columns (the other columns keep their "
                 + "place)");
         final ButtonGroup order_group = new ButtonGroup();
@@ -2521,7 +2555,9 @@ public abstract class MainFrame extends JFrame implements ActionListener {
 
     void customizeCheckBoxMenuItem(final JCheckBoxMenuItem item, final boolean is_selected) {
         if (item != null) {
-            item.setFont(MainFrame.menu_font);
+            if (!_embedded) {
+                item.setFont(MainFrame.menu_font);
+            }
             item.setSelected(is_selected);
             item.addActionListener(this);
         }
@@ -2529,7 +2565,9 @@ public abstract class MainFrame extends JFrame implements ActionListener {
 
     JMenuItem customizeJMenuItem(final JMenuItem jmi) {
         if (jmi != null) {
-            jmi.setFont(MainFrame.menu_font);
+            if (!_embedded) {
+                jmi.setFont(MainFrame.menu_font);
+            }
             jmi.addActionListener(this);
         }
         return jmi;
@@ -2537,7 +2575,9 @@ public abstract class MainFrame extends JFrame implements ActionListener {
 
     void customizeRadioButtonMenuItem(final JRadioButtonMenuItem item, final boolean is_selected) {
         if (item != null) {
-            item.setFont(MainFrame.menu_font);
+            if (!_embedded) {
+                item.setFont(MainFrame.menu_font);
+            }
             item.setSelected(is_selected);
             item.addActionListener(this);
         }
@@ -2855,7 +2895,7 @@ public abstract class MainFrame extends JFrame implements ActionListener {
         final TreePanel tp = _mainpanel.getCurrentTreePanel();
         // Work on a copy: the pure engine mutates internal-node taxa, and the undo checkpoint (taken in
         // AncestralTaxonomyInferrer.commit) snapshots the still-untouched LIVE tree before the copy is installed.
-        final Phylogeny phy = _mainpanel.getCurrentPhylogeny().copy();
+        final Phylogeny phy = _mainpanel.getCurrentTreePanel().getCompletePhylogeny().copy();
         final TaxonomicLineageService service = TreePanelUtil.getDefaultLineageService();
         final SortedSet<String> unresolved = TreePanelUtil.tipsWithoutLineage(phy, service);
         if (!unresolved.isEmpty()) {
@@ -3137,6 +3177,9 @@ public abstract class MainFrame extends JFrame implements ActionListener {
     }
 
     void setDarkMode(final boolean dark) {
+        if (_embedded) {
+            return;
+        }
         final Configuration.UI ui = dark ? Configuration.UI.FLAT_DARK : Configuration.UI.FLAT_LIGHT;
         getConfiguration().setUi(ui);
         Configuration.saveUiPreference(ui);
@@ -3479,10 +3522,15 @@ public abstract class MainFrame extends JFrame implements ActionListener {
         //    createInstance produced at launch) -- each TreePanel caches this same reference, so an in-place reset
         //    propagates everywhere without a swap
         getOptions().resetToDefaults();
+        if (_embedded && (_embedded_defaults != null)) {
+            _embedded_defaults.run();
+        }
         // 2. push the defaults out to the menu controls, so a later updateOptions() reads defaults, not stale state
         applyOptionsToMenuStates(getOptions());
         // 3. forget the persisted settings so the reset survives the next launch
-        new GuiPreferences().deleteSettingsFile();
+        if (!_embedded) {
+            new GuiPreferences().deleteSettingsFile();
+        }
         // 4. theme -> shipped default (FlatLaf light); re-inits the L&F and restyles every open window live
         setDarkMode(false);
         if (getMainPanel() != null) {
@@ -3501,6 +3549,7 @@ public abstract class MainFrame extends JFrame implements ActionListener {
                 tp.clearAnnotationColumns(); // per-tab: drop any Tools>Annotation Fields selection (fresh install has none)
                 tp.setMatrixColumnOrder(MatrixColumnOrder.DEFAULT); // per-tab: back to Clustered (no columns left to move)
                 tp.clearCladeBands(); // per-tab: likewise the Tools>Annotate Clades by Rank marks + their legend
+                getMainPanel().initializeTree(tp);
             }
             syncMatrixColumnOrderMenu(); // the View > Order Matrix Columns radios follow the reset
             final ControlPanel cp = getMainPanel().getControlPanel();
@@ -3512,6 +3561,7 @@ public abstract class MainFrame extends JFrame implements ActionListener {
                 // re-seed the always-visible control-panel controls (theme radios + search checkboxes) that hold
                 // their own state -- else they stay stale and the search checkboxes clobber the reset on next click
                 cp.resyncFromOptions();
+                cp.reseedDisplayDataFromCurrentTab();
                 cp.updateZoomButtonsForLayout(); // layout reset to RECTANGULAR/ROOT_LEFT -> H reverts to W, radial labels revert
             }
             final TreePanel current = getMainPanel().getCurrentTreePanel();
@@ -4240,7 +4290,7 @@ public abstract class MainFrame extends JFrame implements ActionListener {
      * or {@code null} on cancel.
      */
     private ImportChoice showImportChoice(final Phylogeny phy, final String text) {
-        final javax.swing.JDialog dialog = new javax.swing.JDialog(this, "Import Annotations", true);
+        final javax.swing.JDialog dialog = new javax.swing.JDialog(SwingUtilities.getWindowAncestor(this), "Import Annotations", java.awt.Dialog.ModalityType.APPLICATION_MODAL);
         dialog.setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE); // 'X' disposes (not just hides)
         final ImportChoice[] result = { null };
         final NodeDataImporter.Table[] cur_table = { null };
