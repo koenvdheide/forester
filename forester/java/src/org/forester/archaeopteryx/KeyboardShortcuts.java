@@ -49,10 +49,86 @@ final class KeyboardShortcuts {
     private static final String  ALT = MAC ? "⌥" : "Alt+";        // ⌥ (Option) vs Alt+
     private static final String  SHIFT = MAC ? "⇧" : "Shift+";    // ⇧ vs Shift+
 
-    record Shortcut(String keys, String action) {
+    static final class Shortcut {
+        private final String keys;
+        private final String action;
+
+        Shortcut(String keys, String action) {
+            this.keys = keys;
+            this.action = action;
+        }
+
+        public String keys() {
+            return keys;
+        }
+
+        public String action() {
+            return action;
+        }
+
+        @Override
+        public boolean equals(final Object value) {
+            if (!(value instanceof Shortcut)) {
+                return false;
+            }
+            final Shortcut other = (Shortcut) value;
+            return java.util.Objects.equals(keys, other.keys)
+                    && java.util.Objects.equals(action, other.action);
+        }
+
+        @Override
+        public int hashCode() {
+            int result = 0;
+            result = 31 * result + java.util.Objects.hashCode(keys);
+            result = 31 * result + java.util.Objects.hashCode(action);
+            return result;
+        }
+
+        @Override
+        public String toString() {
+            return "Shortcut[keys=" + keys + ", action=" + action + "]";
+        }
     }
 
-    record ShortcutGroup(String title, List<Shortcut> shortcuts) {
+    static final class ShortcutGroup {
+        private final String title;
+        private final List<Shortcut> shortcuts;
+
+        ShortcutGroup(String title, List<Shortcut> shortcuts) {
+            this.title = title;
+            this.shortcuts = shortcuts;
+        }
+
+        public String title() {
+            return title;
+        }
+
+        public List<Shortcut> shortcuts() {
+            return shortcuts;
+        }
+
+        @Override
+        public boolean equals(final Object value) {
+            if (!(value instanceof ShortcutGroup)) {
+                return false;
+            }
+            final ShortcutGroup other = (ShortcutGroup) value;
+            return java.util.Objects.equals(title, other.title)
+                    && java.util.Objects.equals(shortcuts, other.shortcuts);
+        }
+
+        @Override
+        public int hashCode() {
+            int result = 0;
+            result = 31 * result + java.util.Objects.hashCode(title);
+            result = 31 * result + java.util.Objects.hashCode(shortcuts);
+            return result;
+        }
+
+        @Override
+        public String toString() {
+            return "ShortcutGroup[title=" + title + ", shortcuts=" + shortcuts + "]";
+        }
     }
 
     /** The grouped shortcut reference, in display order. Pure -- no toolkit needed. */

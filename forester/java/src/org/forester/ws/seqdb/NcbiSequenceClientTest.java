@@ -27,43 +27,42 @@ package org.forester.ws.seqdb;
  */
 public final class NcbiSequenceClientTest {
 
-    private static final String GBSEQ = """
-            <?xml version="1.0"?>
-            <!DOCTYPE GBSet PUBLIC "-//NCBI//NCBI GBSeq/EN" "https://www.ncbi.nlm.nih.gov/dtd/NCBI_GBSeq.dtd">
-            <GBSet>
-              <GBSeq>
-                <GBSeq_locus>NP_061820</GBSeq_locus>
-                <GBSeq_length>105</GBSeq_length>
-                <GBSeq_moltype>AA</GBSeq_moltype>
-                <GBSeq_definition>cytochrome c [Homo sapiens]</GBSeq_definition>
-                <GBSeq_primary-accession>NP_061820</GBSeq_primary-accession>
-                <GBSeq_organism>Homo sapiens</GBSeq_organism>
-                <GBSeq_taxonomy>Eukaryota; Metazoa; Chordata; Mammalia; Primates; Hominidae; Homo</GBSeq_taxonomy>
-                <GBSeq_feature-table>
-                  <GBFeature>
-                    <GBFeature_key>source</GBFeature_key>
-                    <GBFeature_quals>
-                      <GBQualifier><GBQualifier_name>organism</GBQualifier_name><GBQualifier_value>Homo sapiens</GBQualifier_value></GBQualifier>
-                      <GBQualifier><GBQualifier_name>strain</GBQualifier_name><GBQualifier_value>K-12</GBQualifier_value></GBQualifier>
-                      <GBQualifier><GBQualifier_name>host</GBQualifier_name><GBQualifier_value>Aedes aegypti</GBQualifier_value></GBQualifier>
-                      <GBQualifier><GBQualifier_name>geo_loc_name</GBQualifier_name><GBQualifier_value>USA: California</GBQualifier_value></GBQualifier>
-                      <GBQualifier><GBQualifier_name>isolate</GBQualifier_name><GBQualifier_value>iso-42</GBQualifier_value></GBQualifier>
-                      <GBQualifier><GBQualifier_name>collection_date</GBQualifier_name><GBQualifier_value>2021-03-15</GBQualifier_value></GBQualifier>
-                      <GBQualifier><GBQualifier_name>db_xref</GBQualifier_name><GBQualifier_value>taxon:9606</GBQualifier_value></GBQualifier>
-                    </GBFeature_quals>
-                  </GBFeature>
-                  <GBFeature>
-                    <GBFeature_key>CDS</GBFeature_key>
-                    <GBFeature_quals>
-                      <GBQualifier><GBQualifier_name>gene</GBQualifier_name><GBQualifier_value>CYCS</GBQualifier_value></GBQualifier>
-                      <GBQualifier><GBQualifier_name>db_xref</GBQualifier_name><GBQualifier_value>taxon:9606</GBQualifier_value></GBQualifier>
-                      <GBQualifier><GBQualifier_name>db_xref</GBQualifier_name><GBQualifier_value>GeneID:54205</GBQualifier_value></GBQualifier>
-                    </GBFeature_quals>
-                  </GBFeature>
-                </GBSeq_feature-table>
-                <GBSeq_sequence>mgdvekgkkifimkcsqchtvekggkhktgpnlhglfgrktgqapgysytaank</GBSeq_sequence>
-              </GBSeq>
-            </GBSet>""";
+    private static final String GBSEQ = "<?xml version=\"1.0\"?>\n" +
+            "<!DOCTYPE GBSet PUBLIC \"-//NCBI//NCBI GBSeq/EN\" \"https://www.ncbi.nlm.nih.gov/dtd/NCBI_GBSeq.dtd\">\n" +
+            "<GBSet>\n" +
+            "  <GBSeq>\n" +
+            "    <GBSeq_locus>NP_061820</GBSeq_locus>\n" +
+            "    <GBSeq_length>105</GBSeq_length>\n" +
+            "    <GBSeq_moltype>AA</GBSeq_moltype>\n" +
+            "    <GBSeq_definition>cytochrome c [Homo sapiens]</GBSeq_definition>\n" +
+            "    <GBSeq_primary-accession>NP_061820</GBSeq_primary-accession>\n" +
+            "    <GBSeq_organism>Homo sapiens</GBSeq_organism>\n" +
+            "    <GBSeq_taxonomy>Eukaryota; Metazoa; Chordata; Mammalia; Primates; Hominidae; Homo</GBSeq_taxonomy>\n" +
+            "    <GBSeq_feature-table>\n" +
+            "      <GBFeature>\n" +
+            "        <GBFeature_key>source</GBFeature_key>\n" +
+            "        <GBFeature_quals>\n" +
+            "          <GBQualifier><GBQualifier_name>organism</GBQualifier_name><GBQualifier_value>Homo sapiens</GBQualifier_value></GBQualifier>\n" +
+            "          <GBQualifier><GBQualifier_name>strain</GBQualifier_name><GBQualifier_value>K-12</GBQualifier_value></GBQualifier>\n" +
+            "          <GBQualifier><GBQualifier_name>host</GBQualifier_name><GBQualifier_value>Aedes aegypti</GBQualifier_value></GBQualifier>\n" +
+            "          <GBQualifier><GBQualifier_name>geo_loc_name</GBQualifier_name><GBQualifier_value>USA: California</GBQualifier_value></GBQualifier>\n" +
+            "          <GBQualifier><GBQualifier_name>isolate</GBQualifier_name><GBQualifier_value>iso-42</GBQualifier_value></GBQualifier>\n" +
+            "          <GBQualifier><GBQualifier_name>collection_date</GBQualifier_name><GBQualifier_value>2021-03-15</GBQualifier_value></GBQualifier>\n" +
+            "          <GBQualifier><GBQualifier_name>db_xref</GBQualifier_name><GBQualifier_value>taxon:9606</GBQualifier_value></GBQualifier>\n" +
+            "        </GBFeature_quals>\n" +
+            "      </GBFeature>\n" +
+            "      <GBFeature>\n" +
+            "        <GBFeature_key>CDS</GBFeature_key>\n" +
+            "        <GBFeature_quals>\n" +
+            "          <GBQualifier><GBQualifier_name>gene</GBQualifier_name><GBQualifier_value>CYCS</GBQualifier_value></GBQualifier>\n" +
+            "          <GBQualifier><GBQualifier_name>db_xref</GBQualifier_name><GBQualifier_value>taxon:9606</GBQualifier_value></GBQualifier>\n" +
+            "          <GBQualifier><GBQualifier_name>db_xref</GBQualifier_name><GBQualifier_value>GeneID:54205</GBQualifier_value></GBQualifier>\n" +
+            "        </GBFeature_quals>\n" +
+            "      </GBFeature>\n" +
+            "    </GBSeq_feature-table>\n" +
+            "    <GBSeq_sequence>mgdvekgkkifimkcsqchtvekggkhktgpnlhglfgrktgqapgysytaank</GBSeq_sequence>\n" +
+            "  </GBSeq>\n" +
+            "</GBSet>";
 
     public static void main( final String[] args ) {
         System.out.println( "NcbiSequenceClient: " + ( test() ? "OK." : "FAILED." ) );

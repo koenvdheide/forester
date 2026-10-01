@@ -139,7 +139,45 @@ final class MatrixColumnOrder {
     }
 
     /** What an edit of the column list leaves on screen: the specs to show, and the mode the tab is in afterwards. */
-    record Resolved( List<AnnotationColumns.ColumnSpec> specs, Mode mode ) {
+    static final class Resolved {
+        private final List<AnnotationColumns.ColumnSpec> specs;
+        private final Mode mode;
+
+        Resolved(List<AnnotationColumns.ColumnSpec> specs, Mode mode) {
+            this.specs = specs;
+            this.mode = mode;
+        }
+
+        public List<AnnotationColumns.ColumnSpec> specs() {
+            return specs;
+        }
+
+        public Mode mode() {
+            return mode;
+        }
+
+        @Override
+        public boolean equals(final Object value) {
+            if (!(value instanceof Resolved)) {
+                return false;
+            }
+            final Resolved other = (Resolved) value;
+            return java.util.Objects.equals(specs, other.specs)
+                    && java.util.Objects.equals(mode, other.mode);
+        }
+
+        @Override
+        public int hashCode() {
+            int result = 0;
+            result = 31 * result + java.util.Objects.hashCode(specs);
+            result = 31 * result + java.util.Objects.hashCode(mode);
+            return result;
+        }
+
+        @Override
+        public String toString() {
+            return "Resolved[specs=" + specs + ", mode=" + mode + "]";
+        }
     }
 
     /**
@@ -458,7 +496,34 @@ final class MatrixColumnOrder {
      * <li>{@code order}: the leaves as {@code $order} reads them out, which is the column order itself.</li>
      * </ul>
      */
-    record Dendrogram( int[] left, int[] right, double[] height, int[] order ) {
+    static final class Dendrogram {
+        private final int[] left;
+        private final int[] right;
+        private final double[] height;
+        private final int[] order;
+
+        Dendrogram(int[] left, int[] right, double[] height, int[] order) {
+            this.left = left;
+            this.right = right;
+            this.height = height;
+            this.order = order;
+        }
+
+        public int[] left() {
+            return left;
+        }
+
+        public int[] right() {
+            return right;
+        }
+
+        public double[] height() {
+            return height;
+        }
+
+        public int[] order() {
+            return order;
+        }
 
         /** The number of merges: one fewer than the number of columns (0 for a single column). */
         int stages() {

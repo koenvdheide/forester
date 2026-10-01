@@ -10367,7 +10367,45 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
     }
 
     /** A cell of an annotation column: the DRAWN column and the tip whose row it is on. */
-    record AnnotationCell(int column, PhylogenyNode tip) {
+    static final class AnnotationCell {
+        private final int column;
+        private final PhylogenyNode tip;
+
+        AnnotationCell(int column, PhylogenyNode tip) {
+            this.column = column;
+            this.tip = tip;
+        }
+
+        public int column() {
+            return column;
+        }
+
+        public PhylogenyNode tip() {
+            return tip;
+        }
+
+        @Override
+        public boolean equals(final Object value) {
+            if (!(value instanceof AnnotationCell)) {
+                return false;
+            }
+            final AnnotationCell other = (AnnotationCell) value;
+            return column == other.column
+                    && java.util.Objects.equals(tip, other.tip);
+        }
+
+        @Override
+        public int hashCode() {
+            int result = 0;
+            result = 31 * result + java.util.Objects.hashCode(column);
+            result = 31 * result + java.util.Objects.hashCode(tip);
+            return result;
+        }
+
+        @Override
+        public String toString() {
+            return "AnnotationCell[column=" + column + ", tip=" + tip + "]";
+        }
     }
 
     /**

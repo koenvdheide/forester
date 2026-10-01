@@ -71,7 +71,53 @@ final class GuiPreferences {
      *  as a string. {@code reader} turns the option's current value into the stored string; {@code writer} parses
      *  a stored string back onto the option (and silently ignores an unparseable value, so a corrupt file never
      *  breaks startup). Add to {@link #PREFS} via the typed factories below -- never renumber existing keys. */
-    private record Pref(String key, Function<Options, String> reader, BiConsumer<Options, String> writer) {
+    private static final class Pref {
+        private final String key;
+        private final Function<Options, String> reader;
+        private final BiConsumer<Options, String> writer;
+
+        private Pref(String key, Function<Options, String> reader, BiConsumer<Options, String> writer) {
+            this.key = key;
+            this.reader = reader;
+            this.writer = writer;
+        }
+
+        public String key() {
+            return key;
+        }
+
+        public Function<Options, String> reader() {
+            return reader;
+        }
+
+        public BiConsumer<Options, String> writer() {
+            return writer;
+        }
+
+        @Override
+        public boolean equals(final Object value) {
+            if (!(value instanceof Pref)) {
+                return false;
+            }
+            final Pref other = (Pref) value;
+            return java.util.Objects.equals(key, other.key)
+                    && java.util.Objects.equals(reader, other.reader)
+                    && java.util.Objects.equals(writer, other.writer);
+        }
+
+        @Override
+        public int hashCode() {
+            int result = 0;
+            result = 31 * result + java.util.Objects.hashCode(key);
+            result = 31 * result + java.util.Objects.hashCode(reader);
+            result = 31 * result + java.util.Objects.hashCode(writer);
+            return result;
+        }
+
+        @Override
+        public String toString() {
+            return "Pref[key=" + key + ", reader=" + reader + ", writer=" + writer + "]";
+        }
     }
 
     private static final List<Pref> PREFS = List.of(

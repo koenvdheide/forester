@@ -69,7 +69,8 @@ public final class MenuAcceleratorTest {
                     int open_at = -1, recent_at = -1, demo_at = -1, sep_between = -1;
                     for( int i = 0; i < file_menu.getMenuComponentCount(); ++i ) {
                         final java.awt.Component c = file_menu.getMenuComponent( i );
-                        if ( c instanceof javax.swing.JMenu m ) {
+                        if ( c instanceof javax.swing.JMenu ) {
+                            final javax.swing.JMenu m = (javax.swing.JMenu) c;
                             if ( "Open Recent".equals( m.getText() ) ) {
                                 recent_at = i;
                             }

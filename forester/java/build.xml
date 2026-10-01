@@ -39,7 +39,7 @@
 
     <target name="compile" description="Compiles the Task" depends="clean,copy_resources">
         <mkdir dir="${classes.dir}"/>
-        <javac release="21" debug="true" debuglevel="lines,source" srcdir="${src.dir}"
+        <javac release="11" debug="true" debuglevel="lines,source" srcdir="${src.dir}"
                destdir="${classes.dir}" optimize="on" verbose="false" encoding="UTF-8"
                includeantruntime="false"
                classpath="${openpdfjar};${commonscodecjar};${openchartjar};${flatlafjar};${vectorgraphics2djar}">

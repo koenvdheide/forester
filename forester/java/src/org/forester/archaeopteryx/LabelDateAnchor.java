@@ -42,7 +42,53 @@ final class LabelDateAnchor {
     static final int    MIN_AGREEING_DEN = 20;
 
     /** The anchor date (decimal year), how many of the compared tips agree on it, and how many were compared. */
-    record Anchor(BigDecimal value, int agreeing, int compared) {
+    static final class Anchor {
+        private final BigDecimal value;
+        private final int agreeing;
+        private final int compared;
+
+        Anchor(BigDecimal value, int agreeing, int compared) {
+            this.value = value;
+            this.agreeing = agreeing;
+            this.compared = compared;
+        }
+
+        public BigDecimal value() {
+            return value;
+        }
+
+        public int agreeing() {
+            return agreeing;
+        }
+
+        public int compared() {
+            return compared;
+        }
+
+        @Override
+        public boolean equals(final Object value) {
+            if (!(value instanceof Anchor)) {
+                return false;
+            }
+            final Anchor other = (Anchor) value;
+            return java.util.Objects.equals(this.value, other.value)
+                    && agreeing == other.agreeing
+                    && compared == other.compared;
+        }
+
+        @Override
+        public int hashCode() {
+            int result = 0;
+            result = 31 * result + java.util.Objects.hashCode(value);
+            result = 31 * result + java.util.Objects.hashCode(agreeing);
+            result = 31 * result + java.util.Objects.hashCode(compared);
+            return result;
+        }
+
+        @Override
+        public String toString() {
+            return "Anchor[value=" + value + ", agreeing=" + agreeing + ", compared=" + compared + "]";
+        }
     }
 
     /**
@@ -50,7 +96,61 @@ final class LabelDateAnchor {
      * anchor (a height, or minus a distance from the root), and the label's own decimal year -- the point estimate
      * used when the precise tips place the anchor.
      */
-    record TipOffer(double rangeStart, double rangeEnd, double offset, double labelDate) {
+    static final class TipOffer {
+        private final double rangeStart;
+        private final double rangeEnd;
+        private final double offset;
+        private final double labelDate;
+
+        TipOffer(double rangeStart, double rangeEnd, double offset, double labelDate) {
+            this.rangeStart = rangeStart;
+            this.rangeEnd = rangeEnd;
+            this.offset = offset;
+            this.labelDate = labelDate;
+        }
+
+        public double rangeStart() {
+            return rangeStart;
+        }
+
+        public double rangeEnd() {
+            return rangeEnd;
+        }
+
+        public double offset() {
+            return offset;
+        }
+
+        public double labelDate() {
+            return labelDate;
+        }
+
+        @Override
+        public boolean equals(final Object value) {
+            if (!(value instanceof TipOffer)) {
+                return false;
+            }
+            final TipOffer other = (TipOffer) value;
+            return Double.compare(rangeStart, other.rangeStart) == 0
+                    && Double.compare(rangeEnd, other.rangeEnd) == 0
+                    && Double.compare(offset, other.offset) == 0
+                    && Double.compare(labelDate, other.labelDate) == 0;
+        }
+
+        @Override
+        public int hashCode() {
+            int result = 0;
+            result = 31 * result + java.util.Objects.hashCode(rangeStart);
+            result = 31 * result + java.util.Objects.hashCode(rangeEnd);
+            result = 31 * result + java.util.Objects.hashCode(offset);
+            result = 31 * result + java.util.Objects.hashCode(labelDate);
+            return result;
+        }
+
+        @Override
+        public String toString() {
+            return "TipOffer[rangeStart=" + rangeStart + ", rangeEnd=" + rangeEnd + ", offset=" + offset + ", labelDate=" + labelDate + "]";
+        }
     }
 
     /**

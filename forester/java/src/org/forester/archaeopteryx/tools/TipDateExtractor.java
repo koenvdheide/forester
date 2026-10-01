@@ -105,13 +105,145 @@ public final class TipDateExtractor {
      *  label actually states, in decimal years: {@code 2021} is all of 2021, {@code 2021-03} all of March, a day that
      *  whole day, and a decimal year its last written digit ({@code 1993.1} is 1993.05 to 1993.15). The value is the
      *  midpoint convention; the range is what a comparison with another program's dates must allow. */
-    public record DateMatch(double decimalYear, String matchedText, Precision precision, String formatLabel,
+    public static final class DateMatch {
+        private final double decimalYear;
+        private final String matchedText;
+        private final Precision precision;
+        private final String formatLabel;
+        private final boolean ambiguous;
+        private final double rangeStart;
+        private final double rangeEnd;
+
+        public DateMatch(double decimalYear, String matchedText, Precision precision, String formatLabel,
             boolean ambiguous, double rangeStart, double rangeEnd) {
+            this.decimalYear = decimalYear;
+            this.matchedText = matchedText;
+            this.precision = precision;
+            this.formatLabel = formatLabel;
+            this.ambiguous = ambiguous;
+            this.rangeStart = rangeStart;
+            this.rangeEnd = rangeEnd;
+        }
+
+        public double decimalYear() {
+            return decimalYear;
+        }
+
+        public String matchedText() {
+            return matchedText;
+        }
+
+        public Precision precision() {
+            return precision;
+        }
+
+        public String formatLabel() {
+            return formatLabel;
+        }
+
+        public boolean ambiguous() {
+            return ambiguous;
+        }
+
+        public double rangeStart() {
+            return rangeStart;
+        }
+
+        public double rangeEnd() {
+            return rangeEnd;
+        }
+
+        @Override
+        public boolean equals(final Object value) {
+            if (!(value instanceof DateMatch)) {
+                return false;
+            }
+            final DateMatch other = (DateMatch) value;
+            return Double.compare(decimalYear, other.decimalYear) == 0
+                    && java.util.Objects.equals(matchedText, other.matchedText)
+                    && java.util.Objects.equals(precision, other.precision)
+                    && java.util.Objects.equals(formatLabel, other.formatLabel)
+                    && ambiguous == other.ambiguous
+                    && Double.compare(rangeStart, other.rangeStart) == 0
+                    && Double.compare(rangeEnd, other.rangeEnd) == 0;
+        }
+
+        @Override
+        public int hashCode() {
+            int result = 0;
+            result = 31 * result + java.util.Objects.hashCode(decimalYear);
+            result = 31 * result + java.util.Objects.hashCode(matchedText);
+            result = 31 * result + java.util.Objects.hashCode(precision);
+            result = 31 * result + java.util.Objects.hashCode(formatLabel);
+            result = 31 * result + java.util.Objects.hashCode(ambiguous);
+            result = 31 * result + java.util.Objects.hashCode(rangeStart);
+            result = 31 * result + java.util.Objects.hashCode(rangeEnd);
+            return result;
+        }
+
+        @Override
+        public String toString() {
+            return "DateMatch[decimalYear=" + decimalYear + ", matchedText=" + matchedText + ", precision=" + precision + ", formatLabel=" + formatLabel + ", ambiguous=" + ambiguous + ", rangeStart=" + rangeStart + ", rangeEnd=" + rangeEnd + "]";
+        }
     }
 
     /** One tip's preview row (drives the dialog table + counts): the node, its label, the date found (null = none), and
      *  whether the tip already had a {@code <date>} (so it can be skipped). */
-    public record TipDate(PhylogenyNode node, String label, DateMatch match, boolean alreadyDated) {
+    public static final class TipDate {
+        private final PhylogenyNode node;
+        private final String label;
+        private final DateMatch match;
+        private final boolean alreadyDated;
+
+        public TipDate(PhylogenyNode node, String label, DateMatch match, boolean alreadyDated) {
+            this.node = node;
+            this.label = label;
+            this.match = match;
+            this.alreadyDated = alreadyDated;
+        }
+
+        public PhylogenyNode node() {
+            return node;
+        }
+
+        public String label() {
+            return label;
+        }
+
+        public DateMatch match() {
+            return match;
+        }
+
+        public boolean alreadyDated() {
+            return alreadyDated;
+        }
+
+        @Override
+        public boolean equals(final Object value) {
+            if (!(value instanceof TipDate)) {
+                return false;
+            }
+            final TipDate other = (TipDate) value;
+            return java.util.Objects.equals(node, other.node)
+                    && java.util.Objects.equals(label, other.label)
+                    && java.util.Objects.equals(match, other.match)
+                    && alreadyDated == other.alreadyDated;
+        }
+
+        @Override
+        public int hashCode() {
+            int result = 0;
+            result = 31 * result + java.util.Objects.hashCode(node);
+            result = 31 * result + java.util.Objects.hashCode(label);
+            result = 31 * result + java.util.Objects.hashCode(match);
+            result = 31 * result + java.util.Objects.hashCode(alreadyDated);
+            return result;
+        }
+
+        @Override
+        public String toString() {
+            return "TipDate[node=" + node + ", label=" + label + ", match=" + match + ", alreadyDated=" + alreadyDated + "]";
+        }
     }
 
     /** Parse the first (most-specific, then rightmost) date out of a label; null if none is found. */
@@ -306,8 +438,78 @@ public final class TipDateExtractor {
 
     /** A roll-up of a preview for the dialog's summary line: how many tips matched / did not, how many needed a
      *  day/month guess, the dominant format, and the matched date range (decimal years; 0..0 when none matched). */
-    public record Summary(int matched, int unmatched, int ambiguous, String dominantFormat, double minYear,
+    public static final class Summary {
+        private final int matched;
+        private final int unmatched;
+        private final int ambiguous;
+        private final String dominantFormat;
+        private final double minYear;
+        private final double maxYear;
+
+        public Summary(int matched, int unmatched, int ambiguous, String dominantFormat, double minYear,
             double maxYear) {
+            this.matched = matched;
+            this.unmatched = unmatched;
+            this.ambiguous = ambiguous;
+            this.dominantFormat = dominantFormat;
+            this.minYear = minYear;
+            this.maxYear = maxYear;
+        }
+
+        public int matched() {
+            return matched;
+        }
+
+        public int unmatched() {
+            return unmatched;
+        }
+
+        public int ambiguous() {
+            return ambiguous;
+        }
+
+        public String dominantFormat() {
+            return dominantFormat;
+        }
+
+        public double minYear() {
+            return minYear;
+        }
+
+        public double maxYear() {
+            return maxYear;
+        }
+
+        @Override
+        public boolean equals(final Object value) {
+            if (!(value instanceof Summary)) {
+                return false;
+            }
+            final Summary other = (Summary) value;
+            return matched == other.matched
+                    && unmatched == other.unmatched
+                    && ambiguous == other.ambiguous
+                    && java.util.Objects.equals(dominantFormat, other.dominantFormat)
+                    && Double.compare(minYear, other.minYear) == 0
+                    && Double.compare(maxYear, other.maxYear) == 0;
+        }
+
+        @Override
+        public int hashCode() {
+            int result = 0;
+            result = 31 * result + java.util.Objects.hashCode(matched);
+            result = 31 * result + java.util.Objects.hashCode(unmatched);
+            result = 31 * result + java.util.Objects.hashCode(ambiguous);
+            result = 31 * result + java.util.Objects.hashCode(dominantFormat);
+            result = 31 * result + java.util.Objects.hashCode(minYear);
+            result = 31 * result + java.util.Objects.hashCode(maxYear);
+            return result;
+        }
+
+        @Override
+        public String toString() {
+            return "Summary[matched=" + matched + ", unmatched=" + unmatched + ", ambiguous=" + ambiguous + ", dominantFormat=" + dominantFormat + ", minYear=" + minYear + ", maxYear=" + maxYear + "]";
+        }
     }
 
     /** Roll a preview up into a {@link Summary} (pure; drives the dialog header). */
