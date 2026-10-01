@@ -476,7 +476,7 @@ public final class MsaTrackRenderTest {
                 }
             } );
             // (6b) scored over the tips ON SCREEN: collapsing a clade re-scores the profile for what is left
-            SwingUtilities.invokeAndWait( () -> ( (javax.swing.JFrame) mf[ 0 ] ).dispose() );
+            SwingUtilities.invokeAndWait( () -> ( mf[ 0 ]._window ).dispose() );
             checkFollowsVisibleTips( ok );
             return ok[ 0 ];
         }
@@ -615,7 +615,7 @@ public final class MsaTrackRenderTest {
                     fail( ok, "...and its consensus is A, got " + tp.msaConsensusForTest( 0 ) );
                 }
             } );
-            SwingUtilities.invokeAndWait( () -> ( (javax.swing.JFrame) mf[ 0 ] ).dispose() );
+            SwingUtilities.invokeAndWait( () -> ( mf[ 0 ]._window ).dispose() );
         }
         catch ( final Throwable e ) {
             e.printStackTrace();

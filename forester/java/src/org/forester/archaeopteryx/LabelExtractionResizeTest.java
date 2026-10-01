@@ -73,7 +73,7 @@ public final class LabelExtractionResizeTest {
                     exercise( frame, ok );
                 }
                 finally {
-                    ( (JFrame) frame ).dispose();
+                    ( frame._window ).dispose();
                 }
             } );
             return ok[ 0 ];

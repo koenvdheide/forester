@@ -1789,11 +1789,7 @@ public class TreePanelUtil {
         new_phy.setDistanceUnit( source_phy.getDistanceUnit() );
         new_phy.setConfidence( source_phy.getConfidence() );
         new_phy.setIdentifier( source_phy.getIdentifier() );
-        new_phy.setRoot( new_root.copyNodeDataShallow() );
-        int i = 0;
-        for( final PhylogenyNode n : new_root.getDescendants() ) {
-            new_phy.getRoot().setChildNode( i++, n );
-        }
+        new_phy.setRoot( new_root );
         return new_phy;
     }
 

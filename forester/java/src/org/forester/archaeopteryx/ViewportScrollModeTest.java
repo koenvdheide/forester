@@ -75,7 +75,7 @@ public final class ViewportScrollModeTest {
                     ok[ 0 ] = TestFail.here();
                 }
                 finally {
-                    ( (JFrame) mf[ 0 ] ).dispose();
+                    ( mf[ 0 ]._window ).dispose();
                 }
             } );
             return ok[ 0 ];

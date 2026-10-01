@@ -182,7 +182,7 @@ public final class TipImageRenderTest {
                 fail( ok, "a broken image reference must not crash the render: " + t );
             }
 
-            SwingUtilities.invokeAndWait( () -> ( (javax.swing.JFrame) mf[ 0 ] ).dispose() );
+            SwingUtilities.invokeAndWait( () -> ( mf[ 0 ]._window ).dispose() );
             return ok[ 0 ];
         }
         catch ( final Throwable e ) {

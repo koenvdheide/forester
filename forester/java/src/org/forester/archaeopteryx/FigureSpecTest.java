@@ -126,7 +126,7 @@ public final class FigureSpecTest {
             if ( !TreePanelUtil.isInternalPropertyRef( FigureSpec.FIGURE_REF ) ) {
                 ok[ 0 ] = fail( "the figure property must be internal (aptx:), never shown as user data" );
             }
-            SwingUtilities.invokeAndWait( () -> ( (javax.swing.JFrame) mf[ 0 ] ).dispose() );
+            SwingUtilities.invokeAndWait( () -> ( mf[ 0 ]._window ).dispose() );
 
             // ...and opening that tree afresh must reproduce the figure
             final MainFrame[] mf2 = new MainFrame[ 1 ];
@@ -166,7 +166,7 @@ public final class FigureSpecTest {
                     ok[ 0 ] = fail( "clearing OVERLAYS must not strip the labels" );
                 }
             } );
-            SwingUtilities.invokeAndWait( () -> ( (javax.swing.JFrame) mf2[ 0 ] ).dispose() );
+            SwingUtilities.invokeAndWait( () -> ( mf2[ 0 ]._window ).dispose() );
             return ok[ 0 ];
         }
         catch ( final Throwable e ) {
@@ -228,7 +228,7 @@ public final class FigureSpecTest {
                             + FigureSpec.readFrom( second ).get( "displaytype" ) );
                 }
             } );
-            SwingUtilities.invokeAndWait( () -> ( (javax.swing.JFrame) mf[ 0 ] ).dispose() );
+            SwingUtilities.invokeAndWait( () -> ( mf[ 0 ]._window ).dispose() );
             return ok[ 0 ];
         }
         catch ( final Throwable e ) {

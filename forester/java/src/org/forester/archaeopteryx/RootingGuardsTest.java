@@ -108,7 +108,7 @@ public final class RootingGuardsTest {
             if ( tp.rerootRefusal() != Rerooting.NOT_REROOTABLE ) {
                 ok[ 0 ] = TestFail.here( "a subtree view of a not-re-rootable tree must not be re-rootable" );
             }
-            ( (JFrame) mf ).dispose();
+            ( mf._window ).dispose();
         } );
         return ok[ 0 ];
     }
@@ -149,7 +149,7 @@ public final class RootingGuardsTest {
                             .isEnabled() ) {
                 ok[ 0 ] = TestFail.here( "tip dates alone keep the tree re-rootable, and the controls follow the tab" );
             }
-            ( (JFrame) mf[ 0 ] ).dispose();
+            ( mf[ 0 ]._window ).dispose();
         } );
         return ok[ 0 ];
     }
@@ -180,7 +180,7 @@ public final class RootingGuardsTest {
             if ( ( asked.size() != 1 ) || before.equals( tp.getPhylogeny().toNewHampshire() ) || !tp.canUndo() ) {
                 ok[ 0 ] = TestFail.here( "Re-root must re-root, with an undo step" );
             }
-            ( (JFrame) mf ).dispose();
+            ( mf._window ).dispose();
         } );
         // a manual re-root on the other side of a two-child root changes no clade: no question asked
         final MainFrame mf2 = open( nhx( nh ) );
@@ -199,7 +199,7 @@ public final class RootingGuardsTest {
             if ( asked.size() != 1 ) {
                 ok[ 0 ] = TestFail.here( "a manual re-root that changes an annotated clade must ask: " + asked );
             }
-            ( (JFrame) mf2 ).dispose();
+            ( mf2._window ).dispose();
         } );
         return ok[ 0 ];
     }
@@ -246,7 +246,7 @@ public final class RootingGuardsTest {
                     .fieldForTest( NodeDataDraft.BRANCH_LENGTH ) == null ) {
                 ok[ 0 ] = TestFail.here( "a tip keeps its (single) branch length" );
             }
-            ( (JFrame) mf ).dispose();
+            ( mf._window ).dispose();
         } );
         return ok[ 0 ];
     }

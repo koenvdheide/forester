@@ -340,7 +340,7 @@ public final class SearchToolTest {
                     ck( ok, !cp.isSearchCombineControlVisibleForTest(),
                         "the Combine control hides when only one box has a query" );
 
-                    ( (javax.swing.JFrame) mf[ 0 ] ).dispose();
+                    ( mf[ 0 ]._window ).dispose();
                 }
                 catch ( final Throwable t ) {
                     t.printStackTrace();

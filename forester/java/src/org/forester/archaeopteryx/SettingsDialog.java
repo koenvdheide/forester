@@ -87,8 +87,9 @@ final class SettingsDialog extends JDialog {
     private JComboBox<String> _axis_combo; // the per-tab Time-Axis combo ("Auto" + Off/Geologic/Calendar; test hook)
 
     SettingsDialog( final MainFrame mf ) {
-        super( mf, "Settings", false );
+        super( javax.swing.SwingUtilities.getWindowAncestor(mf), "Settings", java.awt.Dialog.ModalityType.MODELESS );
         _mf = mf;
+        setDefaultCloseOperation( DISPOSE_ON_CLOSE );
         final JTabbedPane tabs = new JTabbedPane();
         _tabs = tabs;
         // the former single "Display" tab had grown too long, so it is split into three focused tabs
@@ -111,9 +112,10 @@ final class SettingsDialog extends JDialog {
             refreshFontInfo(); // cheap; keep the "Current font" line in sync with any font change
         } );
         final JButton reset = button( "Reset to Defaults…", this::confirmAndResetToDefaults );
-        reset.setToolTipText( "Restore all display settings, the theme, and tree colors to the built-in defaults" );
+        reset.setToolTipText( mf._embedded ? "Restore the viewer's display defaults"
+                : "Restore all display settings, the theme, and tree colors to the built-in defaults" );
         final JButton close = new JButton( "Close" );
-        close.addActionListener( e -> setVisible( false ) );
+        close.addActionListener( e -> dispose() );
         final JPanel south = new JPanel( new BorderLayout() );
         final JPanel south_left = new JPanel( new FlowLayout( FlowLayout.LEFT ) );
         south_left.add( reset );
@@ -1041,7 +1043,8 @@ final class SettingsDialog extends JDialog {
     private void confirmAndResetToDefaults() {
         final int choice = JOptionPane.showConfirmDialog( this,
                 "<html>Reset all display settings to their defaults?<br><br>"
-                        + "This also switches the theme to <b>Light</b>, resets the search options, and turns off "
+                        + ( _mf._embedded ? "This resets the search options and turns off "
+                                : "This also switches the theme to <b>Light</b>, resets the search options, and turns off " )
                         + "property-based <b>&quot;Color by&quot;</b> (back to the default palette) on "
                         + "<b>all open trees</b>.<br>"
                         + "Manually applied branch/clade colors and your loaded trees are not changed.</html>",

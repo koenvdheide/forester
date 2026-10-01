@@ -71,7 +71,7 @@ public final class ClickToOrderTest {
                 ok = fail( "'Root/Reroot' must come before 'Edit Node Data' (reroot=" + reroot + ", edit=" + edit
                         + ")" );
             }
-            SwingUtilities.invokeAndWait( () -> ( (javax.swing.JFrame) mf[ 0 ] ).dispose() );
+            SwingUtilities.invokeAndWait( () -> ( mf[ 0 ]._window ).dispose() );
             return ok;
         }
         catch ( final Throwable e ) {

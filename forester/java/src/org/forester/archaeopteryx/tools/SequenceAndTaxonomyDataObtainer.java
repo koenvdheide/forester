@@ -89,8 +89,9 @@ public final class SequenceAndTaxonomyDataObtainer extends RunnableProcess {
      */
     public void commit( final SequenceTaxonomyResolver.Result result ) {
         if ( shouldCommit( result ) ) {
+            _treepanel.returnToCompleteTree();
             _treepanel.pushUndoCheckpoint( "Fetch Sequence & Taxonomy Data" );
-            _treepanel.setTree( _phy );
+            _treepanel.setTreeFromSnapshot( _phy );
             _mf.showWhole();
             _treepanel.setEdited( true );
         }

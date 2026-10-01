@@ -70,8 +70,8 @@ public final class Configuration {
     private final int _min_base_font_size = 2;
     private final short _number_of_digits_after_comma_for_branch_length_values = AptxConstants.NUMBER_OF_DIGITS_AFTER_COMMA_FOR_BRANCH_LENGTH_VALUES_DEFAULT;
     private final short _number_of_digits_after_comma_for_confidence_values = AptxConstants.NUMBER_OF_DIGITS_AFTER_COMMA_FOR_CONFIDENCE_VALUES_DEFAULT;
-    private final short _ov_max_height = 80;
-    private final short _ov_max_width = 80;
+    private short _ov_max_height = 80;
+    private short _ov_max_width = 80;
 
     private UI _ui = UI.UNKNOWN;
 
@@ -129,6 +129,11 @@ public final class Configuration {
 
     short getOvMaxHeight() {
         return _ov_max_height;
+    }
+
+    public void setOverviewSize(final short width, final short height) {
+        _ov_max_width = width;
+        _ov_max_height = height;
     }
 
     short getOvMaxWidth() {

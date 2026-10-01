@@ -42,6 +42,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -121,13 +122,16 @@ public final class MainFrameApplication extends MainFrame {
     private int _repsel_target = 100;
     private boolean _repsel_by_cutoff = true;
     private int _repsel_pick_index = 0;
+    private final List<java.awt.Window> _owned_windows = new ArrayList<>();
+    private boolean _ended;
 
     private MainFrameApplication(final Phylogeny[] phys, final Configuration config) {
         _configuration = config;
         if (_configuration == null) {
             throw new IllegalArgumentException("configuration is null");
         }
-        setVisible(false);
+        _window = new javax.swing.JFrame();
+        _window.setContentPane(this);
         setOptions(optionsWithSavedPreferences());
         registerMacOsQuitHandler();
         _mainpanel = new MainPanel(_configuration, this);
@@ -144,10 +148,10 @@ public final class MainFrameApplication extends MainFrame {
         _contentpane.setLayout(new BorderLayout());
         _contentpane.add(_mainpanel, BorderLayout.CENTER);
         // App is this big
-        setSize(MainFrameApplication.FRAME_X_SIZE, MainFrameApplication.FRAME_Y_SIZE);
+        _window.setSize(MainFrameApplication.FRAME_X_SIZE, MainFrameApplication.FRAME_Y_SIZE);
         // The window listener
-        setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE);
-        addWindowListener(new WindowAdapter() {
+        _window.setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE);
+        _window.addWindowListener(new WindowAdapter() {
 
             @Override
             public void windowClosing(final WindowEvent e) {
@@ -177,19 +181,25 @@ public final class MainFrameApplication extends MainFrame {
     }
 
     private MainFrameApplication(final Phylogeny[] phys, final Configuration config, final String title) {
-        this(phys, config, title, null);
+        this(phys, config, title, null, false);
     }
 
     private MainFrameApplication(final Phylogeny[] phys,
                                  final Configuration config,
                                  final String title,
-                                 final File current_dir) {
+                                 final File current_dir,
+                                 final boolean embedded) {
         super();
         _configuration = config;
         if (_configuration == null) {
             throw new IllegalArgumentException("configuration is null");
         }
-        installLookAndFeel(_configuration.getUi());
+        _embedded = embedded;
+        if (embedded) {
+            _configuration.setUi(Configuration.UI.FLAT_LIGHT);
+        } else {
+            installLookAndFeel(_configuration.getUi());
+        }
         // the export/save choosers were created in the super-constructor, before the
         // look-and-feel above was installed; refresh them, so they are not left with the
         // platform default (e.g. the native macOS file dialog instead of FlatLaf).
@@ -199,13 +209,14 @@ public final class MainFrameApplication extends MainFrame {
         }
         // restore each dialog's last-used directory from the previous session (a saved dir that no longer exists is
         // ignored later, lazily, by getCurrentDir -- which then falls back to the startup dir / home).
-        new DirectoryPreferences().applyTo(_current_dirs);
+        if (!embedded) {
+            new DirectoryPreferences().applyTo(_current_dirs);
+        }
         // hide until everything is ready
-        setVisible(false);
-        setOptions(optionsWithSavedPreferences());
-        registerMacOsQuitHandler();
-        // set title
-        setTitle(AptxConstants.PRG_NAME + " " + AptxConstants.VERSION + " (" + AptxConstants.PRG_DATE + ")");
+        setOptions(embedded ? Options.createInstance() : optionsWithSavedPreferences());
+        if (!embedded) {
+            registerMacOsQuitHandler();
+        }
         _mainpanel = new MainPanel(_configuration, this);
         installTabContextMenu();
         // The file dialogs
@@ -243,7 +254,6 @@ public final class MainFrameApplication extends MainFrame {
         buildTypeMenu();
         buildSettingsMenu();
         buildHelpMenu();
-        setJMenuBar(_jmenubar);
         _jmenubar.add(_help_jmenu);
         // right-aligned "Found / Selected: N" counter (a glue pushes it to the far right); hidden until there are hits
         _found_selected_counter = new FoundSelectedCounter();
@@ -252,39 +262,45 @@ public final class MainFrameApplication extends MainFrame {
         _contentpane = getContentPane();
         _contentpane.setLayout(new BorderLayout());
         _contentpane.add(_mainpanel, BorderLayout.CENTER);
-        // App is this big
         setSize(MainFrameApplication.FRAME_X_SIZE, MainFrameApplication.FRAME_Y_SIZE);
-        //        addWindowFocusListener( new WindowAdapter() {
-        //
-        //            @Override
-        //            public void windowGainedFocus( WindowEvent e ) {
-        //                requestFocusInWindow();
-        //            }
-        //        } );
-        // The window listener
-        setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE);
-        addWindowListener(new WindowAdapter() {
+        if (!embedded) {
+            _window = new javax.swing.JFrame(AptxConstants.PRG_NAME + " " + AptxConstants.VERSION + " (" + AptxConstants.PRG_DATE + ")");
+            _window.setContentPane(this);
+            _window.setJMenuBar(_jmenubar);
+            // App is this big
+            _window.setSize(MainFrameApplication.FRAME_X_SIZE, MainFrameApplication.FRAME_Y_SIZE);
+            //        addWindowFocusListener( new WindowAdapter() {
+            //
+            //            @Override
+            //            public void windowGainedFocus( WindowEvent e ) {
+            //                requestFocusInWindow();
+            //            }
+            //        } );
+            // The window listener
+            _window.setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE);
+            _window.addWindowListener(new WindowAdapter() {
 
-            @Override
-            public void windowClosing(final WindowEvent e) {
-                if (isUnsavedDataPresent()) {
-                    final int r = JOptionPane.showConfirmDialog(null,
-                            "Exit despite potentially unsaved changes?",
-                            "Exit?",
-                            JOptionPane.YES_NO_OPTION);
-                    if (r != JOptionPane.YES_OPTION) {
-                        return;
+                @Override
+                public void windowClosing(final WindowEvent e) {
+                    if (isUnsavedDataPresent()) {
+                        final int r = JOptionPane.showConfirmDialog(null,
+                                "Exit despite potentially unsaved changes?",
+                                "Exit?",
+                                JOptionPane.YES_NO_OPTION);
+                        if (r != JOptionPane.YES_OPTION) {
+                            return;
+                        }
+                    } else {
+                        final int r = JOptionPane
+                                .showConfirmDialog(null, "Exit Archaeopteryx?", "Exit?", JOptionPane.YES_NO_OPTION);
+                        if (r != JOptionPane.YES_OPTION) {
+                            return;
+                        }
                     }
-                } else {
-                    final int r = JOptionPane
-                            .showConfirmDialog(null, "Exit Archaeopteryx?", "Exit?", JOptionPane.YES_NO_OPTION);
-                    if (r != JOptionPane.YES_OPTION) {
-                        return;
-                    }
+                    exit();
                 }
-                exit();
-            }
-        });
+            });
+        }
         // The component listener
         addComponentListener(new ComponentAdapter() {
 
@@ -299,7 +315,9 @@ public final class MainFrameApplication extends MainFrame {
         });
         requestFocusInWindow();
         // addKeyListener( this );
-        setVisible(true);
+        if (_window != null) {
+            _window.setVisible(true);
+        }
         if ((phys != null) && (phys.length > 0)) {
             AptxUtil.addPhylogeniesToTabs(phys, title, null, _configuration, _mainpanel);
             validate();
@@ -313,10 +331,14 @@ public final class MainFrameApplication extends MainFrame {
         _contentpane.repaint();
         System.gc();
         // warm the persistent taxonomy cache off the EDT now, so the first colorize/fetch is snappy
-        NcbiTaxonomyLineageService.getShared().primeAsync();
+        if (!embedded) {
+            NcbiTaxonomyLineageService.getShared().primeAsync();
+        }
         // warm the Swing color chooser off the EDT too: building its default panels + loading the classes is a
         // one-time cost, so the first "Node Style" / subtree-colorize colour pick isn't slow to appear
-        warmColorChooserAsync();
+        if (!embedded) {
+            warmColorChooserAsync();
+        }
         // The error log is installed BEFORE any frame exists, so a failure during start-up fires its one-shot
         // callback while there is no menu bar to mark. Pick that up here, now that there is one.
         showErrorIndicatorIfAnyLogged();
@@ -394,7 +416,29 @@ public final class MainFrameApplication extends MainFrame {
         }
     }
 
+    private boolean showOwnedWindow(final java.awt.Window window) {
+        if (_ended) {
+            window.dispose();
+            return false;
+        }
+        _owned_windows.add(window);
+        window.addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosed(final WindowEvent event) {
+                _owned_windows.remove(window);
+                window.removeWindowListener(this);
+            }
+        });
+        window.setVisible(true);
+        return true;
+    }
+
     public void end() {
+        _ended = true;
+        for (final java.awt.Window window : new ArrayList<>(_owned_windows)) {
+            window.dispose();
+        }
+        _owned_windows.clear();
         _mainpanel.terminate();
         _contentpane.removeAll();
         setVisible(false);
@@ -923,7 +967,9 @@ public final class MainFrameApplication extends MainFrame {
         if (colorset != null) {
             frame.getTanglegramPanel().applyThemeColors(colorset.getBackgroundColor(), colorset.getBranchColor());
         }
-        frame.setVisible(true);
+        if (!showOwnedWindow(frame)) {
+            return;
+        }
         // no connectors almost always means a user error (wrong field per tree, reversed association columns, or the
         // trees share no tips) -- warn, but only AFTER showing the window so the (empty) tanglegram it refers to is
         // visible behind the dialog
@@ -1210,7 +1256,7 @@ public final class MainFrameApplication extends MainFrame {
 
     private void obtainSequenceAndTaxonomicInformation() {
         if (getCurrentTreePanel() != null) {
-            final Phylogeny phy = getCurrentTreePanel().getPhylogeny();
+            final Phylogeny phy = getCurrentTreePanel().getCompletePhylogeny();
             if ((phy != null) && !phy.isEmpty()) {
                 final SequenceAndTaxonomyDataObtainer t = new SequenceAndTaxonomyDataObtainer(this,
                         _mainpanel.getCurrentTreePanel(),
@@ -1269,7 +1315,9 @@ public final class MainFrameApplication extends MainFrame {
                 getMainPanel());
         _mainpanel.getControlPanel().showWhole();
         // remember it only now: a file that could not be parsed is not somewhere the user wants to return to
-        _recent_files.add(file);
+        if (!_embedded) {
+            _recent_files.add(file);
+        }
         rebuildOpenRecentMenu();
         if (nhx_or_nexus && one_desc) {
             JOptionPane.showMessageDialog(this,
@@ -1293,7 +1341,7 @@ public final class MainFrameApplication extends MainFrame {
      * a file on a volume that is merely unmounted comes back when the volume does.
      */
     void rebuildOpenRecentMenu() {
-        if (_open_recent_menu == null) {
+        if (_embedded || _open_recent_menu == null) {
             return;
         }
         _open_recent_menu.removeAll();
@@ -1646,8 +1694,10 @@ public final class MainFrameApplication extends MainFrame {
         _file_jmenu.setToolTipText("Read, save, and export trees; close tabs or exit");
         _file_jmenu.add(_open_item = new JMenuItem("Open..."));
         _open_item.setToolTipText("Open a tree file (phyloXML, Newick/NHX, Nexus, Auspice JSON, ToL)");
-        _file_jmenu.add(_open_recent_menu = new JMenu("Open Recent"));
-        _open_recent_menu.setFont(MainFrame.menu_font); // a submenu does not inherit the item font (see CollapseMenuFontTest)
+        if (!_embedded) {
+            _file_jmenu.add(_open_recent_menu = new JMenu("Open Recent"));
+            _open_recent_menu.setFont(MainFrame.menu_font);
+        }
         rebuildOpenRecentMenu();
         _file_jmenu.addSeparator();
         _file_jmenu.add(buildDemoTreesSubmenu()); // pre-configured example trees, bundled in the jar (like Cytoscape)
@@ -1913,7 +1963,7 @@ public final class MainFrameApplication extends MainFrame {
                     // Time Axis); refreshOpenSettingsDialog() guards on isShowing(), so a closed/hidden one is inert
                     final SettingsDialog d = new SettingsDialog(MainFrameApplication.this);
                     setOpenSettingsDialog(d);
-                    d.setVisible(true);
+                    showOwnedWindow(d);
                 });
             }
 
@@ -2068,13 +2118,15 @@ public final class MainFrameApplication extends MainFrame {
     }
 
     void exit() {
-        new GuiPreferences().saveFrom(getOptions()); // persist the display toggles for the next session
-        new DirectoryPreferences().saveFrom(_current_dirs); // and each dialog's last-used directory
+        if (!_embedded) {
+            new GuiPreferences().saveFrom(getOptions());
+            new DirectoryPreferences().saveFrom(_current_dirs);
+        }
         _mainpanel.terminate();
         _contentpane.removeAll();
         setVisible(false);
         dispose();
-        if (_launched_as_standalone_application) {
+        if (!_embedded && _launched_as_standalone_application) {
             // Standalone app only: force JVM termination. Disposing the frame is not enough -- a heavyweight
             // rollover Popup (TreePanel/PopupFactory) leaves a cached, still-displayable native window, and the
             // Fetch/Infer/taxonomy worker threads are NOT stopped by terminate(); both keep AWT's toolkit thread
@@ -2087,6 +2139,12 @@ public final class MainFrameApplication extends MainFrame {
 
 
 
+    public static MainFrameApplication createEmbeddedInstance(final Phylogeny[] phys,
+                                                              final Configuration config,
+                                                              final String title) {
+        return new MainFrameApplication(phys, config, title, null, true);
+    }
+
     public static MainFrameApplication createInstance(final Phylogeny[] phys, final Configuration config) {
         return new MainFrameApplication(phys, config);
     }
@@ -2095,7 +2153,7 @@ public final class MainFrameApplication extends MainFrame {
                                            final Configuration config,
                                            final String title,
                                            final File current_dir) {
-        final MainFrameApplication mf = new MainFrameApplication(phys, config, title, current_dir);
+        final MainFrameApplication mf = new MainFrameApplication(phys, config, title, current_dir, false);
         if (_launched_as_standalone_application) {
             mf.startUpdateCheckIfEnabled(); // the real app only: never from a test or an embedding program
         }

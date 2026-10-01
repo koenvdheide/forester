@@ -92,7 +92,7 @@ public final class RankLegendTest {
                     System.out.println( "  DIAGONAL reserve should sit between VERTICAL and HORIZONTAL: vert=" + r_vert
                             + " diag=" + r_diag + " horiz=" + r_horiz );
                 }
-                ( (JFrame) mf[ 0 ] ).dispose();
+                ( mf[ 0 ]._window ).dispose();
             } );
             return ok[ 0 ];
         }
@@ -157,7 +157,7 @@ public final class RankLegendTest {
                     ok[ 0 ] = false;
                     System.out.println( "  a COLLAPSED multi-tip clade must still draw its bar (expected 1), got " + after_collapse );
                 }
-                ( (JFrame) mf[ 0 ] ).dispose();
+                ( mf[ 0 ]._window ).dispose();
             } );
             return ok[ 0 ];
         }
@@ -279,7 +279,7 @@ public final class RankLegendTest {
                 // back rather than leave the clade rows on screen. The bands overwrite the legend contents, so
                 // keeping them would show a key at a rank the branches are NOT colored by -- and a colour picked
                 // on one of those rows would be stored against the branch rank instead.
-                ( (JFrame) mf[ 0 ] ).dispose();
+                ( mf[ 0 ]._window ).dispose();
             } );
             return ok[ 0 ];
         }
@@ -329,7 +329,7 @@ public final class RankLegendTest {
                 }
                 final Rectangle vp = tp.getVisibleRect();
                 if ( ( vp.width < 300 ) || ( vp.height < 300 ) ) {
-                    ( (JFrame) mf[ 0 ] ).dispose();
+                    ( mf[ 0 ]._window ).dispose();
                     return; // no usable viewport; nothing more to assert
                 }
                 paint( tp, vp );
@@ -403,7 +403,7 @@ public final class RankLegendTest {
                         System.out.println( "  rank legend was not cleared" );
                     }
                 }
-                ( (JFrame) mf[ 0 ] ).dispose();
+                ( mf[ 0 ]._window ).dispose();
             } );
             return ok[ 0 ];
         }
@@ -551,7 +551,7 @@ public final class RankLegendTest {
                             + "got " + tp.rankLegendTitleForTest() );
                 }
             } );
-            SwingUtilities.invokeAndWait( () -> ( (JFrame) mf[ 0 ] ).dispose() );
+            SwingUtilities.invokeAndWait( () -> ( mf[ 0 ]._window ).dispose() );
             return ok[ 0 ];
         }
         catch ( final Throwable e ) {
