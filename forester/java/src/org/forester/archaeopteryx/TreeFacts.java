@@ -73,7 +73,6 @@ final class TreeFacts {
 
     private static final NumberFormat  INT  = NumberFormat.getIntegerInstance( Locale.US );
     private static final DecimalFormat DEC  = new DecimalFormat( "0.######", DecimalFormatSymbols.getInstance( Locale.US ) );
-    private static final DateTimeFormatter DATE = DateTimeFormatter.ofPattern( "yyyy-MM-dd HH:mm" );
 
     private TreeFacts() {
     }
@@ -336,7 +335,8 @@ final class TreeFacts {
                     final Set<String> seen = new java.util.HashSet<>();
                     for( final Property p : nd.getProperties().getProperties() ) {
                         if ( ( p != null ) && !ForesterUtil.isEmpty( p.getRef() ) && seen.add( p.getRef() ) ) {
-                            property_refs.merge( p.getRef(), 1, Integer::sum );
+                            // Java2Script needs explicit boxing for this generic callback.
+                            property_refs.merge( p.getRef(), 1, ( left, right ) -> Integer.valueOf( left + right ) );
                         }
                     }
                 }
@@ -362,10 +362,10 @@ final class TreeFacts {
             }
             f.add( new Fact( "Path", path ) );
             f.add( new Fact( "Format", fileFormatLabel( file ) ) );
-            if ( file.isFile() ) {
+            if ( file.isFile() && !(/** @j2sNative true || */ false) ) {
                 f.add( new Fact( "Size", humanSize( file.length() ) ) );
-                f.add( new Fact( "Modified", DATE.format( Instant.ofEpochMilli( file.lastModified() )
-                        .atZone( ZoneId.systemDefault() ) ) ) );
+                f.add( new Fact( "Modified", DateTimeFormatter.ofPattern( "yyyy-MM-dd HH:mm" )
+                        .format( Instant.ofEpochMilli( file.lastModified() ).atZone( ZoneId.systemDefault() ) ) ) );
             }
             detail = file.getName();
         }

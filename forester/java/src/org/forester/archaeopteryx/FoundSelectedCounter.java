@@ -107,7 +107,7 @@ final class FoundSelectedCounter extends JComponent {
             setVisible( true );
         }
         revalidate(); // the text width may have changed -> let the menu bar re-lay-out
-        if ( changed ) {
+        if ( changed && !(/** @j2sNative true || */ false) ) {
             startSweep();
         }
         repaint();

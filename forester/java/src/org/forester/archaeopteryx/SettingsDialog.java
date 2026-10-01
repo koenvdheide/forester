@@ -99,8 +99,10 @@ final class SettingsDialog extends JDialog {
         tabs.addTab( "Graphics Export", scroll( exportTab() ) );
         tabs.addTab( "Files", scroll( filesTab() ) ); // reading + saving, once two tabs (the bar wrapped onto two rows)
         tabs.addTab( "Application", scroll( applicationTab() ) );
-        _cache_tab_index = tabs.getTabCount();
-        tabs.addTab( "Taxonomy Cache", scroll( cacheTab() ) );
+        if ( !(/** @j2sNative true || */ false) ) {
+            _cache_tab_index = tabs.getTabCount();
+            tabs.addTab( "Taxonomy Cache", scroll( cacheTab() ) );
+        }
         // the cache stats are read from disk; refresh them each time the tab is brought to the front
         tabs.addChangeListener( e -> {
             if ( tabs.getSelectedIndex() == _cache_tab_index ) {
