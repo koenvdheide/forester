@@ -10,6 +10,17 @@
     <property name="flatlafjar" value="${jars.dir}/flatlaf-3.7.1.jar"/>
     <property name="vectorgraphics2djar" value="${jars.dir}/VectorGraphics2D-0.13.jar"/>
     <property name="forester_jar" value="forester.jar"/>
+    <property name="forester.source.revision" value="unknown"/>
+
+    <target name="source-revision" description="Validate the source commit used for packaging">
+        <fail message="Pass -Dforester.source.revision=&lt;full Git commit&gt; for the source being built.">
+            <condition>
+                <not>
+                    <matches string="${forester.source.revision}" pattern="^[0-9a-f]{40}$"/>
+                </not>
+            </condition>
+        </fail>
+    </target>
 
     <target name="clean" description="Delete all generated files">
         <delete dir="${classes.dir}" failonerror="false"/>
@@ -48,7 +59,19 @@
         </javac>
     </target>
 
-    <target name="jar" description="JARs the classes files" depends="compile,copy_resources">
+    <target name="bundle-flatlaf" depends="compile" unless="forester.host.provides.flatlaf">
+        <unjar src="${flatlafjar}" dest="${classes.dir}">
+            <patternset>
+                <include name="**/*.class"/>
+                <include name="**/*.properties"/>
+                <include name="com/formdev/flatlaf/natives/**"/>
+                <exclude name="module-info.class"/>
+                <!-- FlatLaf's TitleBarCaptionHitTest is a runtime class. -->
+            </patternset>
+        </unjar>
+    </target>
+
+    <target name="jar" description="JARs the classes files" depends="compile,copy_resources,bundle-flatlaf">
         <unjar src="${openpdfjar}" dest="${classes.dir}">
             <patternset>
                 <include name="**/*.class"/>
@@ -71,16 +94,6 @@
                 <exclude name="**/*Test*.class"/>
             </patternset>
         </unjar>
-        <unjar src="${flatlafjar}" dest="${classes.dir}">
-            <patternset>
-                <include name="**/*.class"/>
-                <include name="**/*.properties"/>
-                <include name="com/formdev/flatlaf/natives/**"/>
-                <exclude name="module-info.class"/>
-                <!-- NOTE: no "*Test*" exclude here: FlatLaf ships no JUnit classes, and that pattern
-                     would strip the legitimate class FlatTitlePane$TitleBarCaptionHitTest. -->
-            </patternset>
-        </unjar>
         <unjar src="${vectorgraphics2djar}" dest="${classes.dir}">
             <patternset>
                 <include name="**/*.class"/>
@@ -92,8 +105,42 @@
              index="true">
             <manifest>
                 <attribute name="Main-Class" value="org.forester.archaeopteryx.Archaeopteryx"/>
+                <attribute name="Forester-Source-Revision" value="${forester.source.revision}"/>
             </manifest>
         </jar>
+    </target>
+
+    <target name="jalview-jar" depends="source-revision"
+            description="Build Forester with FlatLaf supplied by the host">
+        <antcall target="jar">
+            <param name="forester.host.provides.flatlaf" value="true"/>
+        </antcall>
+    </target>
+
+    <target name="jalview-artifacts" depends="source-revision,jalview-jar,jalviewjs-site"
+            description="Build both Jalview artifacts from the recorded source revision"/>
+
+    <target name="jalviewjs-site" description="Package the Eclipse Java2Script output for JalviewJS"
+            depends="source-revision,copy_resources">
+        <available file="../build/jalviewjs/swingjs/j2s/org/forester/archaeopteryx/TreePanel.js"
+                   property="jalviewjs.compiled"/>
+        <fail unless="jalviewjs.compiled" message="Transpile the forester Eclipse project before packaging JalviewJS."/>
+        <echo file="../build/jalviewjs/swingjs/j2s/resources/forester-source.properties"
+              encoding="UTF-8">forester.source.revision=${forester.source.revision}${line.separator}</echo>
+        <zip destfile="../build/forester-site.zip" level="9">
+            <fileset dir="../build/jalviewjs">
+                <include name="swingjs/j2s/org/forester/**/*.js"/>
+                <exclude name="**/*Test*.js"/>
+                <exclude name="swingjs/j2s/org/forester/test/**"/>
+                <include name="swingjs/j2s/resources/forester-source.properties"/>
+            </fileset>
+            <zipfileset dir="${classes.dir}" prefix="swingjs/j2s">
+                <include name="resources/phyloxml.xsd"/>
+                <include name="resources/fonts/**"/>
+                <include name="resources/images/**"/>
+                <include name="resources/demo/**"/>
+            </zipfileset>
+        </zip>
     </target>
 
     <target name="all" description="" depends="jar">
