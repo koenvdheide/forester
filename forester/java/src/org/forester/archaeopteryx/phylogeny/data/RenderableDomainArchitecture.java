@@ -256,7 +256,7 @@ public final class RenderableDomainArchitecture extends DomainArchitecture imple
                 final float[] extent = domainExtent( start, d.getFrom(), d.getTo(), f );
                 final float xa = extent[ 0 ];
                 final float xb = extent[ 1 ];
-                final Color base = colorFor( d.getName() );
+                final Color base = tree_panel.getDomainColor( d.getName() );
                 drawDomainFlat( xa, y1, xb - xa, _rendering_height, base, glow, g );
                 if ( on_domain_labels && ( d.getName() != null ) ) { // a nameless domain still draws its box, just no label
                     final FontMetrics fm = tree_panel.getMainPanel().getTreeFontSet().getFontMetricsSmall();

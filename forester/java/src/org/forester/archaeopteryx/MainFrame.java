@@ -440,6 +440,13 @@ public abstract class MainFrame extends JPanel implements ActionListener {
     /** True for a viewer from {@link MainFrameApplication#createEmbeddedInstance}: it leaves the look and feel alone
      *  and keeps no saved settings. */
     boolean _embedded;
+    private Runnable _embedded_defaults;
+
+    public void setEmbeddedDefaults(final Runnable defaults) {
+        _embedded_defaults = defaults;
+        defaults.run();
+        applyOptionsToMenuStates(getOptions());
+    }
     Configuration _configuration;
     Options _options;
     private Phylogeny _species_tree;
@@ -994,11 +1001,11 @@ public abstract class MainFrame extends JPanel implements ActionListener {
                     }
                 }
                 for (final PhylogenyNode n : to_delete) {
-                    phy.deleteSubtree(n, true);
+                    getCurrentTreePanel().deleteSubtreePreservingConnection(n);
                 }
             } else {
                 for (final PhylogenyNode n : nodes) {
-                    phy.deleteSubtree(n, true);
+                    getCurrentTreePanel().deleteSubtreePreservingConnection(n);
                 }
             }
             resetSearch();
@@ -3880,6 +3887,9 @@ public abstract class MainFrame extends JPanel implements ActionListener {
         //    createInstance produced at launch) -- each TreePanel caches this same reference, so an in-place reset
         //    propagates everywhere without a swap
         getOptions().resetToDefaults();
+        if (_embedded && (_embedded_defaults != null)) {
+            _embedded_defaults.run();
+        }
         // 2. push the defaults out to the menu controls, so a later updateOptions() reads defaults, not stale state
         applyOptionsToMenuStates(getOptions());
         // 3. forget the persisted settings so the reset survives the next launch
@@ -3908,6 +3918,7 @@ public abstract class MainFrame extends JPanel implements ActionListener {
                 tp.setMatrixColumnOrder(MatrixColumnOrder.DEFAULT); // per-tab: back to Clustered (no columns left to move)
                 tp.clearCladeBands(); // per-tab: likewise the Tools>Annotate Clades by Rank marks + their legend
                 tp.setCladeBoxLabels(false); // per-tab: shaded boxes named in the legend again (the shipped default)
+                getMainPanel().initializeTree(tp);
             }
             syncMatrixColumnOrderMenu(); // the View > Order Matrix Columns radios follow the reset
             final ControlPanel cp = getMainPanel().getControlPanel();
@@ -3923,6 +3934,7 @@ public abstract class MainFrame extends JPanel implements ActionListener {
                 // re-seed the always-visible control-panel controls (theme radios + search checkboxes) that hold
                 // their own state -- else they stay stale and the search checkboxes clobber the reset on next click
                 cp.resyncFromOptions();
+                cp.reseedDisplayDataFromCurrentTab();
                 cp.updateZoomButtonsForLayout(); // layout reset to RECTANGULAR/ROOT_LEFT -> H reverts to W, radial labels revert
             }
             final TreePanel current = getMainPanel().getCurrentTreePanel();

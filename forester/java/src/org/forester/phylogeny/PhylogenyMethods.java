@@ -1725,7 +1725,7 @@ public class PhylogenyMethods {
         }
     }
 
-    static double addPhylogenyDistances(final double a, final double b) {
+    public static double addPhylogenyDistances(final double a, final double b) {
         if ((a >= 0.0) && (b >= 0.0)) {
             return a + b;
         } else if (a >= 0.0) {

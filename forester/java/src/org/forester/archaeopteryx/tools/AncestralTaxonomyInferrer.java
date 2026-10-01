@@ -55,12 +55,13 @@ public final class AncestralTaxonomyInferrer {
      * internal nodes that received a taxonomy (for the provenance sentence).
      */
     public void commit( final int assigned ) {
+        _treepanel.returnToCompleteTree();
         _treepanel.pushUndoCheckpoint( "Infer Ancestor Taxonomies" );
         final String sentence = inferenceProvenance( _phy, assigned, _overwrite );
         final String existing = _phy.getDescription();
         _phy.setDescription( ForesterUtil.isEmpty( existing ) ? sentence : existing + " " + sentence );
         _phy.setRerootable( false );
-        _treepanel.setTree( _phy );
+        _treepanel.setTreeFromSnapshot( _phy );
         _mf.showWhole();
         _treepanel.setEdited( true );
     }

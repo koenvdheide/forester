@@ -29,6 +29,7 @@ import java.awt.event.MouseEvent;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Consumer;
 
 import javax.swing.JPanel;
 import javax.swing.JScrollBar;
@@ -59,6 +60,8 @@ public class MainPanel extends JPanel implements ComponentListener {
     private Set<Long> _copied_and_pasted_nodes;
     private TreePanel _clipboard_highlight_owner;
     private boolean _fit_owed;
+    private Consumer<TreePanel> _tree_initializer;
+    private Runnable _tree_views_changed_listener;
 
     public MainPanel(final Configuration configuration, final MainFrame parent) {
         if (configuration == null) {
@@ -86,6 +89,26 @@ public class MainPanel extends JPanel implements ComponentListener {
     }
 
     MainPanel() {
+    }
+
+    public void setTreeInitializer(final Consumer<TreePanel> initializer) {
+        _tree_initializer = initializer;
+    }
+
+    public void setTreeViewsChangedListener(final Runnable listener) {
+        _tree_views_changed_listener = listener;
+    }
+
+    private void notifyTreeViewsChanged() {
+        if (_tree_views_changed_listener != null) {
+            _tree_views_changed_listener.run();
+        }
+    }
+
+    void initializeTree(final TreePanel panel) {
+        if (_tree_initializer != null) {
+            _tree_initializer.accept(panel);
+        }
     }
 
     public void addPhylogenyInNewTab(final Phylogeny phy,
@@ -142,17 +165,20 @@ public class MainPanel extends JPanel implements ComponentListener {
         _treegraphic_scroll_panes.add(treegraphic_scroll_pane);
         getTabbedPane().addTab(name, null, treegraphic_scroll_pane_panel, "");
         getTabbedPane().setSelectedIndex(getTabbedPane().getTabCount() - 1);
+        if (getMainFrame() != null && getMainFrame()._embedded) {
+            AptxUtil.lookAtSomeTreePropertiesForAptxControlSettings(phy, getControlPanel());
+        }
+        initializeTree(treepanel);
         if (figure != null) {
             // this tab is now the selected one, so the per-tab display type lands on it and not on its neighbour
             figure.applyTo(treepanel);
-            // the shared checkboxes show the CURRENT tab, which this now is -- without this they would still show
-            // the previous tab's toggles while the tree drew the restored figure's
-            getControlPanel().reseedDisplayDataFromCurrentTab();
             if (getMainFrame() != null) {
                 getMainFrame().syncMatrixColumnOrderMenu(); // the figure may have set this tab to Manual
             }
         }
+        getControlPanel().reseedDisplayDataFromCurrentTab();
         getControlPanel().showWhole();
+        notifyTreeViewsChanged();
     }
 
     @Override
@@ -259,6 +285,7 @@ public class MainPanel extends JPanel implements ComponentListener {
             _treegraphic_scroll_panes.remove(index);
             _treegraphic_scroll_pane_panels.remove(index);
             getControlPanel().phylogenyRemoved(index);
+            notifyTreeViewsChanged();
         }
     }
 

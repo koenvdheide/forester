@@ -89,6 +89,7 @@ final class SettingsDialog extends JDialog {
     SettingsDialog( final MainFrame mf ) {
         super( javax.swing.SwingUtilities.getWindowAncestor( mf ), "Settings" );
         _mf = mf;
+        setDefaultCloseOperation( DISPOSE_ON_CLOSE );
         final JTabbedPane tabs = new JTabbedPane();
         _tabs = tabs;
         // the former single "Display" tab had grown too long, so it is split into three focused tabs
@@ -109,7 +110,8 @@ final class SettingsDialog extends JDialog {
             refreshFontInfo(); // cheap; keep the "Current font" line in sync with any font change
         } );
         final JButton reset = button( "Reset to Defaults…", this::confirmAndResetToDefaults );
-        reset.setToolTipText( "Restore all display settings, the theme, and tree colors to the built-in defaults" );
+        reset.setToolTipText( mf._embedded ? "Restore the viewer's display defaults"
+                : "Restore all display settings, the theme, and tree colors to the built-in defaults" );
         // Closed = disposed (the Close button and the window's own close box alike): a HIDDEN dialog stays a window,
         // re-skinned on every theme switch and holding its eight tabs of widgets -- one more per open/close cycle
         // (review, 2026-11-05). The menu builds a fresh one, seeded from the current tab.
@@ -1067,8 +1069,9 @@ final class SettingsDialog extends JDialog {
     private void confirmAndResetToDefaults() {
         final int choice = JOptionPane.showConfirmDialog( this,
                 "<html>Reset all display settings to their defaults?<br><br>"
-                        + "This also switches the theme to <b>Light</b>, resets the search options, and turns off "
-                        + "<b>&quot;Color by&quot;</b> (back to the default palette) on "
+                        + ( _mf._embedded ? "This resets the search options and turns off "
+                                : "This also switches the theme to <b>Light</b>, resets the search options, and turns off " )
+                        + "property-based <b>&quot;Color by&quot;</b> (back to the default palette) on "
                         + "<b>all open trees</b>.<br>"
                         + "Manually applied branch/clade colors and your loaded trees are not changed.</html>",
                 "Reset to Defaults", JOptionPane.OK_CANCEL_OPTION, JOptionPane.WARNING_MESSAGE );

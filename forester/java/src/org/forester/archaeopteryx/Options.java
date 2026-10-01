@@ -155,7 +155,7 @@ final public class Options {
         UNALIGNED_PHYLOGRAM
     }
 
-    static enum OVERVIEW_PLACEMENT_TYPE {
+    public static enum OVERVIEW_PLACEMENT_TYPE {
         LOWER_LEFT("lower left"),
         LOWER_RIGHT("lower right"),
         UPPER_LEFT("upper left"),
