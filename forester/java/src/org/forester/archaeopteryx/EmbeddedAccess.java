@@ -128,6 +128,11 @@ public final class EmbeddedAccess {
         panel.setFoundNodes0(nodes);
     }
 
+    /** What the panel highlights: both search sets, without duplicates. */
+    public static List<PhylogenyNode> foundNodes(final TreePanel panel) {
+        return panel.getFoundNodesAsListOfPhylogenyNodes();
+    }
+
     public static boolean isSubtree(final TreePanel panel) {
         return panel.isCurrentTreeIsSubtree();
     }
