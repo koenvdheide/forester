@@ -119,6 +119,16 @@ public final class PropertyColorSchemeTest {
         if ( !PropertyColorScheme.colorableRefs( treeWith( "data:const", "X", "X", "X", "X" ) ).isEmpty() ) {
             return fail( "a constant column should not be colorable" );
         }
+        EmbeddedAccess.addInternalPropertyRefs( "host:binding" );
+        try {
+            if ( PropertyColorScheme.colorableRefs( treeWith( "host:binding", "cat", "cat", "dog", "dog" ) )
+                    .contains( "host:binding" ) ) {
+                return fail( "a ref a host registered as internal must not be colorable" );
+            }
+        }
+        finally {
+            TreePanelUtil.HOST_INTERNAL_PROPERTY_REFS.remove( "host:binding" );
+        }
         return true;
     }
 

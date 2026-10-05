@@ -28,6 +28,8 @@ import javax.swing.JTextField;
 
 import org.forester.archaeopteryx.NodeDataDraft.PropertyDraft;
 import org.forester.phylogeny.PhylogenyNode;
+import org.forester.phylogeny.data.PropertiesList;
+import org.forester.phylogeny.data.Property;
 import org.forester.phylogeny.data.Property.AppliesTo;
 import org.forester.phylogeny.data.Sequence;
 
@@ -245,6 +247,21 @@ public final class NodeDataFormTest {
                 && !vb.hasSectionForTest( NodeDataDraft.SEC_TAXONOMY ) && !vb.hasSectionForTest( NodeDataDraft.SEC_SEQUENCES )
                 && !vb.hasSectionForTest( NodeDataDraft.SEC_DATE ) && !vb.hasSectionForTest( NodeDataDraft.SEC_PROPERTIES ) )
                 && check( "bare view: empty fields hidden", vb.fieldForTest( NodeDataDraft.BRANCH_LENGTH ) == null );
+        final PhylogenyNode hosted = new PhylogenyNode();
+        hosted.setName( "tip" );
+        final PropertiesList props = new PropertiesList();
+        props.addProperty( new Property( "host:binding", "hidden", "", "xsd:string", AppliesTo.NODE ) );
+        props.addProperty( new Property( "data:host", "shown", "", "xsd:string", AppliesTo.NODE ) );
+        hosted.getNodeData().setProperties( props );
+        EmbeddedAccess.addInternalPropertyRefs( "host:binding" );
+        try {
+            final NodeDataForm vh = new NodeDataForm( hosted, null, NodeDataForm.Mode.VIEW );
+            ok = ok && eq( "view hides a host's internal property", 1, vh.propertyTableForTest().getRowCount() )
+                    && eq( "view keeps the other property", "data:host", vh.propertyTableForTest().getValueAt( 0, 0 ) );
+        }
+        finally {
+            TreePanelUtil.HOST_INTERNAL_PROPERTY_REFS.remove( "host:binding" );
+        }
         return ok;
     }
 

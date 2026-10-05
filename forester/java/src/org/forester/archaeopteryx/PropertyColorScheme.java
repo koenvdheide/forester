@@ -1307,7 +1307,9 @@ final class PropertyColorScheme {
                 if ( nd.getProperties() != null ) {
                     for( final Property p : nd.getProperties().getProperties() ) {
                         if ( !ForesterUtil.isEmpty( p.getRef() ) && isNodeScopedProperty( p )
-                                && !isExcludedRef( p.getRef() ) ) {
+                                && !isExcludedRef( p.getRef() )
+                                // an embedding host's bookkeeping; forester.js has no host to register any
+                                && !TreePanelUtil.HOST_INTERNAL_PROPERTY_REFS.contains( p.getRef() ) ) {
                             addVisValue( per_node, "prop:" + p.getRef(), p.getValue() );
                         }
                     }
