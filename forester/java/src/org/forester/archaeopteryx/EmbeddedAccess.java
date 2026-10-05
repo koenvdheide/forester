@@ -133,6 +133,11 @@ public final class EmbeddedAccess {
         return panel.getFoundNodesAsListOfPhylogenyNodes();
     }
 
+    /** Re-reads the Color-by and Size-by candidates after the host added node data. */
+    public static void refreshVisualizationCandidates(final TreePanel panel) {
+        panel.rederiveVisualizationCandidates();
+    }
+
     public static boolean isSubtree(final TreePanel panel) {
         return panel.isCurrentTreeIsSubtree();
     }
