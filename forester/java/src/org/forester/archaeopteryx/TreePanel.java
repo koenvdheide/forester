@@ -376,6 +376,7 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
     private boolean _edited = false;
     private final Ellipse2D _ellipse = new Ellipse2D.Float();
     private int _external_node_index = 0;
+    private Set<Long> _dimmed_tip_ids = Collections.emptySet();
     private Set<Long> _found_nodes_0 = null;
     private Set<Long> _found_nodes_1 = null;
     // The target currently previewed on hover in Select-Node(s) mode (or null): a single node (_hover_subtree
@@ -6845,7 +6846,14 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
         } else {
             c = default_color;
         }
-        g.setColor(dimNonMatch(c, is_in_found_nodes, bw));
+        g.setColor(!is_in_found_nodes && !bw && _dimmed_tip_ids.contains(node.getId())
+                ? TreePanelUtil.blend(c, getTreeColorSet().getBackgroundColor(), DIM_NON_MATCH_FRACTION)
+                : dimNonMatch(c, is_in_found_nodes, bw));
+    }
+
+    final void setDimmedTips(final Set<Long> tip_ids) {
+        _dimmed_tip_ids = new HashSet<>(tip_ids);
+        repaint();
     }
 
     // "Dim Non-Matches": while a search/selection with at least one VISIBLE hit is active (_has_visible_found_node,
