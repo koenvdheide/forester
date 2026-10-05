@@ -138,6 +138,11 @@ public final class EmbeddedAccess {
         panel.rederiveVisualizationCandidates();
     }
 
+    /** The colour a node is drawn in that is its own, or null (see TreePanel.nodeDisplayColor). */
+    public static Color nodeDisplayColor(final TreePanel panel, final PhylogenyNode node) {
+        return panel.nodeDisplayColor(node);
+    }
+
     public static boolean isSubtree(final TreePanel panel) {
         return panel.isCurrentTreeIsSubtree();
     }
