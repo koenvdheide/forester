@@ -23,6 +23,7 @@ package org.forester.archaeopteryx;
 import java.awt.GraphicsEnvironment;
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -112,6 +113,21 @@ public final class SearchEmphasisRenderTest {
                     if ( redInk( dim, found ) < ( red_base - 20 ) ) {
                         fail( ok, "a found label must NOT be dimmed (red px with dim on="
                                 + redInk( dim, found ) + " base=" + red_base + ")" );
+                    }
+                    // an embedding host's dimmed tips fade without Dim on, a found tip keeps its colour, and an empty
+                    // set restores the label
+                    tp.setDimmedTips( Collections.singleton( other.getId() ) );
+                    final int dark_host = darkInk( render( frame, tp, o, false, false, w, h ), other );
+                    if ( dark_host >= ( dark_base / 2 ) ) {
+                        fail( ok, "a host-dimmed tip should fade (dark px=" + dark_host + " base=" + dark_base + ")" );
+                    }
+                    tp.setDimmedTips( Collections.singleton( found.getId() ) );
+                    if ( redInk( render( frame, tp, o, false, false, w, h ), found ) < ( red_base - 20 ) ) {
+                        fail( ok, "a found tip must keep its found colour when the host dims it" );
+                    }
+                    tp.setDimmedTips( Collections.emptySet() );
+                    if ( darkInk( render( frame, tp, o, false, false, w, h ), other ) < ( dark_base - 20 ) ) {
+                        fail( ok, "an empty host set should restore the tip's label" );
                     }
                     // the NUMBERS dim too: with branch-length + confidence values shown, a non-hit tip's branch-length
                     // number fades when Dim is on (it routes through the same dimNonMatch helper as the labels).

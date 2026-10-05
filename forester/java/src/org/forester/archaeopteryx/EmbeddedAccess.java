@@ -143,6 +143,11 @@ public final class EmbeddedAccess {
         return panel.nodeDisplayColor(node);
     }
 
+    /** Fades the labels of the given tips like search non-matches; an empty set clears it. */
+    public static void setDimmedTips(final TreePanel panel, final Set<Long> tip_ids) {
+        panel.setDimmedTips(tip_ids);
+    }
+
     public static boolean isSubtree(final TreePanel panel) {
         return panel.isCurrentTreeIsSubtree();
     }
