@@ -785,6 +785,16 @@ public final class TreePanelUtilTest {
                 || TreePanelUtil.isInternalPropertyRef( null ) ) {
             return fail( "isInternalPropertyRef must match only the aptx: namespace" );
         }
+        EmbeddedAccess.addInternalPropertyRefs( "host:binding" );
+        try {
+            if ( !TreePanelUtil.isInternalPropertyRef( "host:binding" )
+                    || TreePanelUtil.isInternalPropertyRef( "host:bindings" ) ) {
+                return fail( "isInternalPropertyRef must match exactly the refs a host registered" );
+            }
+        }
+        finally {
+            TreePanelUtil.HOST_INTERNAL_PROPERTY_REFS.remove( "host:binding" );
+        }
         return true;
     }
 

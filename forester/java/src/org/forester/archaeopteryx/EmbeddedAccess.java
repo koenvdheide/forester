@@ -26,6 +26,7 @@ import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
@@ -73,6 +74,10 @@ public final class EmbeddedAccess {
 
     public static JMenuItem epsItem(final MainFrame frame) {
         return frame._write_to_eps_item;
+    }
+
+    public static void addInternalPropertyRefs(final String... refs) {
+        Collections.addAll(TreePanelUtil.HOST_INTERNAL_PROPERTY_REFS, refs);
     }
 
     public static void showWhole(final MainPanel main) {
