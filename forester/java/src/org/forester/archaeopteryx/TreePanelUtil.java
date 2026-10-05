@@ -38,6 +38,7 @@ import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeMap;
 import java.util.TreeSet;
+import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.function.Function;
 
 
@@ -2410,8 +2411,12 @@ public class TreePanelUtil {
      *  user-facing node-data displays (rollover popup, Display Node Data) by {@link #userVisiblePropertiesText}. */
     final static String INTERNAL_PROPERTY_REF_PREFIX = "aptx:";
 
+    /** exact refs an embedding host keeps its own bookkeeping under, hidden like the aptx: ones */
+    final static Set<String> HOST_INTERNAL_PROPERTY_REFS = new CopyOnWriteArraySet<>();
+
     static boolean isInternalPropertyRef( final String ref ) {
-        return ( ref != null ) && ref.startsWith( INTERNAL_PROPERTY_REF_PREFIX );
+        return ( ref != null )
+                && ( ref.startsWith( INTERNAL_PROPERTY_REF_PREFIX ) || HOST_INTERNAL_PROPERTY_REFS.contains( ref ) );
     }
 
     /** The property list as newline-joined display text, EXCLUDING internal {@code aptx:*} metadata -- mirrors

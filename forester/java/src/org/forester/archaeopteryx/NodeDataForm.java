@@ -1042,7 +1042,13 @@ final class NodeDataForm extends JPanel implements EditorFrame.Form {
         }
         // -- Properties --
         {
-            _property_model = new PropertyTableModel( d.properties, isEditable() );
+            final List<PropertyDraft> rows = new ArrayList<>();
+            for( final PropertyDraft p : d.properties ) {
+                if ( isEditable() || !TreePanelUtil.HOST_INTERNAL_PROPERTY_REFS.contains( p.ref ) ) {
+                    rows.add( p );
+                }
+            }
+            _property_model = new PropertyTableModel( rows, isEditable() );
             _property_table = new JTable( _property_model ) {
 
                 private static final long serialVersionUID = 1L;
@@ -1130,8 +1136,8 @@ final class NodeDataForm extends JPanel implements EditorFrame.Form {
                 buttons.add( _remove_property_button );
                 holder.add( buttons, BorderLayout.SOUTH );
             }
-            if ( isEditable() || !d.properties.isEmpty() ) {
-                addSection( page, NodeDataDraft.SEC_PROPERTIES, propertyDetail(), holder, !d.properties.isEmpty() );
+            if ( isEditable() || !rows.isEmpty() ) {
+                addSection( page, NodeDataDraft.SEC_PROPERTIES, propertyDetail(), holder, !rows.isEmpty() );
             }
         }
         page.add( Box.createVerticalGlue() );
