@@ -35,6 +35,7 @@ import javax.swing.JMenuItem;
 import javax.swing.filechooser.FileFilter;
 
 import org.forester.archaeopteryx.tools.NodeDataImporter;
+import org.forester.archaeopteryx.tools.RepresentativeTipSelector;
 import org.forester.phylogeny.Phylogeny;
 import org.forester.phylogeny.PhylogenyNode;
 import org.forester.phylogeny.data.NodeVisualData.NodeShape;
@@ -78,6 +79,20 @@ public final class EmbeddedAccess {
 
     public static JMenuItem epsItem(final MainFrame frame) {
         return frame._write_to_eps_item;
+    }
+
+    public interface RepresentativeTipsPrompt {
+
+        void ask(TreePanel source, RepresentativeTipSelector.SelectionResult result, Runnable copy_to_new_tab);
+    }
+
+    /**
+     * Lets the host answer Select Representative Tips' follow-up, possibly after ask returns; running
+     * copy_to_new_tab extracts the tips into a new tab.
+     */
+    public static void setRepresentativeExtractionPrompt(final MainFrameApplication frame,
+            final RepresentativeTipsPrompt prompt) {
+        frame._representative_extraction_prompt = prompt;
     }
 
     public static void addInternalPropertyRefs(final String... refs) {
