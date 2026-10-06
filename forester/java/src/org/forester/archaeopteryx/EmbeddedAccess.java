@@ -152,6 +152,10 @@ public final class EmbeddedAccess {
         panel.setDimmedTips(tip_ids);
     }
 
+    public static boolean drawsDistancesToScale(final TreePanel panel) {
+        return panel.drawsDistancesToScale();
+    }
+
     public static boolean isSubtree(final TreePanel panel) {
         return panel.isCurrentTreeIsSubtree();
     }

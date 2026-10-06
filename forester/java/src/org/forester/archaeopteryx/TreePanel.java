@@ -803,10 +803,13 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
         repaint();
     }
 
+    /** Whether x positions are distances from the root, so that one vertical line marks one height. */
+    final boolean drawsDistancesToScale() {
+        return !isRadialLayout() && getControlPanel().isDrawPhylogram() && !breakLongBranchesActive();
+    }
+
     private void paintPartitionLine(final Graphics2D g, final Rectangle bounds, final boolean monochrome) {
-        if ((_partition_threshold <= 0f)
-                || (getPhylogenyGraphicsType() == PHYLOGENY_GRAPHICS_TYPE.UNROOTED)
-                || (getPhylogenyGraphicsType() == PHYLOGENY_GRAPHICS_TYPE.CIRCULAR)) {
+        if ((_partition_threshold <= 0f) || !drawsDistancesToScale()) {
             return;
         }
         final float root_x = _phylogeny.getRoot().getXcoord();

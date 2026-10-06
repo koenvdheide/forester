@@ -48,6 +48,7 @@ public final class EmbeddedTreeLifecycleTest {
                 collapsedRootKeepsBranchLength();
                 completedChanges();
                 completedTabChanges();
+                cladogramIsNotToScale();
             } catch (final Exception e) {
                 throw new AssertionError(e);
             }
@@ -370,6 +371,18 @@ public final class EmbeddedTreeLifecycleTest {
             main.closeCurrentPane();
             check(counts.equals(Arrays.asList(2, 1, 0)), "Added and removed views must notify exactly once");
             main.setTreeViewsChangedListener(null);
+        } finally {
+            frame.end();
+        }
+    }
+
+    private static void cladogramIsNotToScale() throws Exception {
+        final MainFrameApplication frame = embedded(Phylogeny.createInstanceFromNhxString("(A:1,B:2)R;"));
+        try {
+            final TreePanel panel = frame.getMainPanel().getCurrentTreePanel();
+            check(panel.drawsDistancesToScale(), "A phylogram is drawn to scale");
+            panel.getControlPanel().getDisplayAsCladogramRb().doClick();
+            check(!panel.drawsDistancesToScale(), "A cladogram is not drawn to scale");
         } finally {
             frame.end();
         }
