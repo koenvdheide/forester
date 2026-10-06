@@ -72,6 +72,10 @@ public final class EmbeddedAccess {
         return frame._load_alignment_item;
     }
 
+    public static JMenuItem exportSequencesItem(final MainFrame frame) {
+        return frame._export_seqs_fasta_item;
+    }
+
     public static JMenuItem epsItem(final MainFrame frame) {
         return frame._write_to_eps_item;
     }
