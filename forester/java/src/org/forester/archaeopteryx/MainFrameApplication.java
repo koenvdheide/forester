@@ -122,6 +122,7 @@ public final class MainFrameApplication extends MainFrame {
     private int _repsel_target = 100;
     private boolean _repsel_by_cutoff = true;
     private int _repsel_pick_index = 0;
+    EmbeddedAccess.RepresentativeTipsPrompt _representative_extraction_prompt;
 
     /** Recorded by every constructor: see {@link #onEventThread}. */
     private final boolean _built_on_event_thread = SwingUtilities.isEventDispatchThread();
@@ -691,9 +692,19 @@ public final class MainFrameApplication extends MainFrame {
             }
         }
         dialog.setLocation(clampFullyOnScreen(dialog.getLocation(), dialog.getSize(), usable));
-        dialog.setVisible(true);
-        dialog.dispose();
-        final Object pane_value = pane.getValue();
+        // continue from the answer, as a browser's modal dialog does not block
+        pane.addPropertyChangeListener(JOptionPane.VALUE_PROPERTY, event -> {
+            if (pane.getValue() != JOptionPane.UNINITIALIZED_VALUE) {
+                dialog.dispose();
+                representativeTipsChosen(tp, phy, in, has_bl, protected_ids, pane.getValue());
+            }
+        });
+        showOwnedWindow(dialog);
+    }
+
+    private void representativeTipsChosen(final TreePanel tp, final Phylogeny phy, final RepSelInputs in,
+                                          final boolean has_bl, final Set<Long> protected_ids,
+                                          final Object pane_value) {
         if (!(pane_value instanceof Integer) || (((Integer) pane_value).intValue() != JOptionPane.OK_OPTION)) {
             return;
         }
@@ -754,6 +765,18 @@ public final class MainFrameApplication extends MainFrame {
         tp.setFoundNodes0(new HashSet<>(result.representativeIds()));
         _mainpanel.getControlPanel().displayedPhylogenyMightHaveChanged(true);
         // --- report & offer extraction into a new tab ---
+        if (_representative_extraction_prompt != null) {
+            final int requested_target = target;
+            _representative_extraction_prompt.ask(tp, result, () -> {
+                // the answer can come after the user moved to another tab or closed the viewer
+                final int source_tab = _mainpanel.getTreePanels().indexOf(tp);
+                if ((source_tab >= 0) && !isClosed()) {
+                    _mainpanel.getTabbedPane().setSelectedIndex(source_tab);
+                    copyRepresentativesToNewTab(phy, result, by_cutoff, requested_target);
+                }
+            });
+            return;
+        }
         final int kept = result.getKeptCount();
         final int choice = JOptionPane.showConfirmDialog(this,
                 result.summary() + "\n\nCreate a new tab containing only these " + kept
@@ -762,6 +785,14 @@ public final class MainFrameApplication extends MainFrame {
         if (choice != JOptionPane.YES_OPTION) {
             return;
         }
+        copyRepresentativesToNewTab(phy, result, by_cutoff, target);
+    }
+
+    private void copyRepresentativesToNewTab(final Phylogeny phy,
+                                             final RepresentativeTipSelector.SelectionResult result,
+                                             final boolean by_cutoff, final int target) {
+        final double cutoff = result.getEffectiveCutoff();
+        final RepresentativeTipSelector.RepresentativePick pick = result.getPick();
         // Build the extracted tree by index-mapping the kept tips onto a copy (copy() preserves external-node
         // order), so we never depend on node ids matching across the copy.
         final Set<Long> keep_ids = result.representativeIds();
