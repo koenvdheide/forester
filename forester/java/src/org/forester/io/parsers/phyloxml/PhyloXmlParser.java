@@ -90,9 +90,8 @@ public class PhyloXmlParser implements PhylogenyParser {
         return _error_messages;
     }
 
-    private Reader getReaderFromZipFile() throws IOException {
+    private Reader getReaderFromZipFile( final ZipFile zip_file ) throws IOException {
         Reader reader = null;
-        final ZipFile zip_file = new ZipFile( getSource().toString() );
         final Enumeration<?> zip_file_entries = zip_file.entries();
         while ( zip_file_entries.hasMoreElements() ) {
             final ZipEntry zip_file_entry = ( ZipEntry ) zip_file_entries.nextElement();
@@ -101,12 +100,6 @@ public class PhyloXmlParser implements PhylogenyParser {
                 reader = new InputStreamReader( is, ForesterConstants.UTF_8 );
                 break;
             }
-        }
-        try {
-            zip_file.close();
-        }
-        catch ( final Exception e ) {
-            // Ignore
         }
         return reader;
     }
@@ -194,12 +187,14 @@ public class PhyloXmlParser implements PhylogenyParser {
                     }
                 }
                 else {
-                    final Reader reader = getReaderFromZipFile();
-                    if ( reader == null ) {
-                        throw new PhylogenyParserException( "zip file \"" + getSource()
-                                                            + "\" appears not to contain any entries" );
+                    try ( final ZipFile zip_file = new ZipFile( getSource().toString() ) ) {
+                        final Reader reader = getReaderFromZipFile( zip_file );
+                        if ( reader == null ) {
+                            throw new PhylogenyParserException( "zip file \"" + getSource()
+                                                                + "\" appears not to contain any entries" );
+                        }
+                        xml_reader.parse( new InputSource( new BufferedReader( reader ) ) );
                     }
-                    xml_reader.parse( new InputSource( new BufferedReader( reader ) ) );
                 }
             }
             else if ( getSource() instanceof InputSource ) {
