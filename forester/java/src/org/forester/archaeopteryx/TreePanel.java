@@ -447,6 +447,8 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
     private final boolean _phy_has_branch_lengths;
     private Phylogeny _phylogeny = null;
     private Function<Phylogeny, Map<PhylogenyNode, List<Color>>> _branch_colour_provider;
+    private Function<Phylogeny, Map<PhylogenyNode, Color>> _display_colour_provider;
+    private Map<PhylogenyNode, Color> _display_colours = Collections.emptyMap();
     private final Map<PhylogenyNode, Path2D> _label_bounds = new java.util.IdentityHashMap<>();
     private AffineTransform _label_base_inverse;
     private float _partition_threshold;
@@ -686,6 +688,14 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
     public final void setBranchColourProvider(
             final Function<Phylogeny, Map<PhylogenyNode, List<Color>>> provider) {
         _branch_colour_provider = provider;
+        repaint();
+    }
+
+    /** Missing entries retain normal styling; null entries give branches their neutral colour. */
+    public final void setDisplayColourProvider(
+            final Function<Phylogeny, Map<PhylogenyNode, Color>> provider) {
+        _display_colour_provider = provider;
+        _display_colours = Collections.emptyMap();
         repaint();
     }
 
@@ -1061,6 +1071,10 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
             g.setColor(Color.BLACK);
         } else if (isBranchEditHighlighted(node, to_pdf, to_graphics_file)) {
             g.setColor(CLIPBOARD_HIGHLIGHT); // held by Cut/Copy -- an editing state, not a search hit
+        } else if (_display_colours.containsKey(node)) {
+            final Color override = _display_colours.get(node);
+            g.setColor(override != null ? override
+                    : to_pdf ? getTreeColorSet().getBranchColorForPdf() : getTreeColorSet().getBranchColor());
         } else if (isBranchSupportColoured(node)) {
             g.setColor(supportBranchColor(node, to_pdf));
         } else if (shows(DisplayOption.USE_STYLE) && (PhylogenyMethods.getBranchColorValue(node) != null)) {
@@ -6836,6 +6850,8 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
             c = Color.BLACK;
         } else if (is_in_found_nodes) {
             c = getColorForFoundNode(node);
+        } else if (_display_colours.get(node) != null) {
+            c = _display_colours.get(node);
         } else if (isColorByProperty()) {
             c = getPropertyBasedColor(node);
         } else if (shows(DisplayOption.USE_STYLE) && (node.getNodeData().getNodeVisualData() != null)
@@ -15571,6 +15587,8 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
         if ((_phylogeny == null) || _phylogeny.isEmpty()) {
             return;
         }
+        _display_colours = _display_colour_provider == null ? Collections.emptyMap()
+                : _display_colour_provider.apply(_phylogeny);
         _label_base_inverse = null;
         if (!to_pdf && !to_graphics_file) {
             _label_bounds.clear();
@@ -15653,6 +15671,7 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
                 }
             }
             final Map<PhylogenyNode, List<Color>> branch_colours = (_branch_colour_provider != null)
+                    && _display_colours.isEmpty()
                     && (getPhylogenyGraphicsType() == PHYLOGENY_GRAPHICS_TYPE.RECTANGULAR)
                     && shows(DisplayOption.USE_STYLE)
                     && !((to_pdf || to_graphics_file) && getOptions().isExportBlackAndWhite())
