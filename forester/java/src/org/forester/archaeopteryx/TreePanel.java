@@ -85,6 +85,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.SortedSet;
 import java.util.function.Function;
+import java.util.function.Predicate;
 
 import javax.swing.BorderFactory;
 import javax.swing.JColorChooser;
@@ -327,6 +328,7 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
     private final boolean _phy_has_branch_lengths;
     private Phylogeny _phylogeny = null;
     private Function<Phylogeny, Map<PhylogenyNode, List<Color>>> _branch_colour_provider;
+    private Predicate<PhylogenyNode> _dimmed_tip_filter;
     private final Path2D.Float _polygon = new Path2D.Float();
     private final StringBuffer _popup_buffer = new StringBuffer();
     private final QuadCurve2D _quad_curve = new QuadCurve2D.Float();
@@ -450,6 +452,11 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
     public final void setBranchColourProvider(
             final Function<Phylogeny, Map<PhylogenyNode, List<Color>>> provider) {
         _branch_colour_provider = provider;
+        repaint();
+    }
+
+    public final void setDimmedTipFilter(final Predicate<PhylogenyNode> filter) {
+        _dimmed_tip_filter = filter;
         repaint();
     }
 
@@ -3842,6 +3849,11 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
             g.setColor(Color.BLACK);
         } else {
             g.setColor(default_color);
+        }
+        if (!is_in_found_nodes && (_dimmed_tip_filter != null) && node.isExternal()
+                && !((to_pdf || to_graphics_file) && getOptions().isPrintBlackAndWhite())
+                && _dimmed_tip_filter.test(node)) {
+            g.setColor(ForesterUtil.calcColor(72, 0, 100, g.getColor(), getTreeColorSet().getBackgroundColor()));
         }
     }
 
