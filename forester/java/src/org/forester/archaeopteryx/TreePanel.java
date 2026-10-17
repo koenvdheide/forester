@@ -10692,24 +10692,6 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
         }
 
         @Override
-        public boolean equals(final Object value) {
-            if (!(value instanceof AnnotationCell)) {
-                return false;
-            }
-            final AnnotationCell other = (AnnotationCell) value;
-            return column == other.column
-                    && java.util.Objects.equals(tip, other.tip);
-        }
-
-        @Override
-        public int hashCode() {
-            int result = 0;
-            result = 31 * result + java.util.Objects.hashCode(column);
-            result = 31 * result + java.util.Objects.hashCode(tip);
-            return result;
-        }
-
-        @Override
         public String toString() {
             return "AnnotationCell[column=" + column + ", tip=" + tip + "]";
         }

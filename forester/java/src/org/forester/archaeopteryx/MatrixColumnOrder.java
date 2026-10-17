@@ -155,29 +155,6 @@ final class MatrixColumnOrder {
         public Mode mode() {
             return mode;
         }
-
-        @Override
-        public boolean equals(final Object value) {
-            if (!(value instanceof Resolved)) {
-                return false;
-            }
-            final Resolved other = (Resolved) value;
-            return java.util.Objects.equals(specs, other.specs)
-                    && java.util.Objects.equals(mode, other.mode);
-        }
-
-        @Override
-        public int hashCode() {
-            int result = 0;
-            result = 31 * result + java.util.Objects.hashCode(specs);
-            result = 31 * result + java.util.Objects.hashCode(mode);
-            return result;
-        }
-
-        @Override
-        public String toString() {
-            return "Resolved[specs=" + specs + ", mode=" + mode + "]";
-        }
     }
 
     /**

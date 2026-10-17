@@ -66,26 +66,6 @@ final class LabelDateAnchor {
         }
 
         @Override
-        public boolean equals(final Object value) {
-            if (!(value instanceof Anchor)) {
-                return false;
-            }
-            final Anchor other = (Anchor) value;
-            return java.util.Objects.equals(this.value, other.value)
-                    && agreeing == other.agreeing
-                    && compared == other.compared;
-        }
-
-        @Override
-        public int hashCode() {
-            int result = 0;
-            result = 31 * result + java.util.Objects.hashCode(value);
-            result = 31 * result + java.util.Objects.hashCode(agreeing);
-            result = 31 * result + java.util.Objects.hashCode(compared);
-            return result;
-        }
-
-        @Override
         public String toString() {
             return "Anchor[value=" + value + ", agreeing=" + agreeing + ", compared=" + compared + "]";
         }
@@ -123,33 +103,6 @@ final class LabelDateAnchor {
 
         public double labelDate() {
             return labelDate;
-        }
-
-        @Override
-        public boolean equals(final Object value) {
-            if (!(value instanceof TipOffer)) {
-                return false;
-            }
-            final TipOffer other = (TipOffer) value;
-            return Double.compare(rangeStart, other.rangeStart) == 0
-                    && Double.compare(rangeEnd, other.rangeEnd) == 0
-                    && Double.compare(offset, other.offset) == 0
-                    && Double.compare(labelDate, other.labelDate) == 0;
-        }
-
-        @Override
-        public int hashCode() {
-            int result = 0;
-            result = 31 * result + java.util.Objects.hashCode(rangeStart);
-            result = 31 * result + java.util.Objects.hashCode(rangeEnd);
-            result = 31 * result + java.util.Objects.hashCode(offset);
-            result = 31 * result + java.util.Objects.hashCode(labelDate);
-            return result;
-        }
-
-        @Override
-        public String toString() {
-            return "TipOffer[rangeStart=" + rangeStart + ", rangeEnd=" + rangeEnd + ", offset=" + offset + ", labelDate=" + labelDate + "]";
         }
     }
 

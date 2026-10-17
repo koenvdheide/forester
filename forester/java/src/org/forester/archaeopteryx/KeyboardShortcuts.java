@@ -65,29 +65,6 @@ final class KeyboardShortcuts {
         public String action() {
             return action;
         }
-
-        @Override
-        public boolean equals(final Object value) {
-            if (!(value instanceof Shortcut)) {
-                return false;
-            }
-            final Shortcut other = (Shortcut) value;
-            return java.util.Objects.equals(keys, other.keys)
-                    && java.util.Objects.equals(action, other.action);
-        }
-
-        @Override
-        public int hashCode() {
-            int result = 0;
-            result = 31 * result + java.util.Objects.hashCode(keys);
-            result = 31 * result + java.util.Objects.hashCode(action);
-            return result;
-        }
-
-        @Override
-        public String toString() {
-            return "Shortcut[keys=" + keys + ", action=" + action + "]";
-        }
     }
 
     static final class ShortcutGroup {
@@ -105,29 +82,6 @@ final class KeyboardShortcuts {
 
         public List<Shortcut> shortcuts() {
             return shortcuts;
-        }
-
-        @Override
-        public boolean equals(final Object value) {
-            if (!(value instanceof ShortcutGroup)) {
-                return false;
-            }
-            final ShortcutGroup other = (ShortcutGroup) value;
-            return java.util.Objects.equals(title, other.title)
-                    && java.util.Objects.equals(shortcuts, other.shortcuts);
-        }
-
-        @Override
-        public int hashCode() {
-            int result = 0;
-            result = 31 * result + java.util.Objects.hashCode(title);
-            result = 31 * result + java.util.Objects.hashCode(shortcuts);
-            return result;
-        }
-
-        @Override
-        public String toString() {
-            return "ShortcutGroup[title=" + title + ", shortcuts=" + shortcuts + "]";
         }
     }
 
