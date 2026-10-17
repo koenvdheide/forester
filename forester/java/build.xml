@@ -59,19 +59,7 @@
         </javac>
     </target>
 
-    <target name="bundle-flatlaf" depends="compile" unless="forester.host.provides.flatlaf">
-        <unjar src="${flatlafjar}" dest="${classes.dir}">
-            <patternset>
-                <include name="**/*.class"/>
-                <include name="**/*.properties"/>
-                <include name="com/formdev/flatlaf/natives/**"/>
-                <exclude name="module-info.class"/>
-                <!-- FlatLaf's TitleBarCaptionHitTest is a runtime class. -->
-            </patternset>
-        </unjar>
-    </target>
-
-    <target name="jar" description="JARs the classes files" depends="compile,copy_resources,bundle-flatlaf">
+    <target name="jar" description="JARs the classes files" depends="compile,copy_resources">
         <unjar src="${openpdfjar}" dest="${classes.dir}">
             <patternset>
                 <include name="**/*.class"/>
@@ -92,6 +80,16 @@
             <patternset>
                 <include name="**/*.class"/>
                 <exclude name="**/*Test*.class"/>
+            </patternset>
+        </unjar>
+        <unjar xmlns:unless="ant:unless" unless:set="forester.host.provides.flatlaf" src="${flatlafjar}" dest="${classes.dir}">
+            <patternset>
+                <include name="**/*.class"/>
+                <include name="**/*.properties"/>
+                <include name="com/formdev/flatlaf/natives/**"/>
+                <exclude name="module-info.class"/>
+                <!-- NOTE: no "*Test*" exclude here: FlatLaf ships no JUnit classes, and that pattern
+                     would strip the legitimate class FlatTitlePane$TitleBarCaptionHitTest. -->
             </patternset>
         </unjar>
         <unjar src="${vectorgraphics2djar}" dest="${classes.dir}">
