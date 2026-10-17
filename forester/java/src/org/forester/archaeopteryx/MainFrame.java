@@ -1251,10 +1251,8 @@ public abstract class MainFrame extends JPanel implements ActionListener {
 
     void customizeCheckBoxMenuItem(final JCheckBoxMenuItem item, final boolean is_selected) {
         if (item != null) {
-            if (!getConfiguration().isKeepLookAndFeel()) {
-                item.setFont(MainFrame.menu_font);
-            }
             if (!getConfiguration().isUseNativeUI()) {
+                item.setFont(MainFrame.menu_font);
                 item.setBackground(getConfiguration().getGuiMenuBackgroundColor());
                 item.setForeground(getConfiguration().getGuiMenuTextColor());
             }
@@ -1265,10 +1263,8 @@ public abstract class MainFrame extends JPanel implements ActionListener {
 
     JMenuItem customizeJMenuItem(final JMenuItem jmi) {
         if (jmi != null) {
-            if (!getConfiguration().isKeepLookAndFeel()) {
-                jmi.setFont(MainFrame.menu_font);
-            }
             if (!getConfiguration().isUseNativeUI()) {
+                jmi.setFont(MainFrame.menu_font);
                 jmi.setBackground(getConfiguration().getGuiMenuBackgroundColor());
                 jmi.setForeground(getConfiguration().getGuiMenuTextColor());
             }
@@ -1279,10 +1275,8 @@ public abstract class MainFrame extends JPanel implements ActionListener {
 
     void customizeRadioButtonMenuItem(final JRadioButtonMenuItem item, final boolean is_selected) {
         if (item != null) {
-            if (!getConfiguration().isKeepLookAndFeel()) {
-                item.setFont(MainFrame.menu_font);
-            }
             if (!getConfiguration().isUseNativeUI()) {
+                item.setFont(MainFrame.menu_font);
                 item.setBackground(getConfiguration().getGuiMenuBackgroundColor());
                 item.setForeground(getConfiguration().getGuiMenuTextColor());
             }
@@ -2044,10 +2038,8 @@ public abstract class MainFrame extends JPanel implements ActionListener {
     }
 
     static JMenuItem customizeMenuItemAsLabel(final JMenuItem label, final Configuration configuration) {
-        if (!configuration.isKeepLookAndFeel()) {
-            label.setFont(MainFrame.menu_font.deriveFont(Font.BOLD));
-        }
         if (!configuration.isUseNativeUI()) {
+            label.setFont(MainFrame.menu_font.deriveFont(Font.BOLD));
             label.setBackground(configuration.getGuiMenuBackgroundColor());
             label.setForeground(configuration.getGuiMenuTextColor());
             label.setOpaque(true);
