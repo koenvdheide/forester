@@ -218,7 +218,6 @@ public final class Configuration {
     private Color _gui_menu_text_color = AptxConstants.MENU_TEXT_COLOR_DEFAULT;
     private boolean _hide_controls_and_menus = false;
     private boolean _internal_number_are_confidence_for_nh_parsing = false;
-    private boolean _keep_look_and_feel = false;
     private String _label_for_get_ext_descendents_data = "";
     private int _max_base_font_size = 20;
     private boolean _midpoint_root = false;
@@ -273,7 +272,7 @@ public final class Configuration {
         this(null, false, false, false);
     }
 
-    public Configuration(final InputStream is, final boolean is_applet, final boolean verbose) {
+    public Configuration(final InputStream is, final boolean verbose) {
         _could_read_config_file = false;
         setDisplayColors(new TreeMap<String, Color>());
         try {
@@ -892,8 +891,6 @@ public final class Configuration {
                         + "]");
                 _ui = UI.UNKNOWN;
             }
-        } else if (key.equals("keep_look_and_feel")) {
-            _keep_look_and_feel = parseBoolean((String) st.nextElement());
         } else if (key.equals(VALIDATE_AGAINST_PHYLOXML_XSD_SCHEMA)) {
             setValidatePhyloXmlAgainstSchema(parseBoolean((String) st.nextElement()));
         } else if (key.equals("antialias_screen")) {
@@ -1579,10 +1576,6 @@ public final class Configuration {
 
     public boolean isInternalNumberAreConfidenceForNhParsing() {
         return _internal_number_are_confidence_for_nh_parsing;
-    }
-
-    final boolean isKeepLookAndFeel() {
-        return _keep_look_and_feel;
     }
 
     public boolean isReplaceUnderscoresInNhParsing() {

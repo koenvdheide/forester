@@ -58,6 +58,7 @@ import java.awt.geom.Arc2D;
 import java.awt.geom.CubicCurve2D;
 import java.awt.geom.Ellipse2D;
 import java.awt.geom.Line2D;
+import java.awt.geom.NoninvertibleTransformException;
 import java.awt.geom.Path2D;
 import java.awt.geom.QuadCurve2D;
 import java.awt.geom.Rectangle2D;
@@ -3137,28 +3138,43 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
             } else {
                 y_coord = node.getYcoord() + (getFontMetrics(g.getFont()).getAscent() / 3.0f);
             }
-            final AffineTransform label_transform = new AffineTransform();
-            boolean left = (m > HALF_PI) && (m < ONEHALF_PI);
             if (radial_labels) {
                 need_to_reset = true;
-                if (left) {
+                boolean left = false;
+                if ((m > HALF_PI) && (m < ONEHALF_PI)) {
                     m -= PI;
+                    left = true;
                 }
                 g.rotate(m, x_coord, node.getYcoord());
-                label_transform.rotate(m, x_coord, node.getYcoord());
+                if (left) {
+                    if (!using_visual_font) {
+                        g.translate(-(getFontMetricsForLargeDefaultFont().getStringBounds(sb_str, g).getWidth()),
+                                0);
+                    } else {
+                        g.translate(-(getFontMetrics(g.getFont()).getStringBounds(sb_str, g).getWidth()), 0);
+                    }
+                }
+            } else {
+                if ((m > HALF_PI) && (m < ONEHALF_PI)) {
+                    need_to_reset = true;
+                    if (!using_visual_font) {
+                        g.translate(-getFontMetricsForLargeDefaultFont().getStringBounds(sb_str, g).getWidth(), 0);
+                    } else {
+                        g.translate(-getFontMetrics(g.getFont()).getStringBounds(sb_str, g).getWidth(), 0);
+                    }
+                }
             }
-            if (left) {
-                need_to_reset = true;
-                final double offset = -(using_visual_font ? getFontMetrics(g.getFont())
-                        : getFontMetricsForLargeDefaultFont()).getStringBounds(sb_str, g).getWidth();
-                g.translate(offset, 0);
-                label_transform.translate(offset, 0);
-            }
-            // Mouse coordinates exclude the graphics device's scale and translation.
             final FontMetrics fm = getFontMetrics(g.getFont());
-            _label_bounds.put(node.getId(), label_transform.createTransformedShape(
-                    new Rectangle2D.Float(x_coord, y_coord - fm.getAscent(),
-                            fm.stringWidth(sb_str), fm.getAscent() + fm.getDescent())));
+            final Rectangle2D label = new Rectangle2D.Float(x_coord, y_coord - fm.getAscent(),
+                    fm.stringWidth(sb_str), fm.getAscent() + fm.getDescent());
+            try {
+                // Mouse coordinates exclude the graphics device's scale and translation.
+                final AffineTransform label_transform = _at.createInverse();
+                label_transform.concatenate(g.getTransform());
+                _label_bounds.put(node.getId(), label_transform.createTransformedShape(label));
+            } catch (final NoninvertibleTransformException e) {
+                // a singular transform leaves no label area to hit
+            }
             TreePanel.drawString(sb_str, x_coord, y_coord, g);
             if (need_to_reset) {
                 g.setTransform(_at);
@@ -5004,6 +5020,10 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
         return _ov_virtual_rectangle;
     }
 
+    public final float getPartitionThreshold() {
+        return _partition_threshold;
+    }
+
     public final PHYLOGENY_GRAPHICS_TYPE getPhylogenyGraphicsType() {
         return _graphics_type;
     }
@@ -5550,17 +5570,6 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
         paintCircularsLite(phy.getRoot(), phy, center_x, center_y, radius, g);
     }
 
-    public final void paintFile(final Graphics2D g,
-                                final boolean to_pdf,
-                                final int graphics_file_width,
-                                final int graphics_file_height,
-                                final int graphics_file_x,
-                                final int graphics_file_y,
-                                final boolean vector) {
-        paintPhylogeny(g, to_pdf, true, graphics_file_width, graphics_file_height,
-                graphics_file_x, graphics_file_y, vector);
-    }
-
     final void paintPhylogeny(final Graphics2D g,
                               final boolean to_pdf,
                               final boolean to_graphics_file,
@@ -5572,14 +5581,14 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
                 graphics_file_x, graphics_file_y, to_pdf);
     }
 
-    private void paintPhylogeny(final Graphics2D g,
-                                final boolean to_pdf,
-                                final boolean to_graphics_file,
-                                final int graphics_file_width,
-                                final int graphics_file_height,
-                                final int graphics_file_x,
-                                final int graphics_file_y,
-                                final boolean vector) {
+    public final void paintPhylogeny(final Graphics2D g,
+                                     final boolean to_pdf,
+                                     final boolean to_graphics_file,
+                                     final int graphics_file_width,
+                                     final int graphics_file_height,
+                                     final int graphics_file_x,
+                                     final int graphics_file_y,
+                                     final boolean vector) {
         if ((_phylogeny == null) || _phylogeny.isEmpty()) {
             return;
         }
@@ -5951,11 +5960,6 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
 
     public final void setPartitionThreshold(final float threshold) {
         _partition_threshold = threshold;
-        repaint();
-    }
-
-    public final void clearPartitionLine() {
-        _partition_threshold = 0f;
         repaint();
     }
 
