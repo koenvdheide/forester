@@ -152,39 +152,6 @@ public final class TipDateExtractor {
         public double rangeEnd() {
             return rangeEnd;
         }
-
-        @Override
-        public boolean equals(final Object value) {
-            if (!(value instanceof DateMatch)) {
-                return false;
-            }
-            final DateMatch other = (DateMatch) value;
-            return Double.compare(decimalYear, other.decimalYear) == 0
-                    && java.util.Objects.equals(matchedText, other.matchedText)
-                    && java.util.Objects.equals(precision, other.precision)
-                    && java.util.Objects.equals(formatLabel, other.formatLabel)
-                    && ambiguous == other.ambiguous
-                    && Double.compare(rangeStart, other.rangeStart) == 0
-                    && Double.compare(rangeEnd, other.rangeEnd) == 0;
-        }
-
-        @Override
-        public int hashCode() {
-            int result = 0;
-            result = 31 * result + java.util.Objects.hashCode(decimalYear);
-            result = 31 * result + java.util.Objects.hashCode(matchedText);
-            result = 31 * result + java.util.Objects.hashCode(precision);
-            result = 31 * result + java.util.Objects.hashCode(formatLabel);
-            result = 31 * result + java.util.Objects.hashCode(ambiguous);
-            result = 31 * result + java.util.Objects.hashCode(rangeStart);
-            result = 31 * result + java.util.Objects.hashCode(rangeEnd);
-            return result;
-        }
-
-        @Override
-        public String toString() {
-            return "DateMatch[decimalYear=" + decimalYear + ", matchedText=" + matchedText + ", precision=" + precision + ", formatLabel=" + formatLabel + ", ambiguous=" + ambiguous + ", rangeStart=" + rangeStart + ", rangeEnd=" + rangeEnd + "]";
-        }
     }
 
     /** One tip's preview row (drives the dialog table + counts): the node, its label, the date found (null = none), and
@@ -216,33 +183,6 @@ public final class TipDateExtractor {
 
         public boolean alreadyDated() {
             return alreadyDated;
-        }
-
-        @Override
-        public boolean equals(final Object value) {
-            if (!(value instanceof TipDate)) {
-                return false;
-            }
-            final TipDate other = (TipDate) value;
-            return java.util.Objects.equals(node, other.node)
-                    && java.util.Objects.equals(label, other.label)
-                    && java.util.Objects.equals(match, other.match)
-                    && alreadyDated == other.alreadyDated;
-        }
-
-        @Override
-        public int hashCode() {
-            int result = 0;
-            result = 31 * result + java.util.Objects.hashCode(node);
-            result = 31 * result + java.util.Objects.hashCode(label);
-            result = 31 * result + java.util.Objects.hashCode(match);
-            result = 31 * result + java.util.Objects.hashCode(alreadyDated);
-            return result;
-        }
-
-        @Override
-        public String toString() {
-            return "TipDate[node=" + node + ", label=" + label + ", match=" + match + ", alreadyDated=" + alreadyDated + "]";
         }
     }
 
@@ -478,32 +418,6 @@ public final class TipDateExtractor {
 
         public double maxYear() {
             return maxYear;
-        }
-
-        @Override
-        public boolean equals(final Object value) {
-            if (!(value instanceof Summary)) {
-                return false;
-            }
-            final Summary other = (Summary) value;
-            return matched == other.matched
-                    && unmatched == other.unmatched
-                    && ambiguous == other.ambiguous
-                    && java.util.Objects.equals(dominantFormat, other.dominantFormat)
-                    && Double.compare(minYear, other.minYear) == 0
-                    && Double.compare(maxYear, other.maxYear) == 0;
-        }
-
-        @Override
-        public int hashCode() {
-            int result = 0;
-            result = 31 * result + java.util.Objects.hashCode(matched);
-            result = 31 * result + java.util.Objects.hashCode(unmatched);
-            result = 31 * result + java.util.Objects.hashCode(ambiguous);
-            result = 31 * result + java.util.Objects.hashCode(dominantFormat);
-            result = 31 * result + java.util.Objects.hashCode(minYear);
-            result = 31 * result + java.util.Objects.hashCode(maxYear);
-            return result;
         }
 
         @Override

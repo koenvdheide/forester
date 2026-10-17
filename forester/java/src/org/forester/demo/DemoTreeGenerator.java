@@ -260,37 +260,6 @@ public final class DemoTreeGenerator {
         public BeastClade[] kids() {
             return kids;
         }
-
-        @Override
-        public boolean equals(final Object value) {
-            if (!(value instanceof BeastClade)) {
-                return false;
-            }
-            final BeastClade other = (BeastClade) value;
-            return taxon == other.taxon
-                    && Double.compare(date, other.date) == 0
-                    && Double.compare(lo, other.lo) == 0
-                    && Double.compare(hi, other.hi) == 0
-                    && Double.compare(posterior, other.posterior) == 0
-                    && java.util.Objects.equals(kids, other.kids);
-        }
-
-        @Override
-        public int hashCode() {
-            int result = 0;
-            result = 31 * result + java.util.Objects.hashCode(taxon);
-            result = 31 * result + java.util.Objects.hashCode(date);
-            result = 31 * result + java.util.Objects.hashCode(lo);
-            result = 31 * result + java.util.Objects.hashCode(hi);
-            result = 31 * result + java.util.Objects.hashCode(posterior);
-            result = 31 * result + java.util.Objects.hashCode(kids);
-            return result;
-        }
-
-        @Override
-        public String toString() {
-            return "BeastClade[taxon=" + taxon + ", date=" + date + ", lo=" + lo + ", hi=" + hi + ", posterior=" + posterior + ", kids=" + kids + "]";
-        }
     }
 
     private static final String BEAST_STRICT_CLOCK_RATE = "0.004";

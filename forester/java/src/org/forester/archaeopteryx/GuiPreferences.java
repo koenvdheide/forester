@@ -93,31 +93,6 @@ final class GuiPreferences {
         public BiConsumer<Options, String> writer() {
             return writer;
         }
-
-        @Override
-        public boolean equals(final Object value) {
-            if (!(value instanceof Pref)) {
-                return false;
-            }
-            final Pref other = (Pref) value;
-            return java.util.Objects.equals(key, other.key)
-                    && java.util.Objects.equals(reader, other.reader)
-                    && java.util.Objects.equals(writer, other.writer);
-        }
-
-        @Override
-        public int hashCode() {
-            int result = 0;
-            result = 31 * result + java.util.Objects.hashCode(key);
-            result = 31 * result + java.util.Objects.hashCode(reader);
-            result = 31 * result + java.util.Objects.hashCode(writer);
-            return result;
-        }
-
-        @Override
-        public String toString() {
-            return "Pref[key=" + key + ", reader=" + reader + ", writer=" + writer + "]";
-        }
     }
 
     private static final List<Pref> PREFS = List.of(
