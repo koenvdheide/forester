@@ -55,24 +55,6 @@ final class AlgorithmReferences {
         }
 
         @Override
-        public boolean equals(final Object value) {
-            if (!(value instanceof Reference)) {
-                return false;
-            }
-            final Reference other = (Reference) value;
-            return java.util.Objects.equals(algorithm, other.algorithm)
-                    && java.util.Objects.equals(citation, other.citation);
-        }
-
-        @Override
-        public int hashCode() {
-            int result = 0;
-            result = 31 * result + java.util.Objects.hashCode(algorithm);
-            result = 31 * result + java.util.Objects.hashCode(citation);
-            return result;
-        }
-
-        @Override
         public String toString() {
             return "Reference[algorithm=" + algorithm + ", citation=" + citation + "]";
         }}
