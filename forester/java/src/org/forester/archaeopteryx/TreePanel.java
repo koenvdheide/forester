@@ -5020,6 +5020,10 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
         return _ov_virtual_rectangle;
     }
 
+    public final float getPartitionThreshold() {
+        return _partition_threshold;
+    }
+
     public final PHYLOGENY_GRAPHICS_TYPE getPhylogenyGraphicsType() {
         return _graphics_type;
     }
@@ -5566,17 +5570,6 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
         paintCircularsLite(phy.getRoot(), phy, center_x, center_y, radius, g);
     }
 
-    public final void paintFile(final Graphics2D g,
-                                final boolean to_pdf,
-                                final int graphics_file_width,
-                                final int graphics_file_height,
-                                final int graphics_file_x,
-                                final int graphics_file_y,
-                                final boolean vector) {
-        paintPhylogeny(g, to_pdf, true, graphics_file_width, graphics_file_height,
-                graphics_file_x, graphics_file_y, vector);
-    }
-
     final void paintPhylogeny(final Graphics2D g,
                               final boolean to_pdf,
                               final boolean to_graphics_file,
@@ -5588,14 +5581,14 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
                 graphics_file_x, graphics_file_y, to_pdf);
     }
 
-    private void paintPhylogeny(final Graphics2D g,
-                                final boolean to_pdf,
-                                final boolean to_graphics_file,
-                                final int graphics_file_width,
-                                final int graphics_file_height,
-                                final int graphics_file_x,
-                                final int graphics_file_y,
-                                final boolean vector) {
+    public final void paintPhylogeny(final Graphics2D g,
+                                     final boolean to_pdf,
+                                     final boolean to_graphics_file,
+                                     final int graphics_file_width,
+                                     final int graphics_file_height,
+                                     final int graphics_file_x,
+                                     final int graphics_file_y,
+                                     final boolean vector) {
         if ((_phylogeny == null) || _phylogeny.isEmpty()) {
             return;
         }
@@ -5967,11 +5960,6 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
 
     public final void setPartitionThreshold(final float threshold) {
         _partition_threshold = threshold;
-        repaint();
-    }
-
-    public final void clearPartitionLine() {
-        _partition_threshold = 0f;
         repaint();
     }
 

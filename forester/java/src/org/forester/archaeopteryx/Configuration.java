@@ -272,7 +272,7 @@ public final class Configuration {
         this(null, false, false, false);
     }
 
-    public Configuration(final InputStream is, final boolean is_applet, final boolean verbose) {
+    public Configuration(final InputStream is, final boolean verbose) {
         _could_read_config_file = false;
         setDisplayColors(new TreeMap<String, Color>());
         try {
