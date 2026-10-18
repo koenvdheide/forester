@@ -197,6 +197,9 @@ public final class MainFrameApplication extends MainFrame {
         _embedded = embedded;
         if (embedded) {
             _configuration.setUi(Configuration.UI.FLAT_LIGHT);
+            ControlPanel.jcb_font = javax.swing.UIManager.getFont("CheckBox.font");
+            ControlPanel.jcb_bold_font = ControlPanel.jcb_font.deriveFont(Font.BOLD);
+            ControlPanel.js_font = javax.swing.UIManager.getFont("ComboBox.font");
         } else {
             installLookAndFeel(_configuration.getUi());
         }
