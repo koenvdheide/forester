@@ -691,7 +691,7 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
         repaint();
     }
 
-    /** Missing entries retain normal styling; null entries give branches their neutral colour. */
+    /** Missing entries retain normal styling, null ones get neutral branches; any entry hides provider strokes tree-wide. */
     public final void setDisplayColourProvider(
             final Function<Phylogeny, Map<PhylogenyNode, Color>> provider) {
         _display_colour_provider = provider;
