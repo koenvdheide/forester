@@ -384,6 +384,8 @@ final class NodeDataForm extends JPanel implements EditorFrame.Form {
         if ( _tree_panel != null ) {
             _tree_panel.pushUndoCheckpoint( "Edit Node Data" );
         }
+        // a branch length, not the name or the support beside it in the Basic section, can change the second layout
+        final boolean length_changed = !draft.branchLength.equals( _baseline.branchLength );
         draft.writeTo( _node, _baseline );
         // a new card's sequence now exists on the node -- bind the card to it so a later edit mutates that object
         for( int i = 0; i < _sequence_cards.size(); ++i ) {
@@ -397,7 +399,7 @@ final class NodeDataForm extends JPanel implements EditorFrame.Form {
                 final String existing = phy.getDescription();
                 phy.setDescription( ForesterUtil.isEmpty( existing ) ? prov : existing + " " + prov );
             }
-            refreshTreePanel( sections );
+            refreshTreePanel( sections, length_changed );
         }
         fireChanged();
         return true;
@@ -781,7 +783,7 @@ final class NodeDataForm extends JPanel implements EditorFrame.Form {
             if ( isEditable() ) {
                 final JPanel buttons = new JPanel( new FlowLayout( FlowLayout.LEFT, 4, 0 ) );
                 buttons.setOpaque( false );
-                buttons.add( linkButton( "+ Add property", () -> {
+                buttons.add( linkButton( "+ Add metadata field", () -> {
                     _property_model.add( new PropertyDraft() );
                     final int row = _property_model.getRowCount() - 1;
                     _property_table.setRowSelectionInterval( row, row );
@@ -791,7 +793,7 @@ final class NodeDataForm extends JPanel implements EditorFrame.Form {
                         ed.requestFocusInWindow();
                     }
                 } ) );
-                _remove_property_button = linkButton( "− Remove property", () -> {
+                _remove_property_button = linkButton( "− Remove metadata field", () -> {
                     final int row = _property_table.getSelectedRow();
                     if ( row >= 0 ) {
                         commitTableEdits();
@@ -1614,7 +1616,7 @@ final class NodeDataForm extends JPanel implements EditorFrame.Form {
 
     /** Refreshes the tree panel after a write -- only the parts the CHANGED sections can affect (each of these
      *  is a full-tree scan, so renaming one node must not rebuild every combo box). */
-    private void refreshTreePanel( final Set<String> sections ) {
+    private void refreshTreePanel( final Set<String> sections, final boolean length_changed ) {
         final TreePanel tp = _tree_panel;
         final ControlPanel cp = tp.getControlPanel();
         final boolean basic = sections.contains( NodeDataDraft.SEC_BASIC );
@@ -1627,6 +1629,13 @@ final class NodeDataForm extends JPanel implements EditorFrame.Form {
         }
         if ( sections.contains( NodeDataDraft.SEC_DATE ) ) {
             tp.invalidateTimeAxisDerivation();
+        }
+        if ( sections.contains( NodeDataDraft.SEC_DATE ) || properties || length_changed ) {
+            // a date, a clock rate or a branch length added or taken away decides whether the tree has a second layout
+            tp.invalidateBranchLengthToggle();
+            if ( cp != null ) {
+                cp.populateBranchLengthsControl();
+            }
         }
         if ( cp != null ) {
             // which Display Data checkboxes / search fields exist follows what data the tree now carries (this

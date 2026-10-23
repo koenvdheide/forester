@@ -102,36 +102,85 @@ public final class RadialNodeContentRenderTest {
             o.setGraphicsExportWhiteBackground( true );
             o.setShowOverview( false );
             tp.setOvOn( false );
-            o.setShowScale( false ); // no distance rings -> the only light-grey ink is the aligned leaders
+            o.setShowScale( false );
+            o.setShowScaleGrid( false ); // no distance rings -> the only light-grey ink is the aligned leaders
+            o.setShowScaleAxis( false );
             tp.setPhylogenyGraphicsType( Options.PHYLOGENY_GRAPHICS_TYPE.CIRCULAR );
             tp.setPreferredSize( new java.awt.Dimension( w, h ) );
             tp.setSize( w, h );
-            // UNALIGNED phylogram: labels at each tip's branch-length radius (ragged), no leaders
+            // Every circular PHYLOGRAM carries its tip labels to ONE outer ring with dotted leaders, whatever the
+            // shape button says (Christian, 2026-09-27: "no more ugly jagged rings allowed"). The CLADOGRAM is the
+            // baseline with no leaders: its tips already sit on the ring.
+            tp.getControlPanel().setTreeDisplayType( Options.PHYLOGENY_DISPLAY_TYPE.CLADOGRAM );
+            tp.calcParametersForPainting( w, h );
+            final int gray_cladogram = countGrayRings( AptxUtil.renderPhylogenyToImage( w, h, tp, o, false, 1, false ) );
             tp.getControlPanel().setTreeDisplayType( Options.PHYLOGENY_DISPLAY_TYPE.UNALIGNED_PHYLOGRAM );
             tp.calcParametersForPainting( w, h );
             final BufferedImage unaligned = AptxUtil.renderPhylogenyToImage( w, h, tp, o, false, 1, false );
             final double un_spread = anchorRadiusSpread( tp, w, h );
             final int gray_unaligned = countGrayRings( unaligned );
-            // ALIGNED phylogram: all tip labels pinned to ONE outer ring + dotted radial leaders
             tp.getControlPanel().setTreeDisplayType( Options.PHYLOGENY_DISPLAY_TYPE.ALIGNED_PHYLOGRAM );
             tp.calcParametersForPainting( w, h );
             final BufferedImage aligned = AptxUtil.renderPhylogenyToImage( w, h, tp, o, false, 1, false );
             final double al_spread = anchorRadiusSpread( tp, w, h );
             final int gray_aligned = countGrayRings( aligned );
-            if ( un_spread < 20 ) {
-                fail( ok, "precondition: unaligned circular phylogram tip-label anchors must vary by radius (spread "
-                        + un_spread + ")" );
+            if ( ( un_spread > 1.5 ) || ( al_spread > 1.5 ) ) {
+                fail( ok, "every circular phylogram must pin ALL tip labels to ONE ring (anchor radius spread P="
+                        + un_spread + " A=" + al_spread + ")" );
             }
-            if ( al_spread > 1.5 ) {
-                fail( ok, "aligned circular phylogram must pin ALL tip labels to ONE ring (anchor radius spread "
-                        + al_spread + ")" );
+            // the leaders, measured where they are: along the shortest tip's spoke from just past the tip to just
+            // short of the ring, the samples are light-grey ink in the phylogram (dotted, so not all of them) and
+            // paper in the cladogram, whose tips already sit on the ring. (A whole-image light-grey COUNT could not
+            // see this: a cladogram's longer spokes have more antialiasing fringe than a phylogram's leaders --
+            // measured 2538 against 2449 -- so the count went the wrong way.)
+            final double leader_p = leaderCoverage( tp, unaligned, w, h );
+            if ( leader_p < 0.25 ) {
+                fail( ok, "every circular phylogram must draw dotted tip->ring leaders (" + Math.round( 100 * leader_p )
+                        + "% of the samples between the shortest tip and the ring are light-grey; unused counts P="
+                        + gray_unaligned + " A=" + gray_aligned + " C=" + gray_cladogram + ")" );
             }
-            if ( gray_aligned <= ( gray_unaligned + 150 ) ) {
-                fail( ok, "aligned circular phylogram must draw dotted tip->ring leaders (light-grey px " + gray_aligned
-                        + " aligned vs " + gray_unaligned + " unaligned)" );
+            if ( countDark( unaligned ) != countDark( aligned ) ) {
+                fail( ok, "the shape button must make no difference in circular: P and A must render the same ink ("
+                        + countDark( unaligned ) + " vs " + countDark( aligned ) + " dark px)" );
             }
         }, ok );
         return ok[ 0 ];
+    }
+
+    /** The share of light-grey samples on the segment from the shortest external tip (4 px past it) to its label
+     *  anchor on the ring (4 px short of it): the leader, where one is drawn. */
+    private static double leaderCoverage( final TreePanel tp, final BufferedImage img, final int w, final int h ) {
+        final double cx = (int) ( w / 2 ), cy = (int) ( h / 2 );
+        org.forester.phylogeny.PhylogenyNode shortest = null;
+        double shortest_r = Double.MAX_VALUE;
+        for ( final org.forester.phylogeny.PhylogenyNode n : tp.getPhylogeny().getExternalNodes() ) {
+            final double r = Math.hypot( n.getXcoord() - cx, n.getYcoord() - cy );
+            if ( r < shortest_r ) {
+                shortest_r = r;
+                shortest = n;
+            }
+        }
+        final java.awt.geom.Point2D.Double a = tp.circularLabelAnchorForTest( shortest );
+        final double dx = a.x - shortest.getXcoord(), dy = a.y - shortest.getYcoord();
+        final double len = Math.hypot( dx, dy );
+        if ( len < 12 ) {
+            return 1; // no gap to bridge: nothing to measure, nothing to fail
+        }
+        int samples = 0, grey = 0;
+        for ( double t = 4; t <= ( len - 4 ); t += 1 ) {
+            final int x = (int) Math.round( shortest.getXcoord() + ( dx * t / len ) );
+            final int y = (int) Math.round( shortest.getYcoord() + ( dy * t / len ) );
+            if ( ( x < 0 ) || ( y < 0 ) || ( x >= img.getWidth() ) || ( y >= img.getHeight() ) ) {
+                continue;
+            }
+            ++samples;
+            final int rgb = img.getRGB( x, y ) & 0xFFFFFF;
+            final int min = Math.min( ( rgb >> 16 ) & 0xFF, Math.min( ( rgb >> 8 ) & 0xFF, rgb & 0xFF ) );
+            if ( ( min < 0xF0 ) && ( min > 0x60 ) ) {
+                ++grey; // light-grey: a leader dot, not black tree ink and not paper
+            }
+        }
+        return ( samples == 0 ) ? 0 : ( (double) grey / samples );
     }
 
     /** max-min of the external tips' circular label-anchor radii about the ring centre (w/2, h/2): ~0 when aligned
@@ -442,7 +491,7 @@ public final class RadialNodeContentRenderTest {
     }
 
     /** A circular PHYLOGRAM (Draw Phylogram + branch lengths) positions each tip by its DISTANCE-to-root (not all on
-     *  one outer ring like a cladogram), and draws concentric distance RINGS. Checked transform-independently: a tip's
+     *  one outer ring like a cladogram), and draws concentric distance RINGS for the Scale Grid. Checked transform-independently: a tip's
      *  distance from the ring centre (root) must scale with its distance-to-root; and the faint light-grey ring circles
      *  must be present on the white theme. */
     private static boolean circularPhylogramOk() {
@@ -457,8 +506,11 @@ public final class RadialNodeContentRenderTest {
             tp.setPhylogenyGraphicsType( Options.PHYLOGENY_GRAPHICS_TYPE.CIRCULAR );
             tp.setPreferredSize( new java.awt.Dimension( w, h ) );
             tp.setSize( w, h );
-            // render the phylogram with the SCALE OFF (no rings) -- positions the tips + the rings-off reference
+            // render the phylogram with the SCALE GRID OFF (no rings) -- positions the tips + the rings-off reference;
+            // the scale bar and axis off too, so the delta below is the rings alone
+            o.setShowScaleGrid( false );
             o.setShowScale( false );
+            o.setShowScaleAxis( false );
             tp.calcParametersForPainting( w, h );
             final BufferedImage no_rings = AptxUtil.renderPhylogenyToImage( w, h, tp, o, false, 1, false );
             final org.forester.phylogeny.PhylogenyNode root = tp.getPhylogeny().getRoot();
@@ -489,16 +541,17 @@ public final class RadialNodeContentRenderTest {
                 fail( ok, "circular phylogram tip radius must scale with distance-to-root (radius ratio " + actual
                         + " vs distance ratio " + expected + ")" );
             }
-            // (2) turning the SCALE on adds the concentric distance rings on the SAME phylogram layout, so the grey
-            // anti-aliasing ink from branches/labels cancels and the delta is PURELY the rings -- platform-robust
-            // (no absolute threshold). The rings are gated on the "Scale" option, like the rectangular scale bar.
-            o.setShowScale( true );
+            // (2) turning the SCALE GRID on adds the concentric distance rings on the SAME phylogram layout, so the
+            // grey anti-aliasing ink from branches/labels cancels and the delta is PURELY the rings -- platform-robust
+            // (no absolute threshold). The rings are the circular Scale Grid, as the grid lines are elsewhere (until
+            // 2026-09-30 they followed "Scale"; CircularScaleAxisTest pins that Scale alone no longer draws them).
+            o.setShowScaleGrid( true );
             tp.calcParametersForPainting( w, h );
             final BufferedImage with_rings = AptxUtil.renderPhylogenyToImage( w, h, tp, o, false, 1, false );
             final int g_off = countGrayRings( no_rings );
             final int g_on = countGrayRings( with_rings );
             if ( g_on <= ( g_off + 1500 ) ) {
-                fail( ok, "a circular phylogram must draw concentric distance rings when the scale is shown (grey px "
+                fail( ok, "a circular phylogram must draw concentric distance rings for the Scale Grid (grey px "
                         + g_on + " with vs " + g_off + " without)" );
             }
         }, ok );
@@ -763,13 +816,18 @@ public final class RadialNodeContentRenderTest {
             }
 
             // INTERNAL-node labels render radially: turning "Show Internal Data" on adds MORE dark ink (the clade
-            // roots' "[order] <taxon>" labels) over the tips-only render
+            // roots' "[order] <taxon>" labels) over the tips-only render. Auto-hide OFF from here: this demo's one
+            // clade label lies across a tip label, and the label rule (tips first) rightly hides it -- which is
+            // RadialTipLabelRenderTest's business; this test asks whether the labels render at all.
+            cp.setCheckbox( DisplayOption.DYNAMICALLY_HIDE_DATA, false );
+            tp.calcParametersForPainting( w, h );
+            final int tips_only_unhidden = countDark( AptxUtil.renderPhylogenyToImage( w, h, tp, o, false, 1, false ) );
             cp.setCheckbox( DisplayOption.DISPLAY_INTERNAL_DATA, true );
             tp.calcParametersForPainting( w, h );
             final int with_internal = countDark( AptxUtil.renderPhylogenyToImage( w, h, tp, o, false, 1, false ) );
-            if ( with_internal <= ( tips_only + 100 ) ) {
+            if ( with_internal <= ( tips_only_unhidden + 100 ) ) {
                 fail( ok, "internal-node labels must render radially with Show Internal Data on (dark ink "
-                        + with_internal + " vs tips-only " + tips_only + ")" );
+                        + with_internal + " vs tips-only " + tips_only_unhidden + ")" );
             }
 
             // UNROOTED: internal-node labels ride the branch there too (added dark ink over internal-data-off)

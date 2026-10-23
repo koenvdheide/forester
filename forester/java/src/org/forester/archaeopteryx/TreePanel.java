@@ -97,7 +97,6 @@ import org.forester.archaeopteryx.Options.CLADOGRAM_TYPE;
 import org.forester.archaeopteryx.Options.NODE_LABEL_DIRECTION;
 import org.forester.archaeopteryx.Options.PHYLOGENY_GRAPHICS_TYPE;
 import org.forester.archaeopteryx.phylogeny.data.RenderableDomainArchitecture;
-import org.forester.io.parsers.json.AuspiceJsonParser;
 import org.forester.phylogeny.Phylogeny;
 import org.forester.phylogeny.PhylogenyMethods;
 import org.forester.phylogeny.PhylogenyMethods.DESCENDANT_SORT_PRIORITY;
@@ -237,6 +236,8 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
     // radius. Cap that reservation at this fraction of the available radius, so a tree whose labels are long relative
     // to the canvas still draws a real circle/fan (the labels then extend past the canvas edge -- zoom out or use
     // "Shorten Labels" to see them) instead of collapsing the whole tree onto the centre point.
+    // (Superseded by the "Tree share" setting, which now governs the radius split in circularRadius the way it
+    // governs the width split in the rectangular layouts; kept for the unrooted fan, which reserves separately.)
     private final static double RADIAL_LABEL_MAX_RATIO = 0.5;
     // Floor the circular tip-ring at this fraction of the available radius so a wide domain track (reserved fully)
     // can't collapse the ring to nothing; only a pathologically huge domain track then clips.
@@ -372,7 +373,6 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
     private final static double DOMAIN_WIDTH_MAX = 2000;
     private final static double DOMAIN_WIDTH_GROW = 1.2;   // one d+ press
     private final static double DOMAIN_WIDTH_SHRINK = 0.8; // one d- press
-    private int _dynamic_hiding_factor = 0;
     private boolean _edited = false;
     private final Ellipse2D _ellipse = new Ellipse2D.Float();
     private int _external_node_index = 0;
@@ -404,6 +404,18 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
     private float _last_drag_point_y = 0;
     private final Line2D _line = new Line2D.Float();
     private int _longest_ext_node_info = 0;
+    /**
+     * A hard pixel cap on the DRAWN width of a tip's text label, or {@link Integer#MAX_VALUE} for none -- what the
+     * rectangular layouts fall back on once the label font auto-fit has reached its readability floor and the labels
+     * still overflow the width the budget leaves them. Above that floor the fit is done by SHRINKING the font, which
+     * keeps every character; only below it does shortening the text become the lesser evil. Reset at the top of every
+     * layout pass, so a pass never inherits the previous pass's cap and mistakes a capped label for a short one.
+     * <p>
+     * Read through {@link #maxTipLabelTextWidth()} by both the reservation and the paint, exactly as the radial
+     * layouts' {@link #radialMaxLabelWidth()} is -- a label measured at one width and drawn at another is how a label
+     * ends up sitting on top of the alignment.
+     */
+    private int _tip_label_pixel_cap = Integer.MAX_VALUE;
     private PhylogenyNode _ext_node_with_longest_txt_info = null;
     private MainPanel _main_panel = null;
     private double _max_distance_to_root = -1;
@@ -412,6 +424,7 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
     private NodeHoverCard _hover_card;
     private PhylogenyNode _hover_card_node;
     private AnnotationCell _hover_card_cell;
+    private DomainHit      _hover_card_domain;
     private int _hover_card_x;
     private int _hover_card_y;
     private long _hover_card_shown_at;
@@ -484,9 +497,14 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
     // retained on the tree (the <date> values + the nextstrain:div properties), so switching just rewrites the branch
     // lengths from the retained metadata -- a pure display mode (no setEdited / no undo). Default TIME = the loaded default.
     private BranchLengthLayout.MODE _branch_length_mode = BranchLengthLayout.MODE.TIME;
-    // applicability (carries both a date AND a nextstrain:div) is a function of the tree's data, so cache it by tree
-    // identity (like the derived-time-axis cache); a mode toggle doesn't change it, only a tree replacement does
+    // whether the switch is offered: a function of the whole tree's data AND of its lengths in time, cached by the
+    // whole tree's identity and forgotten wherever the mode or the kept lengths change (switch, undo, Reset, arrival)
     private Phylogeny _branch_length_toggle_for = null;
+    // the lengths this tab's branches had in time when it last left time: what Time gives back. Immutable; an undo
+    // snapshot carries the ones of its moment
+    private BranchLengthLayout.TimeLengths _time_lengths = null;
+    // whether this tab has asked its tree, once, which layout it ARRIVED in
+    private boolean _branch_length_arrival_known = false;
     private boolean   _branch_length_toggle_applicable     = false;
     private final RenderingHints _rendering_hints = new RenderingHints(RenderingHints.KEY_RENDERING,
             RenderingHints.VALUE_RENDER_DEFAULT);
@@ -563,8 +581,40 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
     private int _circular_center_x = 0;
     private int _circular_center_y = 0;
     private int _circular_radius = 0;
+    // The device angle of the circular SEAM in the last paint: the centre line of the gap between the last displayed
+    // tip and the first, where the Scale Axis ruler runs (paintCircularScaleAxis).
+    private double _circular_seam_angle = 0;
     final private HashMap<Long, Double> _urt_nodeid_angle_map = new HashMap<>();
-    final private HashMap<Long, Integer> _urt_nodeid_index_map = new HashMap<>();
+    /** The UNROOTED layout's per-tip spoke angle, recorded as the tips are painted. Unlike the circular
+     *  layout's map above, this angle is only ever a recursion parameter, so without recording it the domain
+     *  rollover could not find the track it is looking at without re-running the layout. */
+    final private HashMap<Long, Double> _unrooted_tip_angle_map = new HashMap<>();
+
+    /** Node ids whose domain track the last SCREEN paint actually DREW -- what {@link #domainAt} hit-tests against.
+     *  The painters drop a tip's track for reasons the geometry cannot see: "Auto-hide Labels" keeps only every
+     *  n-th tip (paintNodeRectangular returns before the data), viewport culling drops an off-screen node
+     *  (isNodeDataInvisible), a collapsed clade hides its tips. Re-deriving each of those rules in the hit-test is
+     *  the defect that keeps coming back -- the rollover reported a domain nobody could see -- so instead the
+     *  DRAWING code records what it drew and the hit-test asks it. One rule per painter, kept in step by
+     *  construction, in every layout.
+     *  <p>
+     *  Screen paints only: an export runs the same painters with the culls switched OFF, so recording one would
+     *  hand the rollover a set that does not match the screen. {@link #_recording_domain_paints} is the gate, set
+     *  once per {@link #paintPhylogeny}.
+     *  <p>
+     *  MEASURED, so that the next reader does not have to guess why three sabotages of this survive. Only the
+     *  RECTANGULAR family drops a track today: paintNodeRectangular returns before the node data when
+     *  "Auto-hide Labels" is not keeping this tip. The two radial painters draw every external, non-collapsed
+     *  tip that has an architecture and an angle -- which is exactly what the radial hit-tests filter on
+     *  themselves, down to the radius and row-unit guards -- so there the record cannot currently differ from
+     *  the loop, and removing the check changes nothing. It stays in all three because it is the SAME rule in
+     *  all three: a hiding rule added to a radial painter later must not be able to reopen this. Likewise the
+     *  export gate: an export's set is a SUPERSET (it skips viewport culling), and the pointer is always inside
+     *  the viewport, so today it cannot produce a wrong hit -- it guards against an export laid out at another
+     *  SIZE leaving a record that has nothing to do with the screen. */
+    final private java.util.HashSet<Long> _domains_painted = new java.util.HashSet<>();
+    private boolean _layout_is_screen_layout = true;
+    private boolean _recording_domain_paints = false;
     private double _urt_starting_angle = (float) (Math.PI
             / 2);
     private float _x_correction_factor = 0.0f;
@@ -994,6 +1044,7 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
             _pending_tree_change = TreeChangeListener.Kind.REPLACE;
         }
         _phylogeny = t;
+        invalidateAlignmentLength(); // new data: the memo must not outlive the tree it was measured from
     }
 
     /** Installs a copy made within this view's node-ID lineage; completion still uses setEdited. */
@@ -1102,13 +1153,21 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
         return (int) (0.5 + (getFontMetricsForLargeDefaultFont().getHeight() / (1.5 * getYdistance())));
     }
 
-    /** Whether the CURRENT layout hides tip labels via "Dyna Hide" (the option is on AND the labels are too dense
-     *  to fit) -- used to warn on a graphics export at a small size that some labels were dropped. Reads the live
-     *  layout (getYdistance), so it is meaningful only right after a layout/paint. Rectangular family only: the
-     *  radial layouts have their own hiding logic, so return false there rather than mis-warn. */
+    /** Whether the CURRENT layout hides labels via "Auto-hide Labels" -- used to warn on a graphics export at a
+     *  small size that some labels were dropped. Rectangular: the option is on AND the rows are too close for the
+     *  font (reads the live layout, getYdistance, so it is meaningful only right after a layout). Circular and
+     *  unrooted: the option is on AND the LAST PAINT hid at least one tip or clade label under the radial rule
+     *  (the counters are reset at the start of every pass), so there it is meaningful only right after a paint --
+     *  which is how the export report calls it, after the export image has been rendered. Until 2026-09-27 this
+     *  returned false for the radial layouts outright, so a circular export that dropped labels never warned. */
     final boolean labelsDynamicallyHidden() {
-        return !isRadialLayout() && (getControlPanel() != null) && shows(DisplayOption.DYNAMICALLY_HIDE_DATA)
-                && (calcDynamicHidingFactor() > 1);
+        if ((getControlPanel() == null) || !shows(DisplayOption.DYNAMICALLY_HIDE_DATA)) {
+            return false;
+        }
+        if (isRadialLayout()) {
+            return (_labels_hidden + _internal_labels_hidden) > 0;
+        }
+        return calcDynamicHidingFactor() > 1;
     }
 
     /** Where the ALIGNED domain column is anchored ({@code tip_x + _length_of_longest_text}). This is a
@@ -1290,6 +1349,17 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
     final float alignedPhylogramDomainColumnX() {
         return (float) (((displayedMaxDistanceToRoot() - rootBranchInMaxDistance()) * getXcorrectionFactor())
                 + _length_of_longest_text + _phylogeny.getRoot().getXcoord());
+    }
+
+    /** Test hooks for the two gates that decide whether a branch's numbers are drawn. Both must treat a
+     *  value of ZERO as a value: a zero-length branch and a support of zero are facts about the tree, and the
+     *  absence of either is carried by a sentinel, never by the number being 0. */
+    final boolean shouldWriteBranchLengthForTest( final PhylogenyNode node ) {
+        return shouldWriteBranchLength( node );
+    }
+
+    final boolean isShowConfidenceValuesForNodeForTest( final PhylogenyNode node ) {
+        return isShowConfidenceValuesForNode( node );
     }
 
     /** Test hook: the right edge of the widest aligned domain track in a phylogram (column x + the widest drawn
@@ -1559,6 +1629,7 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
         setCopiedAndPastedNodes(null);
         setCutOrCopiedTree(_phylogeny.copy(node));
         deleteSubtreePreservingConnection(node);
+        settleMergedBranchesInTime();
         _phylogeny.clearHashIdToNodeMap();
         _phylogeny.recalculateNumberOfExternalDescendants(true);
         resetNodeIdToDistToLeafMap();
@@ -1587,6 +1658,7 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
      * descendants threw, over and over, inside the EDT paint loop.
      */
     void afterTreeStructureChanged() {
+        settleMergedBranchesInTime();
         setNodeInPreorderToNull();
         if ((_phylogeny != null) && !_phylogeny.isEmpty()) {
             _phylogeny.externalNodesHaveChanged();
@@ -2193,6 +2265,25 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
         return _in_ov;
     }
 
+    /** Record that {@code node}'s domain track was just DRAWN. Called from every domain painter, right where it
+     *  draws, so the record cannot drift from the drawing. No-op on an export (see {@link #_domains_painted}). */
+    final private void recordDomainPainted(final PhylogenyNode node) {
+        if (_recording_domain_paints) {
+            _domains_painted.add(node.getId());
+        }
+    }
+
+    /** Whether the last screen paint drew {@code node}'s domain track -- the hit-test's licence to report a domain
+     *  on that tip. False before the first paint, which is correct: nothing has been drawn yet. */
+    final private boolean domainTrackWasPainted(final PhylogenyNode node) {
+        return _domains_painted.contains(node.getId());
+    }
+
+    /** Test hook: whether the last SCREEN paint drew {@code node}'s domain track (exports record nothing). */
+    final boolean domainTrackWasPaintedForTest(final PhylogenyNode node) {
+        return domainTrackWasPainted(node);
+    }
+
     final private boolean isNodeDataInvisible(final PhylogenyNode node) {
         // work entirely in LOGICAL space (node coords are logical): map the viewport back through R once, then cull the
         // node's incoming-branch elbow bounding box, grown by the label reach so a node whose (possibly tilted) label
@@ -2793,20 +2884,33 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
         // fade a non-hit's branch-length number too (same dimNonMatch wash as the name/taxonomy labels)
         g.setColor(dimNonMatch(inkColor(to_pdf, to_graphics_file, getTreeColorSet().getBranchLengthColor()),
                 isInFoundNodes(node), bl_bw));
+        // Anchored at the branch start and running rightward, so on a short branch it runs over its neighbour.
+        final String bl_str = FORMATTER_BRANCH_LENGTH.format(node.getDistanceToParent());
+        // The SAME offset the draw below uses: EURO_STYLE and ROUNDED start the number further right (their
+        // branch joints do), and claiming at +3 there would reserve 5-7 px of empty space while leaving the
+        // number's real tail unprotected.
+        final float bl_x = node.isRoot() ? 3 : (node.getParent().getXcoord() + branchLengthTextOffset());
+        final float bl_baseline = node.getYcoord() - getTreeFontSet().getSmallMaxDescent();
+        // ...and the branch length from the branch line UP, for the same reason (see paintConfidenceValues).
+        final float bl_h = getTreeFontSet().getFontMetricsSmall().getHeight();
+        if (!claimNumberSpace(node, bl_x, node.getYcoord() - bl_h,
+                getTreeFontSet().getFontMetricsSmall().stringWidth(bl_str), bl_h)) {
+            return;
+        }
         if (!node.isRoot()) {
             if (getPhylogenyGraphicsType() == PHYLOGENY_GRAPHICS_TYPE.EURO_STYLE) {
                 TreePanel.drawString(FORMATTER_BRANCH_LENGTH.format(node.getDistanceToParent()),
-                        node.getParent().getXcoord() + EURO_D,
+                        node.getParent().getXcoord() + branchLengthTextOffset(),
                         node.getYcoord() - getTreeFontSet().getSmallMaxDescent(),
                         g);
             } else if (getPhylogenyGraphicsType() == PHYLOGENY_GRAPHICS_TYPE.ROUNDED) {
                 TreePanel.drawString(FORMATTER_BRANCH_LENGTH.format(node.getDistanceToParent()),
-                        node.getParent().getXcoord() + ROUNDED_D,
+                        node.getParent().getXcoord() + branchLengthTextOffset(),
                         node.getYcoord() - getTreeFontSet().getSmallMaxDescent(),
                         g);
             } else {
                 TreePanel.drawString(FORMATTER_BRANCH_LENGTH.format(node.getDistanceToParent()),
-                        node.getParent().getXcoord() + 3,
+                        node.getParent().getXcoord() + branchLengthTextOffset(),
                         node.getYcoord() - getTreeFontSet().getSmallMaxDescent(),
                         g);
             }
@@ -2816,6 +2920,18 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
                     node.getYcoord() - getTreeFontSet().getSmallMaxDescent(),
                     g);
         }
+    }
+
+    /** Where a branch-length number starts, measured from the parent's x -- the joint styles push it clear of
+     *  their own elbow. One source, so the claimed box and the drawn text can never disagree. */
+    private float branchLengthTextOffset() {
+        if (getPhylogenyGraphicsType() == PHYLOGENY_GRAPHICS_TYPE.EURO_STYLE) {
+            return EURO_D;
+        }
+        if (getPhylogenyGraphicsType() == PHYLOGENY_GRAPHICS_TYPE.ROUNDED) {
+            return ROUNDED_D;
+        }
+        return 3;
     }
 
     final private void paintBranchLite(final Graphics2D g,
@@ -3361,7 +3477,11 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
             final Font font = collapsedLabelFont(look.full);
             g.setFont(font);
             g.setColor(look.ink);
-            TreePanel.drawString(look.label, label_x, y + (getFontMetrics(font).getAscent() / 3.0f), g);
+            // truncated to the same cap its reservation used (calculateLongestExtNodeInfo), so a collapsed label
+            // gives ground with the tip labels instead of being the one thing that keeps overflowing
+            final String text = TreePanelUtil.truncateToPixelWidth(getFontMetrics(font), look.label,
+                                                                   maxTipLabelTextWidth());
+            TreePanel.drawString(text, label_x, y + (getFontMetrics(font).getAscent() / 3.0f), g);
             g.setFont(saved_font);
             g.setColor(saved_color);
         });
@@ -3395,22 +3515,14 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
         final double far_y = y + (sin * reach[1]);
         double ax = far_x;
         double ay = far_y;
-        if (circular && isAlignedCircularPhylogram() && (_circular_radius > 0)) {
+        final boolean on_ring = circular && circularLabelsOnRing() && (_circular_radius > 0);
+        if (on_ring) {
             ax = _circular_center_x + (_circular_radius * cos);
             ay = _circular_center_y + (_circular_radius * sin);
-            if (Math.hypot(ax - far_x, ay - far_y) >= 1) {
-                final java.awt.Stroke saved_stroke = g.getStroke();
-                final Color saved_color = g.getColor();
-                g.setStroke(LEADER_STROKE);
-                g.setColor(connectorColor());
-                drawLine(far_x, far_y, ax, ay, g);
-                g.setStroke(saved_stroke);
-                g.setColor(saved_color);
-            }
         }
         final Font font = collapsedLabelFont(look.full);
         final FontMetrics fm = getFontMetrics(font);
-        final String text = TreePanelUtil.truncateToPixelWidth(fm, look.label, Math.max(0, radialMaxLabelWidth()));
+        final String text = TreePanelUtil.truncateToPixelWidth(fm, look.label, Math.max(0, maxTipLabelTextWidth()));
         final float gap = effectiveNodeHalfBoxSize(clade) + 3f;
         final double total_w = gap + fm.stringWidth(text);
         double m = angle % TWO_PI;
@@ -3418,20 +3530,56 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
             m += TWO_PI;
         }
         final boolean left = (m > HALF_PI) && (m < ONEHALF_PI);
+        // placed and flipped exactly as a radial tip label is (paintNodeDataUnrootedCirc) -- and, like a tip label,
+        // it CLAIMS its space: asked of the labels already drawn, placed for those still to come, counted and
+        // recorded. Drawn with a bare drawString it was invisible to the rule -- a neighbouring name or a number was
+        // then granted the same space and printed through it (a review find, 2026-09-27). A clade holding a search
+        // hit is drawn regardless, like a found tip's label.
+        final AffineTransform frame = new AffineTransform();
+        if (radial_labels) {
+            frame.rotate(left ? (m - PI) : m, ax, ay);
+        }
+        if (left) {
+            frame.translate(-(total_w + gap), 0);
+        }
+        final double baseline = ay + (fm.getAscent() / 3.0f);
+        final double lw = fm.stringWidth(text), lh = fm.getAscent() + fm.getDescent();
+        final Point2D.Double centre = new Point2D.Double(ax + gap + (lw / 2.0), (baseline - fm.getAscent()) + (lh / 2.0));
+        frame.transform(centre, centre);
+        final double theta = radial_labels ? m : 0;
+        if (lw > 0) {
+            if (autoHideCrowdedData() && (look.found == 0) && !isInFoundNodes(clade)
+                    && _label_occupancy.overlaps(centre.x, centre.y, lw / 2.0, lh / 2.0, theta)) {
+                ++_labels_hidden;
+                if (_refused_label_boxes_for_test != null) {
+                    _refused_label_boxes_for_test.add(new double[] { centre.x, centre.y, lw / 2.0, lh / 2.0, theta,
+                            clade.getId() });
+                }
+                return; // no label, and no leader either: a leader appears iff its label does
+            }
+            if (autoHideCrowdedData()) {
+                _label_occupancy.place(centre.x, centre.y, lw / 2.0, lh / 2.0, theta);
+            }
+            ++_labels_drawn;
+            if (_label_boxes_for_test != null) {
+                _label_boxes_for_test.add(new double[] { centre.x, centre.y, lw / 2.0, lh / 2.0, theta, clade.getId() });
+            }
+        }
+        if (on_ring && (Math.hypot(ax - far_x, ay - far_y) >= 1)) {
+            final java.awt.Stroke saved_stroke = g.getStroke();
+            final Color saved_color = g.getColor();
+            g.setStroke(LEADER_STROKE);
+            g.setColor(connectorColor());
+            drawLine(far_x, far_y, ax, ay, g);
+            g.setStroke(saved_stroke);
+            g.setColor(saved_color);
+        }
         final Font saved_font = g.getFont();
         final Color saved_color = g.getColor();
-        // placed and flipped exactly as a radial tip label is (paintNodeDataUnrootedCirc)
-        if (radial_labels) {
-            g.rotate(left ? (m - PI) : m, ax, ay);
-            if (left) {
-                g.translate(-(total_w + gap), 0);
-            }
-        } else if (left) {
-            g.translate(-(total_w + gap), 0);
-        }
+        g.transform(frame);
         g.setFont(font);
         g.setColor(look.ink);
-        TreePanel.drawString(text, (float) (ax + gap), (float) (ay + (fm.getAscent() / 3.0f)), g);
+        TreePanel.drawString(text, (float) (ax + gap), (float) baseline, g);
         g.setTransform(saved);
         g.setFont(saved_font);
         g.setColor(saved_color);
@@ -3525,11 +3673,20 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
             g.setColor(dimNonMatch(inkColor(to_pdf, to_graphics_file, getTreeColorSet().getConfidenceColor()),
                     isInFoundNodes(node), conf_bw));
             final String conf_str = sb.toString();
-            TreePanel.drawString(conf_str,
-                    parent_x + ((x - parent_x
-                            - getTreeFontSet().getFontMetricsSmall().stringWidth(conf_str)) / 2),
-                    (node.getYcoord() + getTreeFontSet().getSmallMaxAscent()) - 1,
-                    g);
+            final float conf_w = getTreeFontSet().getFontMetricsSmall().stringWidth(conf_str);
+            final float conf_x = parent_x + ((x - parent_x - conf_w) / 2);
+            final float conf_baseline = (node.getYcoord() + getTreeFontSet().getSmallMaxAscent()) - 1;
+            // Centred on the branch, so on a short branch it reaches past BOTH ends -- harmless with nothing
+            // near it, mislabelling when it lands on a neighbour's number. Ask whether it actually would.
+            // From the branch line DOWN. The confidence sits below the line and the branch length above it, and
+            // their boxes would otherwise share the single pixel at the line (conf top = Ycoord - 1, length
+            // bottom = Ycoord) -- enough for a node's own two numbers to refuse each other on a short branch
+            // although no ink overlaps.
+            if (!claimNumberSpace(node, conf_x, node.getYcoord(), conf_w,
+                    getTreeFontSet().getFontMetricsSmall().getHeight())) {
+                return;
+            }
+            TreePanel.drawString(conf_str, conf_x, conf_baseline, g);
         }
     }
 
@@ -3569,6 +3726,15 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
         final boolean found = isInFoundNodes(node);
         final float baseline = (float) (mid.y + (getTreeFontSet().getSmallMaxAscent() / 2.0) - 1);
         float x = (float) (mid.x + VERTICAL_BRANCH_LABEL_PAD);
+        // Drawn in the BASE frame (the numbers stay horizontal beside a branch that runs down the screen), so the
+        // box claimed here is in device coordinates like every other -- the one occupancy map covers both.
+        final String whole = support.isEmpty() ? length : (length.isEmpty() ? support : (support + " " + length));
+        if (!claimNumberSpace(node, x, baseline - getTreeFontSet().getSmallMaxAscent(),
+                getTreeFontSet().getFontMetricsSmall().stringWidth(whole),
+                getTreeFontSet().getFontMetricsSmall().getHeight())) {
+            g.setTransform(saved);
+            return;
+        }
         if (!support.isEmpty()) {
             g.setColor(dimNonMatch(inkColor(to_pdf, to_graphics_file, getTreeColorSet().getConfidenceColor()), found, bw));
             TreePanel.drawString(support, x, baseline, g);
@@ -3581,15 +3747,32 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
         }
         g.setTransform(saved);
     }
-
     /**
-     * Support (confidence) + branch-length NUMBERS for a RADIAL (circular/unrooted) layout: drawn at the incoming
-     * branch's midpoint, ROTATED to ride the branch (like the radial labels), centred on the midpoint and offset just
-     * off the line -- the support in the confidence colour, then a space, then the length in the branch-length colour.
-     * The rectangular layout draws these in paintConfidenceValues / paintBranchLength (which are horizontal-branch
-     * only, gated by isShowConfidenceValuesForNode / shouldWriteBranchLength); this is the radial equivalent, with the
-     * gate inlined (no layout term -- this method is only called from the radial paths). {@code branch_angle} is the
-     * direction of the node's incoming branch; {@code (mid_x,mid_y)} its device midpoint.
+     * Support (confidence) and branch-length NUMBERS for a RADIAL (circular/unrooted) layout: each drawn at the
+     * incoming branch's midpoint, ROTATED to ride the branch (like the radial labels) and kept upright on the far
+     * half of the fan -- the branch length on ONE side of the branch line and the support on the OTHER, which is
+     * the placement the rectangular layouts already use ({@link #paintBranchLength} draws the length above the
+     * branch, {@link #paintConfidenceValues} the support below it). Each is centred on the midpoint rather than
+     * set beside the other, so a short leg that cannot carry "88 0.4" still carries "88" and "0.4".
+     * <p>
+     * Clearance comes from the font's LINE box, exactly as in the rectangular pair: the text's box is placed FLUSH
+     * against the branch line, never a fixed offset from the baseline. A baseline is the BOTTOM of the text, so an
+     * offset applied to it is not symmetric between the two sides -- the version here that flipped a +/-2 px
+     * baseline offset for the far half of the fan put the whole 11 px ascent back across the branch, measured at 6
+     * of 6 circular branches struck through by their own spoke. Placing the box also means a bracket or a
+     * descender in a confidence label cannot reach the line, where a digit-shaped assumption would.
+     * <p>
+     * A number that would lie across a branch OTHER than its own is refused, like a number that would lie across
+     * another number: in the unrooted layout sibling branches leave one node a few degrees apart, so a number that
+     * outreaches its short branch lay over its sibling's or back over the parent's, and in circular over the arc or
+     * the children's legs (see {@link BranchObstacles} for the measurements). That is why this runs AFTER the tree
+     * is drawn, from the queue the radial painters fill ({@link #paintQueuedRadialBranchData}): the lines it must
+     * not cross are only all known then.
+     * <p>
+     * The rectangular layout's two painters are horizontal-branch only (gated by isShowConfidenceValuesForNode /
+     * shouldWriteBranchLength); this is the radial equivalent, with the gate inlined (no layout term -- this method
+     * is only reached from the radial paths). {@code branch_angle} is the direction of the node's incoming branch;
+     * {@code (mid_x,mid_y)} its device midpoint.
      */
     private void paintBranchDataRadial(final Graphics2D g, final PhylogenyNode node, final double mid_x,
                                        final double mid_y, final double branch_angle, final boolean to_pdf,
@@ -3614,11 +3797,6 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
             return;
         }
         g.setFont(getTreeFontSet().getSmallFont());
-        final FontMetrics fm = getTreeFontSet().getFontMetricsSmall();
-        final int gap_w = (support.isEmpty() || length.isEmpty()) ? 0 : fm.stringWidth(" ");
-        final int total_w = fm.stringWidth(support) + gap_w + fm.stringWidth(length);
-        final boolean bw = (to_pdf || to_graphics_file) && getOptions().isExportBlackAndWhite();
-        final boolean found = isInFoundNodes(node);
         double m = branch_angle % TWO_PI;
         if (m < 0) {
             m += TWO_PI;
@@ -3628,24 +3806,103 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
             m -= PI; // keep the numbers upright on the far half of the fan
             flipped = true;
         }
+        // The frame of the far half of the fan is half a turn round, so the two sides SWAP there: keeping each
+        // number on the same LOCAL side would put the length outside the spoke on one half and inside it on the
+        // other, and the fan would read as two different figures.
+        final FontMetrics fm = getTreeFontSet().getFontMetricsSmall();
+        final double length_base = radialBranchNumberBaseline(flipped);
+        final double support_base = radialBranchNumberBaseline(!flipped);
+        // ONE claim for the pair, covering both line boxes. Not one each: the occupancy map is axis-aligned in
+        // DEVICE space, and on a diagonal branch the bounds of the two rotated boxes overlap heavily even though
+        // the boxes themselves sit on opposite sides of the line -- so a branch's own support refused its own
+        // length, and every support value on the canvas disappeared (measured). A branch's numbers are one mark.
+        double top = Double.MAX_VALUE, bottom = -Double.MAX_VALUE, box_w = 0;
+        // the same MAX metrics that place the baselines (radialBranchNumberBaseline), so each line box is flush
+        // against the branch: with the plain ascent/descent the box ended (maxDescent - descent) px short of the
+        // line and the reserved band and the ink could drift apart by that much (a review find, 2026-09-27)
+        if (!length.isEmpty()) {
+            top = Math.min(top, length_base - fm.getMaxAscent());
+            bottom = Math.max(bottom, length_base + fm.getMaxDescent());
+            box_w = Math.max(box_w, fm.stringWidth(length));
+        }
+        if (!support.isEmpty()) {
+            top = Math.min(top, support_base - fm.getMaxAscent());
+            bottom = Math.max(bottom, support_base + fm.getMaxDescent());
+            box_w = Math.max(box_w, fm.stringWidth(support));
+        }
+        final double box_h = bottom - top;
+        final double cy = (top + bottom) / 2.0; // the pair's centre, off the branch line when only one is drawn
+        final double sin = Math.sin(m), cos = Math.cos(m);
+        final double rot_w = Math.abs(box_w * cos) + Math.abs(box_h * sin);
+        final double rot_h = Math.abs(box_w * sin) + Math.abs(box_h * cos);
+        final float claim_x = (float) ((mid_x - (cy * sin)) - (rot_w / 2));
+        final float claim_y = (float) ((mid_y + (cy * cos)) - (rot_h / 2));
+        // A branch is an obstacle exactly as another number is (BranchObstacles): the INK band -- not the line
+        // box, which carries 3-5 px of air -- against every line of every OTHER branch, under the same switch as
+        // the number-vs-number claim, so with auto-hide off everything is drawn. Asked before claiming, so a
+        // refused number never reserves space against a later one. A digits-only number's ink stops at the
+        // baseline and starts at the digits' cap height; a bracket or a slash in a support label reaches the
+        // whole line box, and gets it.
+        final String upper = flipped ? support : length; // the number on the local -y side of the branch
+        final String lower = flipped ? length : support;
+        final String at_top = upper.isEmpty() ? lower : upper;
+        final String at_bottom = lower.isEmpty() ? upper : lower;
+        final double ink_top = top + (digitsOnly(at_top) ? (fm.getMaxAscent() - digitCapHeight(fm)) : 0);
+        final double ink_bottom = bottom - (digitsOnly(at_bottom) ? fm.getMaxDescent() : 0);
+        final boolean clear_of_branches = !autoHideCrowdedData() || !_branch_obstacles.crosses(node.getId(), mid_x,
+                mid_y, m, box_w / 2.0, ink_top, ink_bottom, BRANCH_INK_MARGIN_PX);
+        // ...and of the tip labels drawn this pass (names outrank numbers, and the labels are painted first)
+        final double ink_cy = (ink_top + ink_bottom) / 2.0;
+        final boolean clear_of_labels = !clear_of_branches || !autoHideCrowdedData()
+                || !_label_occupancy.overlaps(mid_x - (ink_cy * sin), mid_y + (ink_cy * cos), box_w / 2.0,
+                        (ink_bottom - ink_top) / 2.0, m);
+        if (!clear_of_branches) {
+            ++_numbers_suppressed;
+            ++_numbers_off_branches;
+            noteMarkDepth(node, false);
+        } else if (!clear_of_labels) {
+            ++_numbers_suppressed;
+            ++_numbers_off_labels;
+            noteMarkDepth(node, false);
+        }
+        final boolean granted = clear_of_branches && clear_of_labels
+                && claimNumberSpace(node, claim_x, claim_y, (float) rot_w, (float) rot_h);
+        if (_radial_number_claims != null) {
+            _radial_number_claims.put(Long.valueOf(node.getId()), new float[] { claim_x, claim_y, (float) rot_w,
+                    (float) rot_h, (float) mid_x, (float) mid_y, (float) m, (float) box_w, (float) top,
+                    (float) bottom, granted ? 1f : 0f, (float) ink_top, (float) ink_bottom });
+        }
+        if (!granted) {
+            return;
+        }
+        final boolean bw = (to_pdf || to_graphics_file) && getOptions().isExportBlackAndWhite();
+        final boolean found = isInFoundNodes(node);
         final AffineTransform saved = g.getTransform();
         g.rotate(m, mid_x, mid_y);
-        float x = (float) (mid_x - (total_w / 2.0)); // centre the "support length" on the branch midpoint
-        // sit just off the branch line, not on it; flip the perpendicular offset when the frame was flipped so the
-        // numbers stay on the SAME visual side of the branch across both halves of the fan
-        final float baseline = (float) (mid_y + (flipped ? 2.0 : -2.0));
-        if (!support.isEmpty()) {
-            g.setColor(dimNonMatch(inkColor(to_pdf, to_graphics_file, getTreeColorSet().getConfidenceColor()), found,
-                    bw));
-            TreePanel.drawString(support, x, baseline, g);
-            x += fm.stringWidth(support) + gap_w;
-        }
         if (!length.isEmpty()) {
             g.setColor(dimNonMatch(inkColor(to_pdf, to_graphics_file, getTreeColorSet().getBranchLengthColor()), found,
                     bw));
-            TreePanel.drawString(length, x, baseline, g);
+            TreePanel.drawString(length, (float) (mid_x - (fm.stringWidth(length) / 2.0)),
+                    (float) (mid_y + length_base), g);
+        }
+        if (!support.isEmpty()) {
+            g.setColor(dimNonMatch(inkColor(to_pdf, to_graphics_file, getTreeColorSet().getConfidenceColor()), found,
+                    bw));
+            TreePanel.drawString(support, (float) (mid_x - (fm.stringWidth(support) / 2.0)),
+                    (float) (mid_y + support_base), g);
         }
         g.setTransform(saved);
+    }
+
+    /**
+     * Where a radial branch number's baseline sits relative to its branch line, in the frame rotated to the branch:
+     * the text's LINE box FLUSH against the line, on the local +y side ({@code below}) or the local -y side. The
+     * same two offsets drive the occupancy claim and the drawing, so the reserved band and the ink cannot drift
+     * apart. Mirrors the rectangular pair, which places its boxes against the branch the same way
+     * ({@link #paintBranchLength} at -maxDescent, {@link #paintConfidenceValues} at +maxAscent).
+     */
+    private double radialBranchNumberBaseline(final boolean below) {
+        return below ? getTreeFontSet().getSmallMaxAscent() : -getTreeFontSet().getSmallMaxDescent();
     }
 
     /** Internal-node label for a VERTICAL orientation: horizontal, RIGHT-ALIGNED so it ends just LEFT of the branch,
@@ -3793,6 +4050,17 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
             cy = center[1];
         }
         final float half = diameter / 2.0f;
+        // Riding "Auto-hide crowded data", as the tip labels do. A point marker is NOT crowded by a short branch:
+        // it stays centred on its own row and a few px of overhang onto the junction still reads as this branch's
+        // mark. It IS crowded by the neighbouring ROW -- once the dots merge they become a blob, and in
+        // SIZE_SCALED mode a blob misreports every value it swallowed (measured: 30-57% of symbols overlapped
+        // another on the deep trees). Shrinking the symbol to fit is NOT the answer: its diameter IS the support
+        // value, so a smaller dot would report weaker support. Its own map, not the numbers' -- the symbol sits
+        // ON the branch line and the numbers just above and below it, so one shared map would have a branch's
+        // symbol block that same branch's numbers.
+        if (!claimSymbolSpace(node, cx - half, cy - half, diameter)) {
+            return;
+        }
         drawOvalFilled(cx - half, cy - half, diameter, diameter, g);
     }
 
@@ -4037,11 +4305,16 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
         // (the old paintTaxonomy did, and this flag used to read _sb.length()), so derive it from the
         // painted advance instead -- the collapsed-node label logic below depends on it.
         boolean saw_species = false;
+        // hoisted: the node-data segment below is truncated to what is left of the label cap AFTER the taxonomy,
+        // the same way the radial path splits the cap (see paintNodeDataUnrootedCirc)
+        int taxonomy_width = 0;
         if ((shows(DisplayOption.SHOW_TAX_CODE) || shows(DisplayOption.SHOW_TAXONOMY_SCIENTIFIC_NAMES)
                 || shows(DisplayOption.SHOW_TAXONOMY_COMMON_NAMES) || shows(DisplayOption.SHOW_TAX_RANK))
                 && node.getNodeData().isHasTaxonomy()
                 && !TreePanelUtil.isDuplicateOfAncestorTaxon(node, this::internalTaxonomyLabelText)) {
-            final int taxonomy_width = paintTaxonomy(g, node, is_in_found_nodes, to_pdf, to_graphics_file, x);
+            taxonomy_width = paintTaxonomy(g, node, is_in_found_nodes, to_pdf, to_graphics_file, x,
+                                           (node.isExternal() || node.isCollapse()) ? maxTipLabelTextWidth()
+                                                                                    : Integer.MAX_VALUE);
             x += taxonomy_width;
             saw_species = taxonomy_width > 0;
         }
@@ -4084,13 +4357,17 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
                 pos_x -= add;
             }
         }
-        final String sb_str = _sb.toString();
+        // Only a TIP's (or collapsed clade's) label is part of the width reservation, so only it is capped: an
+        // internal clade name consumes no reserved column and shortening it would lose data for nothing.
+        final String sb_str = (node.isExternal() || node.isCollapse())
+                ? TreePanelUtil.truncateToPixelWidth(getFontMetrics(g.getFont()), _sb.toString(),
+                                                     Math.max(0, maxTipLabelTextWidth() - taxonomy_width))
+                : _sb.toString();
         if (sb_str.length() > 0) {
             TreePanel.drawString(sb_str, pos_x, pos_y, g);
             recordLabel(g, node, labelBounds(g, pos_x, pos_y, getFontMetrics(g.getFont()).stringWidth(sb_str)));
-        }
-        if (_sb.length() > 0) {
-            x += labelStringWidth(g, _sb.toString(), using_visual_font, is_in_found_nodes, to_pdf) + 5;
+            // the TRUNCATED string, so what the next segment is offset by is what was actually drawn
+            x += labelStringWidth(g, sb_str, using_visual_font, is_in_found_nodes, to_pdf) + 5;
         }
         return x;
     }
@@ -4295,12 +4572,18 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
                 ? ((_graphics_type == PHYLOGENY_GRAPHICS_TYPE.CIRCULAR) ? _urt_nodeid_angle_map.get(node.getId())
                         : ur_angle)
                 : 0;
-        final double img_footprint = hasTipImage(node) ? tipImageRadialFootprint(node, img_theta) : 0;
-        if (hasTipImage(node)) {
-            final double r_off = effectiveNodeHalfBoxSize(node) + 3.0 + (img_footprint / 2.0);
-            drawTipImageUpright(g, node, (float) (anchor.x + (r_off * Math.cos(img_theta))),
-                    (float) (anchor.y + (r_off * Math.sin(img_theta))), getOptions().getTipImageSize());
-        }
+        // resolved ONCE per tip per paint: the footprint below and the claim box further down both derive from it
+        // (a review find, 2026-09-27: two cache lookups per imaged tip per repaint, and two chances to disagree
+        // while an image finishes loading)
+        final int[] img_wh = hasTipImage(node) ? tipImageScaledSize(node) : null; // upright: its own box
+        final double img_footprint = (img_wh != null) ? tipImageRadialFootprint(img_wh, img_theta) : 0;
+        // Its centre, in device space -- but it is DRAWN below, after the label's occupancy claim, as one mark with
+        // the label: a tip whose label is hidden for crowding shows no image either (an orphan image under a
+        // neighbour's label reads as that neighbour's), and the image's upright box is claimed with the text's, so
+        // nothing is drawn across it. (A review find, 2026-09-27: the image used to be painted before the claim.)
+        final double img_r_off = effectiveNodeHalfBoxSize(node) + 3.0 + (img_footprint / 2.0);
+        final double img_x = anchor.x + (img_r_off * Math.cos(img_theta));
+        final double img_y = anchor.y + (img_r_off * Math.sin(img_theta));
         // The TAXONOMY label is drawn via the shared taxonomyLabel part-walker (so the scientific-name part is italic,
         // the rank is included, and the "Abbreviate Scientific Names" option applies) -- matching the rectangular
         // layout. The trailing node name / sequence text is built into _sb and drawn after it.
@@ -4347,8 +4630,8 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
             }
         }
         String rest = _sb.toString();
-        if (!show_tax && (rest.length() < 1)) {
-            return; // nothing to draw
+        if (!show_tax && (rest.length() < 1) && !hasTipImage(node)) {
+            return; // nothing to draw (an image-only tip goes on: its image is the mark)
         }
         setColor(g, node, to_graphics_file, to_pdf, is_in_found_nodes, getTreeColorSet().getSequenceColor());
         setFont(g, node);
@@ -4360,41 +4643,129 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
         // Radial layouts: a full label in a circle runs ~twice the radius (off the canvas), so truncate the node-name/
         // sequence part with an ellipsis to the label budget left after the taxonomy, keeping tree + labels + domains
         // on-canvas. (No cap in a rectangular layout -- radialMaxLabelWidth returns MAX_VALUE there.)
-        if ((rest.length() > 0) && isRadialLayout()) {
+        if (rest.length() > 0) {
             rest = TreePanelUtil.truncateToPixelWidth(getFontMetrics(base_font), rest,
-                    Math.max(0, radialMaxLabelWidth() - tax_w));
+                    Math.max(0, maxTipLabelTextWidth() - tax_w));
         }
         final int rest_w = getFontMetrics(base_font).stringWidth(rest);
         final double total_w = gap + tax_w + rest_w; // full extent from the node, for the left-half flip
         double m = (_graphics_type == PHYLOGENY_GRAPHICS_TYPE.CIRCULAR)
                 ? (_urt_nodeid_angle_map.get(node.getId()) % TWO_PI) : (ur_angle % TWO_PI);
-        _at = g.getTransform();
-        boolean need_to_reset = false;
         // The label is anchored at `anchor` (computed at the top): the node, or the outer ring in the aligned circular
         // phylogram. All the rotation/flip logic below is reused verbatim -- only the pivot/start point moves to the ring.
         final float x_coord = (float) anchor.x;
         final float y_coord = (float) anchor.y + (getFontMetrics(base_font).getAscent() / 3.0f);
         // On the left half of the fan the label is flipped so it still reads left-to-right; translating by
         // total_w + gap (rather than just total_w) keeps the SAME small clearance from the node on both halves
-        // (otherwise the flipped label butts right up against the node box).
+        // (otherwise the flipped label butts right up against the node box). The frame is built as ONE transform and
+        // applied to the graphics AND to the label's occupancy box below, so the space claimed is the space inked --
+        // in user space, like the numbers' claims, not off g.getTransform(), which an export scales.
+        final AffineTransform frame = new AffineTransform();
         if (radial_labels) {
-            need_to_reset = true;
             boolean left = false;
             if ((m > HALF_PI) && (m < ONEHALF_PI)) {
                 m -= PI;
                 left = true;
             }
-            g.rotate(m, x_coord, (float) anchor.y);
+            frame.rotate(m, x_coord, anchor.y);
             if (left) {
-                g.translate(-(total_w + gap), 0);
+                frame.translate(-(total_w + gap), 0);
             }
         } else if ((m > HALF_PI) && (m < ONEHALF_PI)) {
-            need_to_reset = true;
-            g.translate(-(total_w + gap), 0);
+            frame.translate(-(total_w + gap), 0);
+        }
+        final boolean need_to_reset = !frame.isIdentity();
+        _at = g.getTransform();
+        if (need_to_reset) {
+            g.transform(frame);
+        }
+        // A label is drawn only where no label already drawn this pass is in its way ("Auto-hide Labels"): the
+        // unrooted layout never thinned its labels at all, and circular hid every k-th by index -- a proxy that hid
+        // labels which did not overlap and kept ones that did (measured on the bat phylogeny at 1100x850: 66
+        // overlapping pairs among 34 labels unrooted, 21 circular). First come, exact, an ORIENTED box in the frame
+        // the text is drawn in. A found node's label is always drawn, and still claims, so what follows keeps clear.
+        // Tip labels claim during the tree pass; INTERNAL labels (clade names) are queued and claim after every tip,
+        // larger clade first by tip count, shallower among equals (paintQueuedInternalLabels) -- so a clade name
+        // never displaces a tip name, and where two clade names meet the larger clade's wins. The root's label is
+        // never drawn radially (call sites).
+        {
+            final FontMetrics lfm = getFontMetrics(base_font);
+            final double lw = tax_w + rest_w, lh = lfm.getAscent() + lfm.getDescent();
+            final Point2D.Double centre = new Point2D.Double(x_coord + gap + (lw / 2.0),
+                    (y_coord - lfm.getAscent()) + (lh / 2.0));
+            frame.transform(centre, centre);
+            final double theta = radial_labels ? m : 0;
+            final boolean has_text = lw > 0;
+            if (!has_text && (img_wh == null)) {
+                // a taxonomy that is "shown" but renders empty, no other text, no image: nothing to draw, so it is
+                // neither counted as drawn nor recorded as a zero-width box (a review find, 2026-09-27)
+                if (need_to_reset) {
+                    g.setTransform(_at);
+                }
+                return;
+            }
+            if (autoHideCrowdedData()) {
+                // one mark: the text's oriented box and the image's upright box are asked together and placed
+                // together, so a tip is drawn whole or not at all
+                if (!is_in_found_nodes) {
+                    final boolean taken = (has_text
+                            && _label_occupancy.overlaps(centre.x, centre.y, lw / 2.0, lh / 2.0, theta))
+                            || ((img_wh != null) && _label_occupancy.overlaps(img_x, img_y, img_wh[0] / 2.0,
+                                    img_wh[1] / 2.0, 0));
+                    if (taken) {
+                        if (_refused_label_boxes_for_test != null) { // what was refused, for "every refusal has a cause"
+                            if (has_text) {
+                                _refused_label_boxes_for_test.add(new double[] { centre.x, centre.y, lw / 2.0, lh / 2.0,
+                                        theta, node.getId() });
+                            }
+                            if (img_wh != null) {
+                                _refused_label_boxes_for_test.add(new double[] { img_x, img_y, img_wh[0] / 2.0,
+                                        img_wh[1] / 2.0, 0, node.getId() });
+                            }
+                        }
+                        if (node.isExternal()) {
+                            ++_labels_hidden;
+                            _tips_hidden_by_rule.add(Long.valueOf(node.getId()));
+                        } else {
+                            ++_internal_labels_hidden;
+                        }
+                        if (need_to_reset) {
+                            g.setTransform(_at);
+                        }
+                        return; // and no aligned-circular leader either: a leader appears iff its label does
+                    }
+                }
+                if (has_text) {
+                    _label_occupancy.place(centre.x, centre.y, lw / 2.0, lh / 2.0, theta);
+                }
+                if (img_wh != null) {
+                    _label_occupancy.place(img_x, img_y, img_wh[0] / 2.0, img_wh[1] / 2.0, 0);
+                }
+            }
+            if (img_wh != null) {
+                // drawn UPRIGHT in device space (a frog looks like a frog), so step out of the label's frame
+                final AffineTransform in_frame = g.getTransform();
+                g.setTransform(_at);
+                drawTipImageUpright(g, node, (float) img_x, (float) img_y, getOptions().getTipImageSize());
+                g.setTransform(in_frame);
+                if (_label_boxes_for_test != null) {
+                    _label_boxes_for_test.add(new double[] { img_x, img_y, img_wh[0] / 2.0, img_wh[1] / 2.0, 0,
+                            node.getId() });
+                }
+            }
+            if (node.isExternal()) {
+                ++_labels_drawn;
+            } else {
+                ++_internal_labels_drawn;
+            }
+            if (_label_boxes_for_test != null) {
+                _label_boxes_for_test.add(new double[] { centre.x, centre.y, lw / 2.0, lh / 2.0, theta, node.getId() });
+            }
         }
         float x = x_coord + gap;
         if (show_tax) {
-            final int width = taxonomyLabel(g, node.getNodeData().getTaxonomy(), x, y_coord, to_pdf, true);
+            final int width = taxonomyLabel(g, node.getNodeData().getTaxonomy(), x, y_coord, to_pdf, true,
+                                            maxTipLabelTextWidth());
             recordLabel(g, node, labelBounds(g, x, y_coord, width));
             x += width;
         }
@@ -4411,7 +4782,7 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
         // (past the collapse/content/dynamic-hiding/off-screen returns above) and its endpoint IS the label anchor, so it
         // can never dangle to an empty ring point. Reuses LEADER_STROKE + connectorColor like the rectangular aligned
         // tip->label connector. Skipped for a deepest tip already at the ring (leader length < 1px).
-        if (node.isExternal() && isAlignedCircularPhylogram()) {
+        if (node.isExternal() && circularLabelsOnRing()) {
             final double dx = anchor.x - node.getXcoord();
             final double dy = anchor.y - node.getYcoord();
             if (((dx * dx) + (dy * dy)) >= 1.0) {
@@ -4634,6 +5005,7 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
         // draw in the COMMON aligned column (past the deepest tip + the longest label's depth footprint) so every
         // tip's track lines up -- the alignment the horizontal layout gives via alignedPhylogramDomainColumnX(), and
         // exactly the depth depthLabelReserve() reserves. Rides R into a vertical bar.
+        recordDomainPainted(node);
         rds.render(verticalDomainColumnStart(), node.getYcoord() - (hgt / 2.0f), g, this, to_pdf, false);
     }
 
@@ -4739,7 +5111,9 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
         if (node.getNodeData().isHasTaxonomy()) {
             w += taxonomyLabelWidth(node.getNodeData().getTaxonomy(), base);
         }
-        return w;
+        // A capped label is DRAWN truncated (paintNodeWithRenderableData), so it must be MEASURED truncated too --
+        // here, in the one shared measurement, rather than at each consumer.
+        return Math.min(w, maxTipLabelTextWidth());
     }
 
     /** The width of an upright horizontal tip label, for centring it -- in the font it is actually DRAWN in, so a
@@ -4779,6 +5153,7 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
                 // Domain architectures always line up in a common right-edge column, so they can be
                 // compared across tips; the phylogram column is past the deepest tip + longest
                 // label, the cladogram column just past the aligned tips.
+                recordDomainPainted(node);
                 if (getControlPanel().isDrawPhylogram()) {
                     rds.render(alignedPhylogramDomainColumnX(),
                             node.getYcoord() - (h / 2.0f),
@@ -4940,16 +5315,27 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
     }
 
     final private void paintScale(final Graphics2D g,
-                                  int x1,
-                                  int y1,
+                                  final int x1,
+                                  final int y1,
                                   final boolean to_pdf,
                                   final boolean to_graphics_file) {
         if (isVerticalOrientation()) {
             paintScaleVertical(g, x1, y1, to_pdf, to_graphics_file);
             return;
         }
+        paintScale(g, x1, y1, getXcorrectionFactor(), to_pdf, to_graphics_file);
+    }
+
+    /** The horizontal scale bar, {@code px_per_unit} pixels to one unit of distance: the X-correction factor in the
+     *  layouts laid out along X, radius / tree height in the circular one (which places a node by its radius). */
+    final private void paintScale(final Graphics2D g,
+                                  int x1,
+                                  int y1,
+                                  final double px_per_unit,
+                                  final boolean to_pdf,
+                                  final boolean to_graphics_file) {
         x1 += MOVE;
-        final double x2 = x1 + (displayScaleDistance() * getXcorrectionFactor());
+        final double x2 = x1 + (displayScaleDistance() * px_per_unit);
         y1 -= 12;
         final int y2 = y1 - 8;
         final int y3 = y1 - 4;
@@ -5356,10 +5742,12 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
         return getFontMetrics(getTreeFontSet().getSmallFont()).getHeight() + SCALE_AXIS_TICK_LEN + 4;
     }
 
-    /** True when a labeled scale axis is applicable to the CURRENT layout: a rectangular-family PHYLOGRAM (not a
-     *  cladogram, not the radial CIRCULAR/UNROOTED layouts) with a positive scale distance that yields at least one
-     *  tick -- i.e. the axis is (or, if the toggle were on, would be) actually drawn and reserves tip-spread space.
-     *  Independent of the on/off state, so it also governs whether toggling "Scale Axis" needs a re-fit. */
+    /** True when a labeled scale axis that RESERVES tip-spread space applies to the CURRENT layout: a rectangular-
+     *  family PHYLOGRAM (not a cladogram) with a positive scale distance that yields at least one tick -- the axis is
+     *  (or, if the toggle were on, would be) drawn in a band of its own. Independent of the on/off state, so it also
+     *  governs whether toggling "Scale Axis" needs a re-fit. Not the radial layouts: unrooted has no axis, and the
+     *  circular one draws its ruler in the seam, inside its own disc, reserving nothing
+     *  ({@link #paintCircularScaleAxis}). */
     boolean scaleAxisAppliesToLayout() {
         if (!getControlPanel().isDrawPhylogram() || (getScaleDistance() <= 0.0)
                 || (getPhylogenyGraphicsType() == PHYLOGENY_GRAPHICS_TYPE.CIRCULAR)
@@ -5456,51 +5844,155 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
     }
 
     /** Concentric distance RINGS for a circular PHYLOGRAM: faint circles at scale-distance intervals from the ring
-     *  centre, each labelled with its distance value at 12 o'clock, so distance-from-root reads off at any angle (the
-     *  radial analogue of the rectangular scale grid). Drawn BEHIND the tree; a no-op unless the circular layout is a
-     *  phylogram. Labels are decimated so they never stack when the rings are dense. */
+     *  centre out to the deepest tip -- the circular "Scale Grid", the radial analogue of the rectangular grid lines,
+     *  and like them unlabelled (the numbers are the Scale Axis's, on its ruler in the seam). Drawn BEHIND the tree;
+     *  a no-op unless {@link #circularDistanceScaleApplies()}. (Until 2026-09-30 these rings, labelled at 12 o'clock,
+     *  were what the "Scale" option drew in circular, and circular had no scale bar; Christian moved them to Scale
+     *  Grid and gave circular the bar, as in every other layout, when circular gained its Scale Axis.) */
     private void paintCircularScaleRings(final Graphics2D g, final int cx, final int cy, final int radius,
                                          final boolean to_pdf, final boolean to_graphics_file) {
-        // the rings ARE the circular scale, so they follow the same "Scale" option that draws the bottom bar in the
-        // rectangular/unrooted layouts (the circular phylogram POSITIONS by branch length regardless; only the scale
-        // overlay is gated). Off unless it is a circular phylogram with the scale shown.
-        if (!isCircularPhylogram() || !getOptions().isShowScale() || (radius <= 0)) {
+        if (!getOptions().isShowScaleGrid() || !circularDistanceScaleApplies() || (radius <= 0)) {
             return;
         }
         final double spacing = getScaleDistance();
-        final double max = getMaxDistanceToRoot();
+        final double max = getMaxDistanceToRoot(); // what a node's radius is normalised by (circularRadiusFraction)
+        final double deepest = numericScaleAxisMaxDist();
         if ((spacing <= 0) || (max <= 0)) {
             return;
         }
         final Color saved = g.getColor();
         final Stroke saved_stroke = g.getStroke();
-        final Font saved_font = g.getFont();
         g.setStroke(STROKE_05);
-        g.setFont(getTreeFontSet().getSmallFont());
-        final FontMetrics fm = getTreeFontSet().getFontMetricsSmall();
-        final int line_h = fm.getHeight();
-        final Color ring_c = scaleGridColor(to_pdf, to_graphics_file);
-        final Color label_c = scaleInkColor(to_pdf, to_graphics_file);
-        int last_label_y = Integer.MAX_VALUE; // rings go inner->outer, so labels move UP the top spoke
+        g.setColor(scaleGridColor(to_pdf, to_graphics_file));
         int k = 1;
-        for (double d = spacing; (d <= (max + 1e-9)) && (k <= 1000); d += spacing, ++k) {
+        for (double d = spacing; (d <= (deepest + 1e-9)) && (k <= 1000); d += spacing, ++k) {
             final int rr = (int) Math.round((d / max) * radius);
-            if (rr <= 0) {
-                continue;
-            }
-            g.setColor(ring_c);
-            g.drawOval(cx - rr, cy - rr, 2 * rr, 2 * rr);
-            final int ly = (cy - rr) + fm.getAscent() + 1; // just inside the ring at the top
-            if ((last_label_y - ly) >= line_h) { // enough vertical gap since the last drawn label
-                final String label = TreePanelUtil.formatCompactNumber(d);
-                g.setColor(label_c);
-                g.drawString(label, cx - (fm.stringWidth(label) / 2f), ly);
-                last_label_y = ly;
+            if (rr > 0) {
+                g.drawOval(cx - rr, cy - rr, 2 * rr, 2 * rr);
             }
         }
         g.setColor(saved);
         g.setStroke(saved_stroke);
+    }
+
+    /** Whether the circular layout draws a Scale BAR: a circular phylogram with a scale distance and no time rings --
+     *  capped long branches included (the bar reads the unbroken scale; see circularRadialNormaliser). */
+    private boolean circularScaleBarApplies() {
+        return isCircularPhylogram() && (getScaleDistance() > 0.0) && !geologicRingsApplyCircular()
+                && !calendarRingsApplyCircular();
+    }
+
+    /** What a circular phylogram's radius is normalised by (circularRadiusFraction): the tree height, or the CAPPED
+     *  height while long branches are capped. One unit of distance on an unbroken branch is radius / this. */
+    private double circularRadialNormaliser() {
+        return breakLongBranchesActiveCircular() ? breakCappedRadialMax() : getMaxDistanceToRoot();
+    }
+
+    /** Whether the circular layout can state a DISTANCE scale along its whole radius (the Scale Axis and Grid): a
+     *  circular PHYLOGRAM with a scale distance, no geologic / calendar time rings (those ARE its time scale, as the
+     *  time axes replace the numeric scale in the rectangular layouts) and no capped long branches (the radius is then
+     *  the CAPPED distance, which no linear ruler spans). */
+    private boolean circularDistanceScaleApplies() {
+        return isCircularPhylogram() && (getScaleDistance() > 0.0) && !geologicRingsApplyCircular()
+                && !calendarRingsApplyCircular() && !breakLongBranchesActiveCircular();
+    }
+
+    /**
+     * The circular "Scale Axis": a ruler from the root (0, the ring centre) out to the deepest tip along the SEAM --
+     * the centre line of the gap between the last tip and the first, where no branch runs -- with a tick at each
+     * scale-axis value, the numbers on one side of it (upright, reading along it, decimated so none overlap) and the
+     * distance unit past its end. The rectangular axis's values, number format and unit; the geometry follows
+     * Archaeopteryx.js's circular ruler (Christian, 2026-09-30, for both programs). Reserves nothing: the seam is
+     * inside the tree's own disc. Drawn over the tree; a no-op unless {@link #circularDistanceScaleApplies()}.
+     */
+    private void paintCircularScaleAxis(final Graphics2D g, final int cx, final int cy, final int radius,
+                                        final boolean to_pdf, final boolean to_graphics_file) {
+        if (!getOptions().isShowScaleAxis() || !circularDistanceScaleApplies() || (radius <= 0)) {
+            return;
+        }
+        final double max = getMaxDistanceToRoot();
+        final double deepest = numericScaleAxisMaxDist();
+        final double[] ticks = TreePanelUtil.scaleAxisTickValues(deepest, getScaleDistance());
+        if ((max <= 0) || (ticks.length == 0)) {
+            return;
+        }
+        final double r_end = (deepest / max) * radius;
+        final double seam = _circular_seam_angle;
+        final double ux = Math.cos(seam); // along the ruler, outward
+        final double uy = Math.sin(seam);
+        final double vx = -uy; // across it
+        final double vy = ux;
+        // numbers read along the ruler and stay upright: on a ruler pointing left, turn them half a turn
+        final boolean flip = ux < -1e-9;
+        final double text_angle = flip ? (seam + Math.PI) : seam;
+        final Font saved_font = g.getFont();
+        final Color saved_color = g.getColor();
+        final Stroke saved_stroke = g.getStroke();
+        g.setFont(getTreeFontSet().getSmallFont());
+        final FontMetrics fm = g.getFontMetrics();
+        g.setColor(scaleInkColor(to_pdf, to_graphics_file));
+        g.setStroke(STROKE_1);
+        drawLine(cx, cy, cx + (ux * r_end), cy + (uy * r_end), g);
+        // the numbers on the side that is "below" the upright text, clear of the ticks
+        final double side = (flip ? -1 : 1) * (SCALE_AXIS_TICK_LEN + 2 + (fm.getAscent() / 2.0));
+        double last_label_end = -Double.MAX_VALUE; // along the ruler, inner -> outer
+        for (final double v : ticks) {
+            final double r = (v / max) * radius;
+            final double px = cx + (ux * r);
+            final double py = cy + (uy * r);
+            drawLine(px - (vx * SCALE_AXIS_TICK_LEN), py - (vy * SCALE_AXIS_TICK_LEN), px + (vx * SCALE_AXIS_TICK_LEN),
+                    py + (vy * SCALE_AXIS_TICK_LEN), g); // the tick (always drawn), across the ruler
+            final String label = TreePanelUtil.formatCompactNumber(v);
+            final double half = fm.stringWidth(label) / 2.0;
+            if ((r - half) >= (last_label_end + SCALE_AXIS_LABEL_GAP)) {
+                // on a backdrop: the numbers sit beside the ruler, over the branches of the tips either side of the
+                // seam (one row wide), and must stay legible there (Archaeopteryx.js: the same backdrop)
+                drawTextAlong(g, label, px + (vx * side), py + (vy * side), text_angle, fm, scaleAxisBackdrop());
+                last_label_end = r + half;
+            }
+        }
+        // the distance unit once, on the ruler's line past its end, and past the last number: a number that stands
+        // at the end reaches beyond it by half its width (the rectangular axis drops a unit that does not clear its
+        // last number, which shares its row; here the unit has the ruler's line to itself, and moves out instead)
+        if (!ForesterUtil.isEmpty(_phylogeny.getDistanceUnit())) {
+            final String unit = "[" + _phylogeny.getDistanceUnit() + "]";
+            final double half = fm.stringWidth(unit) / 2.0;
+            final double r = Math.max(r_end + SCALE_AXIS_UNIT_GAP, last_label_end + SCALE_AXIS_LABEL_GAP) + half;
+            drawTextAlong(g, unit, cx + (ux * r), cy + (uy * r), text_angle, fm, null);
+        }
         g.setFont(saved_font);
+        g.setColor(saved_color);
+        g.setStroke(saved_stroke);
+    }
+
+    /** The fill behind a circular scale-axis number: the canvas colour, slightly see-through; none on a transparent
+     *  export, where a box of the theme's background would show. (A white-background export repaints in the light
+     *  theme -- ExportTheme -- so the tree colour set's background IS the canvas.) */
+    private Color scaleAxisBackdrop() {
+        if (_export_transparent_background) {
+            return null;
+        }
+        final Color bg = getTreeColorSet().getBackgroundColor();
+        return new Color(bg.getRed(), bg.getGreen(), bg.getBlue(), 217); // 0.85, as Archaeopteryx.js
+    }
+
+    /** Draws {@code text} centred on ({@code x}, {@code y}), its baseline turned to device angle {@code angle}, over
+     *  a rounded {@code backdrop} box when one is given. */
+    private static void drawTextAlong(final Graphics2D g, final String text, final double x, final double y,
+                                      final double angle, final FontMetrics fm, final Color backdrop) {
+        final AffineTransform saved = g.getTransform();
+        g.translate(x, y);
+        g.rotate(angle);
+        if (backdrop != null) {
+            final Color ink = g.getColor();
+            final int w = fm.stringWidth(text);
+            final int h = fm.getAscent() + fm.getDescent();
+            g.setColor(backdrop);
+            g.fill(new java.awt.geom.RoundRectangle2D.Double((-w / 2.0) - 2, (-h / 2.0) - 1, w + 4, h + 2, 4, 4));
+            g.setColor(ink);
+        }
+        g.drawString(text, (float) (-fm.stringWidth(text) / 2.0), (float) ((fm.getAscent() - fm.getDescent()) / 2.0));
+        g.setTransform(saved);
     }
 
     /** Concentric CALENDAR-year rings for a circular PHYLOGRAM: the radial axis is time, so a faint ring at each nice
@@ -5934,44 +6426,149 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
 
     // ---- time<->divergence branch-length toggle -----------------------------------------------------------------
 
-    /** True when the current tree can be laid out BOTH ways -- dates for time, and a divergence source (a recorded
-     *  cumulative divergence, or a per-branch clock rate to multiply by time). See {@link BranchLengthLayout}, which
-     *  is where the two shapes (Auspice and BEAST) are recognised. Cached by tree identity (recomputed on a tree
-     *  replacement; an in-place node-data edit that adds/removes the metric is the same accepted cache-staleness
-     *  class as the derived-time-axis / color-by caches). */
+    /** True when the tree can be laid out BOTH ways -- dates for time, and a divergence source (a recorded
+     *  cumulative divergence, or a clock rate on EVERY branch to multiply by time). See {@link BranchLengthLayout},
+     *  which is where the two shapes (Auspice and BEAST) are recognised. Asked of the WHOLE tree, also while a
+     *  subtree of it is on view: one tree, one layout, one answer (joint with Archaeopteryx.js). Cached by the whole
+     *  tree's identity and forgotten wherever the mode or the lengths in time change (the switch, undo/redo, Reset,
+     *  the arrival, a length, date or property written in the node editor); the switch itself,
+     *  {@link #setBranchLengthMode}, asks the tree again instead of trusting this. */
     boolean isBranchLengthToggleApplicable() {
-        if ( _branch_length_toggle_for != _phylogeny ) {
-            _branch_length_toggle_applicable = BranchLengthLayout.isApplicable( _phylogeny );
-            _branch_length_toggle_for = _phylogeny;
+        final Phylogeny whole = wholeTree();
+        if ( _branch_length_toggle_for != whole ) {
+            _branch_length_toggle_applicable = isWholeTreeApplicable( timeLengths() );
+            _branch_length_toggle_for = whole;
         }
         return _branch_length_toggle_applicable;
     }
 
-    BranchLengthLayout.MODE getBranchLengthMode() {
+    private boolean isWholeTreeApplicable( final BranchLengthLayout.TimeLengths time ) {
+        attachSubtreeRoots();
+        try {
+            return BranchLengthLayout.isApplicable( wholeTree(), time );
+        }
+        finally {
+            detachSubtreeRoots();
+        }
+    }
+
+    /** Every tree this tab holds: the trees a subtree view was descended from, the whole tree first, and the tree on
+     *  display last. */
+    private Phylogeny[] treesOfThisTab() {
+        final Phylogeny[] trees = new Phylogeny[ _subtree_index + 1 ];
+        for( int i = 0; i < _subtree_index; ++i ) {
+            trees[ i ] = _sub_phylogenies[ i ];
+        }
+        trees[ _subtree_index ] = _phylogeny;
+        return trees;
+    }
+
+    /** Before a change to the tree (every one takes an undo checkpoint first): a tree with a second layout, in
+     *  time, remembers its lengths (and rates) as they are, so a node the change removes leaves its piece of the
+     *  merged branch -- its SIGNED length in time, and on a clock tree its rate. */
+    private void rememberTimeLengthsBeforeAChange() {
+        if ( ( _phylogeny != null ) && !_phylogeny.isEmpty() && ( branchLengthMode() == BranchLengthLayout.MODE.TIME )
+                && ( BranchLengthLayout.divergenceSource( wholeTree() ) != BranchLengthLayout.DIVERGENCE_SOURCE.NONE ) ) {
+            _time_lengths = timeLengths();
+        }
+    }
+
+    /** After nodes were removed while TIME is on screen: each merged branch states the signed sum of its pieces,
+     *  not the tree code's merge, which drops a negative one ({@link BranchLengthLayout#settleMergedBranches}).
+     *  Called by every removal path, after it has removed. */
+    void settleMergedBranchesInTime() {
+        if ( ( _time_lengths == null ) || ( _phylogeny == null ) || _phylogeny.isEmpty()
+                || ( branchLengthMode() != BranchLengthLayout.MODE.TIME ) ) {
+            return;
+        }
+        int settled = 0;
+        attachSubtreeRoots();
+        try {
+            for( final Phylogeny tree : treesOfThisTab() ) {
+                settled += BranchLengthLayout.settleMergedBranches( tree, _time_lengths );
+            }
+        }
+        finally {
+            detachSubtreeRoots();
+        }
+        if ( settled > 0 ) {
+            recalculateMaxDistanceToRoot();
+        }
+    }
+
+    /** The lengths this tab's branches have IN TIME: the ones on screen while it shows time; while it shows
+     *  divergence, the ones kept when it left time, and the gap between its dates for a branch none was kept for. */
+
+    private BranchLengthLayout.TimeLengths timeLengths() {
+        attachSubtreeRoots();
+        try {
+            return timeLengthsWithRootsAttached();
+        }
+        finally {
+            detachSubtreeRoots();
+        }
+    }
+
+    private BranchLengthLayout.TimeLengths timeLengthsWithRootsAttached() {
+        if ( branchLengthMode() == BranchLengthLayout.MODE.TIME ) {
+            // what is on screen -- and, for a branch that is the sum of pieces a delete made, the pieces, with the
+            // rates of the nodes that are gone (remembered at the undo checkpoint every delete takes first)
+            return ( _time_lengths != null ) ? _time_lengths.refreshedBy( treesOfThisTab() )
+                    : BranchLengthLayout.TimeLengths.onScreen( treesOfThisTab() );
+        }
+        return ( ( _time_lengths != null ) ? _time_lengths : new BranchLengthLayout.TimeLengths() )
+                .completedFromDates( BranchLengthLayout.datesIncreaseTowardTips( wholeTree() ), treesOfThisTab() );
+    }
+
+    /**
+     * The layout this tab is showing -- the ONE way to it, because it first asks the tree, once, which layout it
+     * ARRIVED in. A tree saved while divergence was on screen arrives with lengths that are its divergence. The tab
+     * then starts in DIVERGENCE, with no length kept (its time is laid out from its dates) and no time axis -- or it
+     * would say Time over a picture of divergence, keep those lengths as its time, and multiply its rates by them.
+     */
+    private BranchLengthLayout.MODE branchLengthMode() {
+        if ( !_branch_length_arrival_known && ( _phylogeny != null ) && !_phylogeny.isEmpty() ) {
+            _branch_length_arrival_known = true;
+            if ( BranchLengthLayout.arrivesShowingDivergence( wholeTree() ) ) {
+                _branch_length_mode = BranchLengthLayout.MODE.DIVERGENCE;
+                _time_lengths = new BranchLengthLayout.TimeLengths();
+                _time_axis_type = Options.TIME_AXIS_TYPE.NONE;
+                _branch_length_toggle_for = null;
+            }
+        }
         return _branch_length_mode;
     }
 
-    /** Switch the branch lengths (and the time axis) between the TIME view (date deltas + the auto-derived time axis)
-     *  and the DIVERGENCE view (genetic change + no time axis -- the numeric substitutions/site scale). A pure,
+    BranchLengthLayout.MODE getBranchLengthMode() {
+        return branchLengthMode();
+    }
+
+    /** Switch the branch lengths (and the time axis) between the TIME view (the lengths the tree has in time + the
+     *  auto-derived time axis) and the DIVERGENCE view (genetic change + no time axis -- the numeric substitutions/site scale). A pure,
      *  reversible display mode: both quantities stay retained on the tree, so it never {@code setEdited}s or
      *  checkpoints undo. Re-fits to the viewport (the depth axis changes meaning, so a fit -- not just a repaint). */
     void setBranchLengthMode( final BranchLengthLayout.MODE mode ) {
-        if ( ( mode == null ) || ( mode == _branch_length_mode ) || !isBranchLengthToggleApplicable() ) {
+        if ( ( mode == null ) || ( mode == branchLengthMode() ) || ( _phylogeny == null ) || _phylogeny.isEmpty() ) {
             return;
         }
-        _branch_length_mode = mode;
-        final String date_unit = AptxUtil.timeTreeUnit( _phylogeny ); // captured before the lengths change
+        // Asked of the tree AS IT IS NOW, not of the identity-keyed cache: the node editor changes a tree in place,
+        // and ONE rate taken away leaves it without a divergence layout. The way BACK to time is never refused --
+        // whatever the tree has lost since, time gives back the lengths kept when it left time, a branch with none
+        // kept its date gap, and a branch with neither 0 (never the divergence length left behind) -- so no tree is
+        // stranded showing divergence.
+        // Cost of asking, once per press: 0.2 ms on a tree of 7,199 nodes.
+        final BranchLengthLayout.TimeLengths time = timeLengths();
+        _branch_length_toggle_applicable = isWholeTreeApplicable( time );
+        _branch_length_toggle_for = wholeTree();
+        if ( ( mode == BranchLengthLayout.MODE.DIVERGENCE ) && !_branch_length_toggle_applicable ) {
+            reseedBranchLengthsControl(); // the button the user pressed must not stay down on a mode that is not shown
+            return;
+        }
         if ( mode == BranchLengthLayout.MODE.DIVERGENCE ) {
-            BranchLengthLayout.applyDivergence( _phylogeny );
-            _phylogeny.setDistanceUnit( BranchLengthLayout.distanceUnit( mode, date_unit ) );
-            _time_axis_type = Options.TIME_AXIS_TYPE.NONE; // a time axis is meaningless for divergence lengths
+            _time_lengths = time; // leaving time: the lengths on screen are what Time gives back
         }
-        else {
-            BranchLengthLayout.applyTime( _phylogeny );
-            _phylogeny.setDistanceUnit( BranchLengthLayout.distanceUnit( mode, date_unit ) );
-            _time_axis_type = null; // back to auto -> re-derives from the retained <date> unit (NONE if unit-less)
-        }
-        recalculateMaxDistanceToRoot(); // the branch-length change invalidates the depth cache
+        _branch_length_mode = mode;
+        layOut( mode, time, true );
         if ( getControlPanel() != null ) {
             // showWhole() recomputes the layout (displayedPhylogenyMightHaveChanged) then fits to the VIEWPORT --
             // drift-free (the depth scale changes drastically between year deltas and div deltas).
@@ -5985,21 +6582,188 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
         if ( ( getMainPanel() != null ) && ( getMainPanel().getMainFrame() != null ) ) {
             getMainPanel().getMainFrame().refreshOpenSettingsDialog();
         }
+        if ( !_branch_length_toggle_applicable ) {
+            reseedBranchLengthsControl(); // back in time on a tree that has lost its divergence: the switch goes
+        }
+    }
+
+    /** Show the Time | Div control as this panel's tree and mode now stand (hidden when the tree has no second
+     *  layout and is not showing divergence). */
+    private void reseedBranchLengthsControl() {
+        if ( getControlPanel() != null ) {
+            getControlPanel().populateBranchLengthsControl();
+        }
+    }
+
+    /**
+     * Branch lengths, distance unit and time axis of a layout, for the WHOLE tree this tab holds. The ONE routine
+     * behind the switch, Reset to Defaults and undo, so they cannot come to disagree.
+     * <p>
+     * A subtree view shares its nodes with the tree it is a view of, so laying out the whole tree lays out the view;
+     * a switch that acted on the view alone rewrote that clade of the whole tree and nothing else, which then held
+     * branches in substitutions/site beside branches in years. Every tree of the tab is laid out all the same, not
+     * only the bottom one: an undo inside a view puts a COPY on display, whose nodes are the whole tree's no longer.
+     * All of them from the lengths KEPT when the tab left time (divergence is rate x those, time IS those), and all
+     * of them given the unit -- each is a tree of its own to the scale bar and to a saved file.
+     * <p>
+     * In this fork a view is rooted at the clade's own node, detached, and an undo splices the restored copy in its
+     * place ({@link #synchronizeSubtreeRoots()}); {@link #restoreSnapshot} lays out before that splice.
+     *
+     * @param time the lengths the tab's branches have in time (see {@link #timeLengths()}, asked BEFORE the mode
+     *            is changed)
+     * @param displayed false to leave the tree on display as it is: a snapshot just restored is in its layout
+     */
+    private void layOut( final BranchLengthLayout.MODE mode,
+                         final BranchLengthLayout.TimeLengths time,
+                         final boolean displayed ) {
+        final String unit = BranchLengthLayout.distanceUnit( mode, AptxUtil.timeTreeUnit( wholeTree() ) );
+        attachSubtreeRoots();
+        try {
+            for( int i = 0; i <= _subtree_index; ++i ) {
+                final Phylogeny tree = ( i < _subtree_index ) ? _sub_phylogenies[ i ] : _phylogeny;
+                if ( ( tree == null ) || ( ( tree == _phylogeny ) && !displayed ) ) {
+                    continue;
+                }
+                if ( mode == BranchLengthLayout.MODE.DIVERGENCE ) {
+                    // the tab was judged before its mode was set (the switch asks the whole tree; an undo restores a
+                    // layout the tab was in): every tree of it goes, a clade with no change of its own too
+                    BranchLengthLayout.applyDivergenceToPart( tree, time );
+                }
+                else {
+                    BranchLengthLayout.applyTime( tree, time );
+                }
+                tree.setDistanceUnit( unit );
+            }
+        }
+        finally {
+            detachSubtreeRoots();
+        }
+        // The ROOT of a view is a COPY of the clade's top node, not the node: no layout reaches it (a root has no
+        // branch), so it would go on stating the length it was copied with, in the layout of that moment. It
+        // states the length of the node it stands for.
+        for( int i = 0; i < _subtree_index; ++i ) {
+            final Phylogeny view = ( ( i + 1 ) < _subtree_index ) ? _sub_phylogenies[ i + 1 ] : _phylogeny;
+            if ( ( view != null ) && ( _sub_phylogenies_temp_roots[ i ] != null ) && ( ( view != _phylogeny ) || displayed ) ) {
+                view.getRoot().setDistanceToParent( _sub_phylogenies_temp_roots[ i ].getDistanceToParent() );
+            }
+        }
+        // a time axis is meaningless for divergence lengths; back in time it is auto again, re-derived from the
+        // retained <date> unit (NONE if unit-less)
+        _time_axis_type = ( mode == BranchLengthLayout.MODE.DIVERGENCE ) ? Options.TIME_AXIS_TYPE.NONE : null;
+        recalculateMaxDistanceToRoot(); // the branch-length change invalidates the depth cache
+    }
+
+    /** After an IN-PLACE change to the dates or properties of the SAME tree object (the node editor): whether the
+     *  tree can be laid out both ways is asked again, since the identity-keyed cache cannot know. */
+    void invalidateBranchLengthToggle() {
+        _branch_length_toggle_for = null;
+    }
+
+    /** A restored snapshot brings its branch lengths in the layout they were captured in: the mode follows the
+     *  TREE, or the panel would show one layout and call it the other (Div pressed over time lengths, no axis, no
+     *  node-age bars, and a "Div" button that does nothing because the mode already says so). The snapshot itself
+     *  is left as it was captured; restored INSIDE A SUBTREE VIEW, the trees the view descended from follow it.
+     *  <p>
+     *  The restored tree's lengths in time come WITH the snapshot: a copy in divergence does not carry them, and the
+     *  ones this tab keeps now may be of an edit this very undo takes back -- also when the tab was in divergence
+     *  before and after and the mode does not change at all. */
+    private void followBranchLengthModeOf( final TreeHistory.Snapshot s ) {
+        final BranchLengthLayout.MODE to = s.getBranchLengthMode();
+        final BranchLengthLayout.TimeLengths time;
+        if ( to == BranchLengthLayout.MODE.DIVERGENCE ) {
+            // the trees beneath a view are not
+            // in the snapshot and are not taken back by it: what they have now -- showing time, about to show
+            // divergence, what they show; already in divergence, what the tab keeps
+            final BranchLengthLayout.TimeLengths now;
+            if ( branchLengthMode() == BranchLengthLayout.MODE.TIME ) {
+                final Phylogeny[] beneath = new Phylogeny[ _subtree_index ];
+                for( int i = 0; i < _subtree_index; ++i ) {
+                    beneath[ i ] = _sub_phylogenies[ i ];
+                }
+                attachSubtreeRoots();
+                try {
+                    now = BranchLengthLayout.TimeLengths.onScreen( beneath );
+                }
+                finally {
+                    detachSubtreeRoots();
+                }
+            }
+            else {
+                now = ( _time_lengths != null ) ? _time_lengths : new BranchLengthLayout.TimeLengths();
+            }
+            time = now;
+            _time_lengths = time;
+        }
+        else {
+            time = timeLengths();
+        }
+        if ( to != branchLengthMode() ) {
+            _branch_length_mode = to;
+            layOut( _branch_length_mode, time, false );
+            if ( ( getMainPanel() != null ) && ( getMainPanel().getMainFrame() != null ) ) {
+                getMainPanel().getMainFrame().refreshOpenSettingsDialog();
+            }
+        }
+    }
+
+    /** After the restored tree went on display: in divergence its lengths in time are its snapshot's, its top's
+     *  branch included (inside a view that branch came back with it), over what the tab keeps. */
+    private void keepTimeLengthsOf( final TreeHistory.Snapshot s ) {
+        if ( s.getBranchLengthMode() == BranchLengthLayout.MODE.DIVERGENCE ) {
+            attachSubtreeRoots();
+            try {
+                _time_lengths = _time_lengths.over( s.getTimeLengths(), _phylogeny );
+            }
+            finally {
+                detachSubtreeRoots();
+            }
+        }
+        _branch_length_toggle_for = null; // offered or not follows the restored lengths, not the cached answer
+        reseedBranchLengthsControl();
+    }
+
+    /**
+     * A tab made FROM this one (Select Representative Tips) starts in this tab's layout, with this tab's lengths in
+     * time: its tree is a copy of this one's, in the lengths this tab shows. Asked of it as a tree that ARRIVED, a
+     * copy in divergence would take its time from the gaps between its dates, and the two tabs of one tree would
+     * disagree about Time wherever a file's lengths and its dates do. The copy's pruned nodes are handled by
+     * {@link BranchLengthLayout.TimeLengths#of}.
+     */
+    void takeBranchLengthLayoutOf( final TreePanel source ) {
+        if ( ( source == null ) || ( source == this ) ) {
+            return;
+        }
+        final BranchLengthLayout.MODE mode = source.branchLengthMode();
+        final boolean was_divergence = branchLengthMode() == BranchLengthLayout.MODE.DIVERGENCE;
+        _branch_length_arrival_known = true;
+        _branch_length_mode = mode;
+        // the source's lengths in time, and the pieces with their rates of any branch a delete (or the prune that
+        // made the copy) merged. In divergence no time axis: the arrival, asked when the tab was added, has already
+        // found the copy in divergence
+        _time_lengths = source.timeLengths();
+        if ( ( mode == BranchLengthLayout.MODE.TIME ) && was_divergence ) {
+            _time_axis_type = null; // the arrival took the axis away from a tree that is in time after all
+        }
+        _branch_length_toggle_for = null;
+        reseedBranchLengthsControl();
+        repaint();
     }
 
     /** Reset the branch-length view to the TIME default (used by Reset to Defaults). Rewrites only THIS panel's model
      *  + invalidates its depth cache (NO cross-panel re-fit, so it is safe in a batch per-tab reset loop -- the layout
-     *  refreshes when the tab is next shown). No-op if already TIME or the tree is not applicable. */
+     *  refreshes when the tab is next shown). No-op if already TIME. Goes through the SAME routine as the switch
+     *  ({@link #layOut}), so Reset and "Time" cannot disagree: the Auspice parser's own routine, used here
+     *  before, takes child - parent and clamps at 0, which lays a tree dated in HEIGHTS (ages, largest at the root)
+     *  out at length 0 on every branch. Never refused, like the switch's way back. */
     void resetBranchLengthModeToDefault() {
-        if ( _branch_length_mode == BranchLengthLayout.MODE.TIME ) {
+        if ( branchLengthMode() == BranchLengthLayout.MODE.TIME ) {
             return;
         }
+        final BranchLengthLayout.TimeLengths time = timeLengths();
         _branch_length_mode = BranchLengthLayout.MODE.TIME;
-        if ( isBranchLengthToggleApplicable() ) {
-            AuspiceJsonParser.applyTimeBranchLengths( _phylogeny );
-            _phylogeny.setDistanceUnit( "year" );
-            _time_axis_type = null;
-            recalculateMaxDistanceToRoot();
+        _branch_length_toggle_for = null;
+        if ( ( _phylogeny != null ) && !_phylogeny.isEmpty() ) {
+            layOut( BranchLengthLayout.MODE.TIME, time, true );
         }
         repaint();
     }
@@ -6009,7 +6773,7 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
      *  branch lengths are substitutions/site: a date-based node-age (HPD) bar/spindle or fossil-range bar would then be
      *  scaled by the (huge) divergence corr and paint absurdly long (covering the whole canvas). Gates those overlays. */
     boolean isBranchLengthTimeCalibrated() {
-        return _branch_length_mode != BranchLengthLayout.MODE.DIVERGENCE;
+        return branchLengthMode() != BranchLengthLayout.MODE.DIVERGENCE;
     }
 
     /** Invalidate the identity-keyed time-axis caches (derived type + max node-date) after an IN-PLACE change to the
@@ -6364,6 +7128,70 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
         return (luminance > 0.55) ? Color.BLACK : Color.WHITE;
     }
 
+    // ---- diagnostic paint-time / FPS readout (Settings > Application > Diagnostics; off in a fresh install) ---
+    // Screen only and drawn after everything else, so it can never reach an exported figure. It reports the mean
+    // time the last frames took to PAINT and the rate that implies -- not the rate Swing happens to be repainting
+    // at, which is zero while nothing moves and would say nothing about the cost of a frame.
+    private final static int FPS_SAMPLE_FRAMES = 30;
+    private final long[]     _frame_nanos      = new long[FPS_SAMPLE_FRAMES];
+    private int              _frame_index;
+    private int              _frame_count;
+
+    private void recordFrameTime(final long nanos) {
+        _frame_nanos[_frame_index] = nanos;
+        _frame_index = (_frame_index + 1) % FPS_SAMPLE_FRAMES;
+        if (_frame_count < FPS_SAMPLE_FRAMES) {
+            ++_frame_count;
+        }
+    }
+
+    /** Mean paint time over the last frames in milliseconds, or 0 before anything has been timed. */
+    final double averagePaintMillis() {
+        if (_frame_count < 1) {
+            return 0;
+        }
+        long sum = 0;
+        for (int i = 0; i < _frame_count; ++i) {
+            sum += _frame_nanos[i];
+        }
+        return (sum / (double) _frame_count) / 1_000_000.0;
+    }
+
+    /** The readout as drawn, or null when there is nothing to report yet. */
+    final String fpsReadout() {
+        final double ms = averagePaintMillis();
+        if (ms <= 0) {
+            return null;
+        }
+        return String.format("%.1f ms  %.0f fps", ms, 1000.0 / ms);
+    }
+
+    final private void paintFpsCounter(final Graphics2D g, final int region_x, final int region_width,
+                                       final int region_y_top) {
+        final String label = fpsReadout();
+        if (label == null) {
+            return;
+        }
+        final Font saved = g.getFont();
+        g.setFont(getTreeFontSet().getSmallFont());
+        final FontMetrics fm = g.getFontMetrics();
+        final int tw = fm.stringWidth(label);
+        final int x = Math.max(region_x + MOVE, (region_x + region_width) - legendColumnReserve() - tw - MOVE);
+        // one line down when the "Time tree" badge already holds this corner, so the two never overprint. The
+        // badge is drawn in the rectangular family ONLY, so a dated tree in a circular/unrooted layout must not
+        // be shifted for a badge that is not on screen.
+        final int lines = (!isRadialLayout() && (timeTreeBadgeLabel() != null)) ? 1 : 0;
+        final int y = region_y_top + fm.getAscent() + 4 + (lines * (fm.getHeight() + 2));
+        // a faint backdrop: this is chrome over an arbitrary drawing, and a diagnostic that cannot be read is
+        // useless. Never exported, so it costs the figure nothing.
+        final Color bg = getTreeColorSet().getBackgroundColor();
+        g.setColor(new Color(bg.getRed(), bg.getGreen(), bg.getBlue(), 190));
+        g.fillRect(x - 3, y - fm.getAscent() - 2, tw + 6, fm.getHeight() + 4);
+        g.setColor(getTreeColorSet().getBranchLengthColor());
+        g.drawString(label, x, y);
+        g.setFont(saved);
+    }
+
     /** Draws the small "Time tree" badge at the top-right of the drawing region (viewport-fixed on screen, the export
      *  extent for a file), when the current tree is a time tree. WYSIWYG. */
     final private void paintTimeTreeBadge(final Graphics2D g,
@@ -6423,12 +7251,16 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
         g.setStroke(s);
     }
 
+    /** @param max_px the widest this taxonomy segment may be DRAWN ({@link Integer#MAX_VALUE} for no cap) -- the
+     *                 tip-label cap, so the taxonomy gives ground with the rest of the label instead of being the
+     *                 one segment that keeps overflowing the width reserved for it */
     final private int paintTaxonomy(final Graphics2D g,
                                     final PhylogenyNode node,
                                     final boolean is_in_found_nodes,
                                     final boolean to_pdf,
                                     final boolean to_graphics_file,
-                                    final float x_shift) {
+                                    final float x_shift,
+                                    final int max_px) {
         final Taxonomy taxonomy = node.getNodeData().getTaxonomy();
         final boolean using_visual_font = setFont(g, node);
         setColor(g, node, to_graphics_file, to_pdf, is_in_found_nodes, getTreeColorSet().getTaxonomyColor());
@@ -6446,7 +7278,7 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
             start_y = node.getYcoord()
                     + (getFontMetrics(g.getFont()).getAscent() / (node.getNumberOfDescendants() == 1 ? 1 : 3.0f));
         }
-        final int width = taxonomyLabel(g, taxonomy, start_x, start_y, to_pdf, true);
+        final int width = taxonomyLabel(g, taxonomy, start_x, start_y, to_pdf, true, max_px);
         recordLabel(g, node, labelBounds(g, start_x, start_y, width));
         return width;
     }
@@ -6460,21 +7292,37 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
      */
     private int taxonomyLabel(final Graphics2D g, final Taxonomy taxonomy, final float start_x,
                               final float baseline_y, final boolean to_pdf, final boolean draw) {
+        return taxonomyLabel(g, taxonomy, start_x, baseline_y, to_pdf, draw, Integer.MAX_VALUE);
+    }
+
+    /** As above, but no wider than {@code max_px}: the part that runs out of room is cut with an ellipsis and the
+     *  parts after it are dropped. Only a TIP's taxonomy is capped -- an internal label consumes no reserved
+     *  column. Without this the cap applied to the node-data segment alone, so a tip whose taxonomy was already
+     *  wider than the cap was still drawn at full width over the track beside it: measured one way, drawn
+     *  another. */
+    private int taxonomyLabel(final Graphics2D g, final Taxonomy taxonomy, final float start_x,
+                              final float baseline_y, final boolean to_pdf, final boolean draw,
+                              final int max_px) {
         final Font base = g.getFont();
         final Font italic = getOptions().isUseItalicScientificNames() ? italicOf(base) : base;
         final int[] w = { 0 };
         forEachTaxonomyLabelPart(taxonomy, (text, scientific) -> {
-            if (text.isEmpty()) {
+            if (text.isEmpty() || (w[0] >= max_px)) {
                 return;
             }
             // The scientific-name part uses an italic-derived font; the SVG/EPS backend turns all text
             // (italic included) into glyph outlines so the bundled face is not substituted by the viewer
             // (see OutliningVectorGraphics2D). PDF and screen draw with the real font.
             g.setFont(scientific ? italic : base);
-            if (draw) {
-                TreePanel.drawString(text, start_x + w[0], baseline_y, g);
+            final String shown = (max_px == Integer.MAX_VALUE) ? text
+                    : TreePanelUtil.truncateToPixelWidth(getFontMetrics(g.getFont()), text, max_px - w[0]);
+            if (shown.isEmpty()) {
+                return;
             }
-            w[0] += to_pdf ? fractionalAdvanceWidth(g, text) : getFontMetrics(g.getFont()).stringWidth(text);
+            if (draw) {
+                TreePanel.drawString(shown, start_x + w[0], baseline_y, g);
+            }
+            w[0] += to_pdf ? fractionalAdvanceWidth(g, shown) : getFontMetrics(g.getFont()).stringWidth(shown);
         });
         g.setFont(base);
         return w[0];
@@ -6572,16 +7420,22 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
      *  panel, so centring at getWidth()/2 would push the ring off the export canvas. On screen, and for a visible-only
      *  export (whose Graphics is translated to crop), the drawing space is the panel's own width, so getWidth() is
      *  correct. (For the ordinary full export the caller passes getWidth() as the canvas, so the two agree.) */
+    /** Whether a paint with these flags centres the radial canvas on the EXPORT frame rather than on the panel.
+     *  The single definition: {@link #radialCanvasCenterX}/{@code Y} place the ring by it, and the layout-validity
+     *  latch in {@link #paintPhylogeny} decides by it whether the coordinates just written are still the screen's.
+     *  A VISIBLE-ONLY export falls back to the panel's own size, so it moves nothing and invalidates nothing. */
+    private boolean isFullCanvasExport(final boolean to_pdf, final boolean to_graphics_file) {
+        return (to_pdf || to_graphics_file) && !getOptions().isGraphicsExportVisibleOnly();
+    }
+
     private int radialCanvasCenterX(final int graphics_file_width, final boolean to_pdf,
                                     final boolean to_graphics_file) {
-        final boolean full_export = (to_pdf || to_graphics_file) && !getOptions().isGraphicsExportVisibleOnly();
-        return (full_export ? graphics_file_width : getWidth()) / 2;
+        return (isFullCanvasExport(to_pdf, to_graphics_file) ? graphics_file_width : getWidth()) / 2;
     }
 
     private int radialCanvasCenterY(final int graphics_file_height, final boolean to_pdf,
                                     final boolean to_graphics_file) {
-        final boolean full_export = (to_pdf || to_graphics_file) && !getOptions().isGraphicsExportVisibleOnly();
-        return (full_export ? graphics_file_height : getHeight()) / 2;
+        return (isFullCanvasExport(to_pdf, to_graphics_file) ? graphics_file_height : getHeight()) / 2;
     }
 
     final private void paintUnrooted(final PhylogenyNode n,
@@ -6607,7 +7461,9 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
                     isInFoundNodes(n));
             // the tip's domain architecture rides its spoke, extending outward past the label (like circular) -- only
             // with RADIAL labels; under horizontal labels it would clash with the upright labels (see domainBoxesDrawn)
-            if (radial_labels && (getControlPanel() != null) && shows(DisplayOption.SHOW_DOMAIN_ARCHITECTURES)) {
+            _unrooted_tip_angle_map.put(n.getId(), (high_angle + low_angle) / 2);
+            if (radial_labels && (getControlPanel() != null) && shows(DisplayOption.SHOW_DOMAIN_ARCHITECTURES)
+                    && !_tips_hidden_by_rule.contains(Long.valueOf(n.getId()))) { // its name goes, it goes
                 final int num_ext = _phylogeny.getNumberOfExternalNodes();
                 // tips sit near the periphery (radius ~ radialDiameter/2); estimate the arc between adjacent tips there
                 final double spacing = (Math.PI * radialDiameter()) / Math.max(1, num_ext);
@@ -6631,8 +7487,7 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
         // for a label, so it is skipped. Gated on "Show Internal Data" inside the method (not dynamic-hiding-culled,
         // matching the rectangular layout).
         if (!n.isRoot()) {
-            paintNodeDataUnrootedCirc(g, n, to_pdf, to_graphics_file, radial_labels, (high_angle + low_angle) / 2,
-                    isInFoundNodes(n));
+            queueInternalLabel(n, (high_angle + low_angle) / 2); // painted after every tip label, largest clade first
         }
         final float num_enclosed = n.getNumberOfExternalNodes();
         final float x = n.getXcoord();
@@ -6680,14 +7535,16 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
             current_angle += arc_size;
             assignGraphicsForBranchWithColorForParentBranch(desc, false, g, to_pdf, to_graphics_file);
             drawLine(x, y, new_x, new_y, g);
+            _branch_obstacles.add(desc.getId(), x, y, new_x, new_y);
             // "Break Long Branches": mark a capped spoke with a break glyph, rotated to the branch direction, at 0.72
             // along it (clear of the support/length numbers at the midpoint)
             if (breakLongBranchesActiveUnrooted() && (desc.getDistanceToParent() > breakLongBranchCap())) {
                 paintBranchBreakGlyph(g, (float) (x + ((new_x - x) * BRANCH_BREAK_GLYPH_FRACTION)),
                         (float) (y + ((new_y - y) * BRANCH_BREAK_GLYPH_FRACTION)), mid_angle, to_graphics_file);
             }
-            // support + branch-length numbers ride the middle of this branch, rotated to its direction (mid_angle)
-            paintBranchDataRadial(g, desc, (x + new_x) / 2.0, (y + new_y) / 2.0, mid_angle, to_pdf, to_graphics_file);
+            // support + branch-length numbers ride the middle of this branch, rotated to its direction (mid_angle);
+            // painted once the whole tree is drawn, so every line they might cross is known (see the queue)
+            queueRadialBranchData(desc, (x + new_x) / 2.0, (y + new_y) / 2.0, mid_angle);
             paintNodeBox(new_x, new_y, desc, g, to_pdf, to_graphics_file);
             if (desc.isCollapse()) {
                 // collapsed clade-root stub (paintUnrooted returned early for it -> no subtree): its wedge opens
@@ -6830,7 +7687,7 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
         repaint();
     }
 
-    /** The node's properties as one-line label text: the chosen fields' VALUES, comma-joined (internal aptx:*
+    /** The node's properties as one-line label text: the chosen fields' VALUES, " | "-joined (internal aptx:*
      *  metadata, such as the persisted Re-import annotation profile, is never shown). May be empty. */
     private final String propertiesToString(final PhylogenyNode node) {
         return TreePanelUtil.labelPropertiesText(node.getNodeData().getProperties(), _label_property_refs,
@@ -7006,7 +7863,9 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
             // drawn, reserve the FULL reach (labels + the bounded domain track) -- capped so the fan can't collapse --
             // so the domains fit rather than overflowing the canvas.
             final double half = radialDiameter() / 2.0;
-            final double cap = domainBoxesDrawnInCurrentLayout() ? (1 - RADIAL_MIN_TREE_RATIO) : RADIAL_LABEL_MAX_RATIO;
+            // The label margin may take at most what the tree's share leaves -- the same "Tree share" setting the
+            // other layouts divide by, so the slider moves the fan too instead of being inert in this one layout.
+            final double cap = 1.0 - treeWidthShare();
             final int per_side = (int) Math.min(MOVE + getLongestExtNodeInfo(), half * cap);
             d = Math.max(MIN_RADIAL_DIAMETER, radialDiameter() - (2 * per_side));
         } else {
@@ -7051,6 +7910,7 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
             _hover_card = null;
             _hover_card_node = null;
             _hover_card_cell = null;
+            _hover_card_domain = null;
             stopHoverCardFade();
             repaint();
         }
@@ -7064,6 +7924,36 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
     /** Test hook: the circular layout's ring centre (device), or null before it has been laid out. */
     final java.awt.Point circularCenterForTest() {
         return (_circular_radius <= 0) ? null : new java.awt.Point(_circular_center_x, _circular_center_y);
+    }
+
+    /** Test hook: the ring's radius, beside {@link #circularCenterForTest} -- together they are the geometry a
+     *  full-canvas export moves out from under the panel. */
+    final int circularRadiusForTest() {
+        return _circular_radius;
+    }
+
+    /** Test hook: the device angle of the circular seam (the Scale Axis ruler's direction) in the last paint. */
+    final double circularSeamAngleForTest() {
+        return _circular_seam_angle;
+    }
+
+    /** Test hook: the numbers the circular distance scale is drawn from: {tree height a radius is normalised by, the
+     *  deepest tip's distance (where the ruler ends), the scale distance (tick / ring / bar spacing), what the radius
+     *  is normalised by right now (the tree height, or the capped height while long branches are capped)}. */
+    final double[] circularScaleNumbersForTest() {
+        return new double[] { getMaxDistanceToRoot(), numericScaleAxisMaxDist(), getScaleDistance(),
+                circularRadialNormaliser() };
+    }
+
+    /** Test hook: the fill behind a circular scale-axis number right now (null: none). */
+    final Color scaleAxisBackdropForTest() {
+        return scaleAxisBackdrop();
+    }
+
+    /** Test hook: the unrooted fan's spread factor -- the quantity "Tree share" governs in THAT layout (the
+     *  circular one uses the tip-ring radius, the rectangular family the depth width). */
+    final float urtFactorForTest() {
+        return getUrtFactor();
     }
 
     /** Test hook: the annotation-column cell the showing rollover is for, or null (a node card, or no card). */
@@ -7090,6 +7980,7 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
                 NodeHoverCard.isDarkTheme());
         _hover_card_node = node;
         _hover_card_cell = null;
+        _hover_card_domain = null;
         _hover_card_x = e.getX();
         _hover_card_y = e.getY();
         _hover_card_shown_at = System.currentTimeMillis();
@@ -7117,11 +8008,123 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
                 NodeHoverCard.isDarkTheme());
         _hover_card_node = null;
         _hover_card_cell = cell;
+        _hover_card_domain = null;
         _hover_card_x = e.getX();
         _hover_card_y = e.getY();
         _hover_card_shown_at = System.currentTimeMillis();
         startHoverCardFade();
         repaint();
+    }
+
+    /**
+     * The rollover for a protein DOMAIN. Domain architectures line up in a column of their own, so a box out
+     * there says nothing about which protein it belongs to or how good the hit is -- the card supplies both.
+     */
+    final private void showDomainPopup(final MouseEvent e, final DomainHit hit) {
+        // IDENTITY, not equality: DomainHit is a record, so equals() would route to PhylogenyNode.equals,
+        // which calls two distinct tips of the same name and sequence equal (and throws on a foreign class).
+        // The card would then refuse to follow the pointer from one such tip to the other. Same == the
+        // annotation-cell path beside this one uses.
+        if ((_hover_card != null) && (_hover_card_domain != null)
+                && (_hover_card_domain.node() == hit.node()) && (_hover_card_domain.domain() == hit.domain())) {
+            return; // same domain: leave the card where it is rather than restart its fade under the pointer
+        }
+        int protein_length = 0;
+        if (hit.node().getNodeData().isHasSequence()
+                && (hit.node().getNodeData().getSequence().getDomainArchitecture() != null)) {
+            protein_length = hit.node().getNodeData().getSequence().getDomainArchitecture().getTotalLength();
+        }
+        final java.util.List<NodeHoverText.Row> rows = NodeHoverText.domainRows(hit.node(), hit.domain(),
+                                                                                protein_length);
+        final Font base = UIManager.getFont("Label.font");
+        _hover_card = new NodeHoverCard(rows, (base != null) ? base : getFont(), this::getFontMetrics,
+                NodeHoverCard.isDarkTheme());
+        _hover_card_node = null;
+        _hover_card_cell = null;
+        _hover_card_domain = hit;
+        _hover_card_x = e.getX();
+        _hover_card_y = e.getY();
+        _hover_card_shown_at = System.currentTimeMillis();
+        startHoverCardFade();
+        repaint();
+    }
+
+    /**
+     * Opens a domain's Pfam entry in the browser, returning whether there was one to open.
+     *
+     * Only ever a LINK, never a fetch: Archaeopteryx has no server and asks none for this. A domain whose file
+     * carries no accession -- the common case, since most writers record only the name -- opens nothing.
+     */
+    boolean openPfamPage(final ProteinDomain d) {
+        final String url = domainUrl(d);
+        if (url == null) {
+            return false;
+        }
+        try {
+            AptxUtil.openWebsite(url); // the one launcher, as openSeqWeb/openTaxWeb use
+            return true;
+        }
+        catch (final Exception ex) {
+            AptxUtil.showErrorMessage(this, "Could not open " + url + "\n" + ex.getMessage());
+            return true; // there WAS a page; the browser is what failed
+        }
+    }
+
+    /**
+     * Where a domain's box links to, or null when nothing names it.
+     *
+     * Two routes, chosen by the data rather than by preference: an ACCESSION addresses an InterPro entry,
+     * an IDENTIFIER does not. Measured: /entry/pfam/PF00931/ is a 200, /entry/pfam/NB-ARC/ is a 404 -- so a
+     * domain carrying only its name gets a text search, which is a weaker promise and is labelled as one.
+     * Most files are in that case: our own apaf demo names all 166 of its domains and gives none an id.
+     */
+    static String domainUrl(final ProteinDomain d) {
+        final String acc = NodeHoverText.pfamAccession(d);
+        if (acc != null) {
+            return pfamUrl(acc);
+        }
+        if ((d == null) || ForesterUtil.isEmpty(d.getName())) {
+            return null;
+        }
+        return interProSearchUrl(d.getName());
+    }
+
+    /** A plain single left click: no other button, no modifier, not the second of a double click. */
+    private static boolean isPlainSingleLeftClick(final MouseEvent e) {
+        return SwingUtilities.isLeftMouseButton(e) && (e.getClickCount() == 1)
+                && ((e.getModifiersEx() & (InputEvent.SHIFT_DOWN_MASK | InputEvent.CTRL_DOWN_MASK
+                        | InputEvent.ALT_DOWN_MASK | InputEvent.META_DOWN_MASK)) == 0);
+    }
+
+    /** Test hook for {@link #isPlainSingleLeftClick} -- the gate that keeps a right-click, a modified click
+     *  and the second event of a double click from launching a browser. */
+    static boolean isPlainSingleLeftClickForTest(final MouseEvent e) {
+        return isPlainSingleLeftClick(e);
+    }
+
+    /** Pfam entries live under InterPro, addressed by ACCESSION. The base is its own constant: the surfacing
+     *  HTML reports link by NAME and so use {@link ForesterConstants#PFAM_FAMILY_ID_LINK} instead. */
+    static String pfamUrl(final String accession) {
+        return ForesterConstants.INTERPRO_PFAM_ENTRY_LINK + accession + "/";
+    }
+
+    /**
+     * URLEncoder is form encoding, not path encoding: it turns a space into '+', which in a PATH segment is a
+     * literal plus, so "Bcl-2 like" searched for the string "Bcl-2+like" and found nothing. The multi-argument
+     * URI constructor escapes for the path, giving %20.
+     */
+    static String interProSearchUrl(final String name) {
+        final java.net.URI base = java.net.URI.create(ForesterConstants.PFAM_FAMILY_ID_LINK);
+        try {
+            return new java.net.URI(base.getScheme(), base.getHost(), base.getPath() + name + "/", null)
+                    .toASCIIString();
+        }
+        catch (final java.net.URISyntaxException e) {
+            // Everything comes from the ONE base above, and the name keeps its own characters: falling back to
+            // URLEncoder here would reintroduce the '+' this method exists to avoid, and spelling the host out
+            // again would be a second copy of the constant that a later edit would leave behind.
+            return ForesterConstants.PFAM_FAMILY_ID_LINK + name + "/";
+        }
     }
 
     /** The fade-in: repaint at ~60 Hz until the card is fully opaque, then stop. Hiding is always instant. */
@@ -7199,32 +8202,72 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
         final int y = isVerticalOrientation() ? x_in : y_in;
         _layout_width = x_in; // what legendColumnReserve() judges "too wide a legend" against
         // updateStyle(); not needed?
+        invalidateAlignmentLength(); // a fresh pass: everything below may ask for it many times
         if ((_phylogeny != null) && !_phylogeny.isEmpty()) {
             initNodeData();
+            // A fresh pass measures the labels WHOLE: last pass's cap would look like a short label to the auto-fit
+            // below, which would then grow the font back and re-overflow -- an oscillation between two sizes.
+            _tip_label_pixel_cap = Integer.MAX_VALUE;
             calculateLongestExtNodeInfo();
-            if ((getLongestExtNodeInfo() > (x * 0.6))
-                    && (getTreeFontSet().getLargeFont().getSize() > (2 + TreeFontSet.FONT_SIZE_CHANGE_STEP))) {
-                while ((getLongestExtNodeInfo() > (x * 0.7))
-                        && (getTreeFontSet().getLargeFont().getSize() > 2)) {
-                    getMainPanel().getTreeFontSet().decreaseFontSize(getConfiguration().getMinBaseFontSize(), true);
+            // Fit the labels to the width the BUDGET leaves them, not to a fixed 60/70% of the panel. The old
+            // fractions were blind to the alignment and the annotation columns, so on a tree carrying both, the
+            // labels were "fitted" into room that was already spoken for and the tree got whatever survived --
+            // which measured NEGATIVE on the deep trees. labelWidthCap takes the tree's guaranteed share and the
+            // other tracks' minimums off the top first, so what the labels fit into is genuinely theirs.
+            final int label_cap = labelWidthCap(x);
+            final int label_grow_back = (int) Math.round(label_cap * LABEL_CAP_GROW_BACK);
+            final int min_font = autofitMinFontSize();
+            if ((getLongestExtNodeInfo() > label_grow_back)
+                    && (getTreeFontSet().getLargeFont().getSize() > (min_font + TreeFontSet.FONT_SIZE_CHANGE_STEP))) {
+                while ((getLongestExtNodeInfo() > label_cap)
+                        && (getTreeFontSet().getLargeFont().getSize() > min_font)) {
+                    getMainPanel().getTreeFontSet().decreaseFontSize(min_font, true);
                     calculateLongestExtNodeInfo();
                 }
             } else {
-                while ((getLongestExtNodeInfo() < (x * 0.6)) && (getTreeFontSet().getLargeFont()
+                while ((getLongestExtNodeInfo() < label_grow_back) && (getTreeFontSet().getLargeFont()
                         .getSize() <= (getTreeFontSet().getLargeFontMemory().getSize()
                         - TreeFontSet.FONT_SIZE_CHANGE_STEP))) {
                     getMainPanel().getTreeFontSet().increaseFontSize();
                     calculateLongestExtNodeInfo();
-                    if (getLongestExtNodeInfo() > (x * 0.7)) {
+                    if (getLongestExtNodeInfo() > label_cap) {
                         getMainPanel().getTreeFontSet().decreaseFontSize(getConfiguration().getMinBaseFontSize(), true);
                         calculateLongestExtNodeInfo();
                         break;
                     }
                 }
             }
+            // The labels have settled: now divide the width for real, once, for every reserve below to read.
+            computeWidthBudget(x);
+            // The font auto-fit has done all it can. If the labels STILL overflow their cap it is because the font
+            // hit its readability floor, and the only remaining way to honour the tree's share is to shorten the
+            // TEXT. Measured before this existed: on a 360-tip tree carrying domains and an alignment the tree
+            // stalled at 52% of the width however far the share was raised, because the labels could not give up
+            // another pixel past font 6.
+            //
+            // But only while it buys the TREE something. Where the side tracks are ALREADY squeezed to their
+            // minimums the width the labels give up goes to the alignment instead, and the text would have been
+            // cut for nothing -- measured on apaf_deep at the default share, where the tree sat at 544 px whether
+            // the labels were shortened or not. So: try it, keep it only if the tree is wider, and otherwise hand
+            // the characters back. That is what keeps the default behaviour of 101 of the 102 trees on hand
+            // byte-identical to before this existed.
+            if (_width_budget != null) {
+                final int tree_before = _width_budget.treeWidth();
+                applyTipLabelPixelCap(label_cap);
+                if (_tip_label_pixel_cap != Integer.MAX_VALUE) {
+                    computeWidthBudget(x);
+                    if ((_width_budget.treeWidth() - tree_before) < worthwhileTreeGain(x)) {
+                        _tip_label_pixel_cap = Integer.MAX_VALUE;
+                        calculateLongestExtNodeInfo();
+                        computeWidthBudget(x);
+                    }
+                }
+            }
             // the overlap auto-fit above may have changed the displayed font size -> reflect it in the slider
             if (getControlPanel() != null) {
                 getControlPanel().updateFontSizeSlider();
+                // ...and the budget just decided whether "Tree share" can do anything for THIS tree
+                getControlPanel().updateTreeShareSlider();
             }
             _length_of_longest_text = calcLengthOfLongestText(); //~~~
             // resolve AUTO (fit) ONCE for this pass, BEFORE the breadth reserves below read it -- so the reserves and the
@@ -7389,12 +8432,11 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
             // taken: getGraphics() allocates a context per call that has to be disposed, and this runs per tip,
             // repeatedly, inside the font auto-fit loop.)
             final Font base = reservationFontFor(node);
+            // Already capped at maxTipLabelTextWidth() inside labelTextWidth -- radially to the label reach (see
+            // paintNodeDataUnrootedCirc), in a rectangular layout to the budget's label cap once the font auto-fit
+            // has bottomed out -- so the reservation, the domain start (radius/reserve + longest_text) and the drawn
+            // labels all agree.
             sum = labelTextWidth(node, base);
-            if (isRadialLayout()) {
-                // radial labels are truncated to this reach (see paintNodeDataUnrootedCirc) -- so the reservation, the
-                // domain start (radius + longest_text) and the drawn labels all agree, keeping everything on-canvas
-                sum = Math.min(sum, radialMaxLabelWidth());
-            }
             if (sum > longest_text_only) {
                 longest_text_only = sum; // capture BEFORE the domain track width is added
             }
@@ -7429,10 +8471,8 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
         for (final PhylogenyNode clade : displayedCollapsedClades()) {
             final List<PhylogenyNode> tips = clade.getAllExternalDescendants();
             final String widest = CollapsedClade.label(collapsedCladeName(clade, tips), tips.size(), tips.size());
-            int w = getFontMetrics(collapsedLabelFont(true)).stringWidth(widest);
-            if (isRadialLayout()) {
-                w = Math.min(w, radialMaxLabelWidth());
-            }
+            final int w = Math.min(getFontMetrics(collapsedLabelFont(true)).stringWidth(widest),
+                                   maxTipLabelTextWidth());
             longest_text_only = Math.max(longest_text_only, w);
             longest = Math.max(longest, w);
         }
@@ -7891,6 +8931,21 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
     }
 
     /** Test hooks for the in-legend controls (their last-drawn on-screen bounds, or null). */
+    /** Test hook: how many value rows the last-drawn legend laid out (drives the "+N more" check). */
+    int legendRowCountForTest() {
+        return _legend_row_labels.size();
+    }
+
+    /** Test hook: the y at the centre of the legend's FIRST value row -- where a colour-square click lands. */
+    int legendFirstRowCenterYForTest() {
+        return _legend_rows_top + (_legend_row_height / 2);
+    }
+
+    /** Test hook: the value a click would resolve to (null off any value row). */
+    String legendValueAtForTest(final MouseEvent e) {
+        return legendValueAt(e);
+    }
+
     Rectangle legendSortToggleBoundsForTest() {
         return _legend_sort_toggle_bounds;
     }
@@ -8075,6 +9130,15 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
     private int                 _layout_width          = 0;
     private final static int    LEGEND_EDGE_INSET      = 10; // the default corner's inset (legendTopLeftFor)
     private final static int    LEGEND_COLUMN_GAP      = 12;
+    // THE DEFAULT SPOTS OF ONE PAINT. Every legend has a default corner of its own, but five legends share four
+    // corners (and some pick theirs by which others are present), so two could open on top of each other -- the
+    // pie legend and the Color-by legend both at the top right in circular/unrooted, the Size-by legend, the
+    // internal-taxonomy key and the domain legend all at the bottom right. So during a paint pass each legend
+    // placed at its DEFAULT records its box here, and a later one that would land on a recorded box moves past
+    // it: down from a top corner, up from a bottom corner (claimDefaultLegendSpot). A dragged legend is where the
+    // user put it and neither claims nor yields. Null outside the legend tail of paintPhylogeny, so a legend drawn
+    // anywhere else (measureLegend, the ...ForTest hooks) lands on its plain default corner.
+    private java.util.List<Rectangle> _default_legend_claims = null;
     /** Beyond this share of the width the tree would be squeezed unreadable: no column, the legend floats as before. */
     private final static double LEGEND_COLUMN_MAX_SHARE = 0.4;
 
@@ -8094,6 +9158,17 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
      * in a vertical orientation the tips run along the bottom, not the right edge).
      */
     final int legendColumnReserve() {
+        // NOT the width budget's to withhold. This column is what keeps the legend off the tracks it would
+        // otherwise cover -- a readability failure -- whereas the tree's guaranteed share is a preference; when
+        // the two cannot both be had, the overlap is the worse outcome. It already caps itself at
+        // LEGEND_COLUMN_MAX_SHARE of the width, and a dragged legend asks for no column at all. (An earlier
+        // version let the budget drop it when the slack ran out, which put the legend straight back over the
+        // annotation-column headers -- LegendColumnTest caught it.)
+        return legendColumnReserveWanted();
+    }
+
+    /** The column a right-edge legend would like, before the budget decides whether there is room for it. */
+    private int legendColumnReserveWanted() {
         if (!reservesLegendColumn() || isRadialLayout() || isVerticalOrientation()) {
             return 0;
         }
@@ -8109,6 +9184,10 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
 
     final void setLegendOffsetForTest(final Point offset) {
         _legend_offset = offset;
+    }
+
+    final void setSizeLegendOffsetForTest(final Point offset) {
+        _size_legend_offset = offset;
     }
 
     /** The widest of the legends standing at the right edge at their DEFAULT positions (a dragged legend is where the
@@ -8183,12 +9262,60 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
         final java.awt.image.BufferedImage scratch = new java.awt.image.BufferedImage(1, 1,
                 java.awt.image.BufferedImage.TYPE_INT_ARGB);
         final Graphics2D g = scratch.createGraphics();
+        // MEASURING MUST LEAVE NO TRACE. The measurement is deliberately the drawing code itself -- that is what
+        // stops it drifting from what is drawn -- but that code also RECORDS each legend's on-screen hit region as
+        // it goes, and here it is drawing into the sentinel (0, 0, 100000, 100000) box this measures in. Left
+        // behind, those off-screen rectangles are exactly what every legend hit-test reads, so the legends stop
+        // responding to clicks and drags altogether -- no drag, no [by count], no [show all], no colour square.
+        // That is not hypothetical: a caller asking for the legend-column reserve AFTER the real draw overwrote
+        // the real bounds with x=99843 on a 1400 px panel. Snapshot and restore every bounds field rather than
+        // guarding each writer, so no recorder -- present or future -- can leak out of a measurement.
+        // The box each legend was drawn in...
+        final Rectangle saved_property = _property_legend_bounds;
+        final Rectangle saved_size = _size_legend_bounds;
+        final Rectangle saved_pie = _ancestral_pie_legend_bounds;
+        final Rectangle saved_taxa = _internal_taxa_key_bounds;
+        final Rectangle saved_domain = _domain_legend_bounds;
+        // ...its in-legend CONTROLS ([colors]/[gradient], [by count]/[A-Z], "+N more"/"show fewer")...
+        final Rectangle saved_mode_toggle = _legend_mode_toggle_bounds;
+        final Rectangle saved_sort_toggle = _legend_sort_toggle_bounds;
+        final Rectangle saved_more = _legend_more_bounds;
+        // ...and the value-row layout a click is mapped through to reach a colour square. All three groups are
+        // recorded while drawing, so all three have to be put back, or the legend keeps its box but loses its
+        // controls -- which looks like "the chips do nothing" rather than an obviously broken legend.
+        // The row group is belt-and-braces, and deliberately so: MEASURED, restoring it changes nothing today,
+        // because the sentinel box and the real box both start at y ~0, the row lookup keys off Y only, and the
+        // shared legend is never placed at the bottom -- so only X diverges and X is not consulted. Its mutation
+        // therefore survives the test, which is recorded here rather than left for someone to rediscover. It is
+        // kept because the invariant worth having is "measuring leaves NO trace", not "leaves no trace that
+        // happens not to matter": the moment this legend is placed anywhere but the top, the sentinel's y ~99900
+        // would map every click to the wrong row.
+        final java.util.List<String> saved_rows = _legend_row_labels;
+        final int saved_rows_top = _legend_rows_top;
+        final int saved_row_height = _legend_row_height;
+        // ...and this paint's default spots: a measurement is not a placement, and must neither claim nor yield.
+        // Belt-and-braces like the row group: MEASURED (2026-09-30), none of 203 measurements across the legend
+        // tests ran inside a legend pass, so its mutation survives; kept for the same invariant.
+        final java.util.List<Rectangle> saved_claims = _default_legend_claims;
+        _default_legend_claims = null;
         try {
             _last_legend_box_size = null;
             draw.accept(g);
             return _last_legend_box_size;
         } finally {
             g.dispose();
+            _property_legend_bounds = saved_property;
+            _size_legend_bounds = saved_size;
+            _ancestral_pie_legend_bounds = saved_pie;
+            _internal_taxa_key_bounds = saved_taxa;
+            _domain_legend_bounds = saved_domain;
+            _legend_mode_toggle_bounds = saved_mode_toggle;
+            _legend_sort_toggle_bounds = saved_sort_toggle;
+            _legend_more_bounds = saved_more;
+            _legend_row_labels = saved_rows;
+            _legend_rows_top = saved_rows_top;
+            _legend_row_height = saved_row_height;
+            _default_legend_claims = saved_claims;
         }
     }
 
@@ -8200,9 +9327,61 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
             // columns are -- an annotated figure would open with its legend sitting on top of the marks it
             // describes (and, with several nested columns, hiding whole ranks of them). Start on the left
             // instead, above the root, where a root-left tree has room. Dragging still overrides this.
-            return new Point(bounds.x + 10, bounds.y + 10);
+            return claimDefaultLegendSpot(bounds, new Point(bounds.x + 10, bounds.y + 10), box_w, box_h);
+        }
+        if (_legend_offset == null) {
+            return claimDefaultLegendSpot(bounds, legendTopLeftFor(bounds, getVisibleRect(), null, box_w, box_h),
+                    box_w, box_h);
         }
         return legendTopLeftFor(bounds, getVisibleRect(), _legend_offset, box_w, box_h);
+    }
+
+    /**
+     * A legend's DEFAULT spot for this paint: {@code corner}, unless a legend placed at its default earlier in the
+     * same pass already stands there (a {@link #LEGEND_EDGE_INSET} gap kept) -- then past it, down from a top corner
+     * or up from a bottom one; if that stack would leave {@code bounds} (a short window), sideways instead, inward
+     * from its side; and if that leaves them too, the plain corner, as before the legends kept apart: a legend on
+     * another is still better than one pushed out of sight.
+     */
+    private Point claimDefaultLegendSpot(final Rectangle bounds, final Point corner, final int box_w,
+                                         final int box_h) {
+        if (_default_legend_claims == null) {
+            return corner;
+        }
+        final Rectangle at_corner = new Rectangle(corner.x, corner.y, box_w, box_h);
+        Rectangle box = stackedPastClaims(at_corner, true, corner.y < (bounds.y + (bounds.height / 2)));
+        if (!bounds.contains(box)) {
+            box = stackedPastClaims(at_corner, false, corner.x < (bounds.x + (bounds.width / 2)));
+            if (!bounds.contains(box)) {
+                box = at_corner;
+            }
+        }
+        _default_legend_claims.add(box);
+        return box.getLocation();
+    }
+
+    /** {@code start} moved, one way only, past every claimed box it meets (each grown by the gap): vertically or
+     *  horizontally, toward larger coordinates when {@code forward}. It lands just outside the grown box it met, so
+     *  it cannot meet that box again, and each move passes one box: it stops after at most one move per claim. */
+    private Rectangle stackedPastClaims(final Rectangle start, final boolean vertical, final boolean forward) {
+        final Rectangle box = new Rectangle(start);
+        boolean moved = true;
+        while (moved) {
+            moved = false;
+            for (final Rectangle claim : _default_legend_claims) {
+                final Rectangle kept_clear = new Rectangle(claim);
+                kept_clear.grow(LEGEND_EDGE_INSET, LEGEND_EDGE_INSET);
+                if (box.intersects(kept_clear)) {
+                    if (vertical) {
+                        box.y = forward ? (kept_clear.y + kept_clear.height) : (kept_clear.y - box.height);
+                    } else {
+                        box.x = forward ? (kept_clear.x + kept_clear.width) : (kept_clear.x - box.width);
+                    }
+                    moved = true;
+                }
+            }
+        }
+        return box;
     }
 
     /** Whether the default legend corner must move off the right edge: only when clade bar/bracket columns are
@@ -8371,6 +9550,21 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
             }
             _sub_phylogenies[level].externalNodesHaveChanged();
             _sub_phylogenies[level].clearHashIdToNodeMap();
+        }
+    }
+
+    /** Gives the root of every view its parent back for a tab-wide branch-length pass: BranchLengthLayout skips a
+     *  parent-less node, so a detached root would keep its branch out of the pass. */
+    private void attachSubtreeRoots() {
+        synchronizeSubtreeRoots();
+        for (int level = 0; level < _subtree_index; ++level) {
+            _sub_phylogenies_temp_roots[level].setParent(_sub_phylogenies_parents[level]);
+        }
+    }
+
+    private void detachSubtreeRoots() {
+        for (int level = 0; level < _subtree_index; ++level) {
+            _sub_phylogenies_temp_roots[level].setParent(null);
         }
     }
 
@@ -9296,14 +10490,14 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
         if (_size_legend_offset != null) {
             return legendTopLeftFor(bounds, getVisibleRect(), _size_legend_offset, box_w, box_h);
         }
-        final boolean color_legend_present = hasColorByPropertyLegend() || hasRankLegend()
-                || hasAnnotationColumnLegend();
-        if (!color_legend_present) {
-            return legendTopLeftFor(bounds, getVisibleRect(), null, box_w, box_h); // the shared top-right default
+        if (!sharedLegendHoldsTopRight()) {
+            // the shared top-right default
+            return claimDefaultLegendSpot(bounds, legendTopLeftFor(bounds, getVisibleRect(), null, box_w, box_h),
+                    box_w, box_h);
         }
         // a color legend already holds the top-right default -> drop to the bottom-right so the two never collide
-        return new Point(Math.max(bounds.x, (bounds.x + bounds.width) - box_w - 10),
-                Math.max(bounds.y, (bounds.y + bounds.height) - box_h - 10));
+        return claimDefaultLegendSpot(bounds, new Point(Math.max(bounds.x, (bounds.x + bounds.width) - box_w - 10),
+                Math.max(bounds.y, (bounds.y + bounds.height) - box_h - 10)), box_w, box_h);
     }
 
     /**
@@ -9376,10 +10570,12 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
      *  overview thumbnail (top-left by default) and the tree name + scale (bottom-left). If a color/rank/annotation
      *  legend already holds the top-right slot, drop to the BOTTOM-LEFT so the two don't collide. Once dragged,
      *  _ancestral_pie_legend_offset maps fractionally like the other legends (so exports honor the moved position). */
-    /** Which legend actually holds the top-right slot: the color/annotation legends are SUPPRESSED radially (see the
-     *  legend tail), so only the rank legend (which draws in every layout) occupies it there. */
+    /** Whether the shared slot draws a legend in this layout -- exactly the legend tail's own test: the Color-by and
+     *  rank legends draw in every layout, the annotation-column legend everywhere but unrooted. (It once excepted
+     *  Color-by in the radial layouts, from when that legend was suppressed there; that sent the pie legend to the
+     *  top right on top of it in circular and unrooted.) */
     private boolean sharedLegendHoldsTopRight() {
-        return hasRankLegend() || (!isRadialLayout() && hasColorByPropertyLegend()) || annotationLegendVisible();
+        return annotationLegendVisible() || hasColorByPropertyLegend() || hasRankLegend();
     }
 
     private Point ancestralPieLegendTopLeft(final Rectangle bounds, final int box_w, final int box_h) {
@@ -9387,10 +10583,11 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
             return legendTopLeftFor(bounds, getVisibleRect(), _ancestral_pie_legend_offset, box_w, box_h);
         }
         if (sharedLegendHoldsTopRight()) {
-            return new Point(Math.max(bounds.x, bounds.x + 10),
-                    Math.max(bounds.y, (bounds.y + bounds.height) - box_h - 10)); // bottom-left
+            return claimDefaultLegendSpot(bounds, new Point(Math.max(bounds.x, bounds.x + 10),
+                    Math.max(bounds.y, (bounds.y + bounds.height) - box_h - 10)), box_w, box_h); // bottom-left
         }
-        return legendTopLeftFor(bounds, getVisibleRect(), null, box_w, box_h); // top-right
+        return claimDefaultLegendSpot(bounds, legendTopLeftFor(bounds, getVisibleRect(), null, box_w, box_h), box_w,
+                box_h); // top-right
     }
 
     /**
@@ -9456,8 +10653,8 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
         if (_internal_taxa_key_offset != null) {
             return legendTopLeftFor(bounds, getVisibleRect(), _internal_taxa_key_offset, box_w, box_h);
         }
-        return new Point(Math.max(bounds.x, (bounds.x + bounds.width) - box_w - 10),
-                Math.max(bounds.y, (bounds.y + bounds.height) - box_h - 10));
+        return claimDefaultLegendSpot(bounds, new Point(Math.max(bounds.x, (bounds.x + bounds.width) - box_w - 10),
+                Math.max(bounds.y, (bounds.y + bounds.height) - box_h - 10)), box_w, box_h);
     }
 
     /**
@@ -9552,8 +10749,8 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
         if (_domain_legend_offset != null) {
             return legendTopLeftFor(bounds, getVisibleRect(), _domain_legend_offset, box_w, box_h);
         }
-        return new Point(Math.max(bounds.x, (bounds.x + bounds.width) - box_w - 10),
-                Math.max(bounds.y, (bounds.y + bounds.height) - box_h - 10));
+        return claimDefaultLegendSpot(bounds, new Point(Math.max(bounds.x, (bounds.x + bounds.width) - box_w - 10),
+                Math.max(bounds.y, (bounds.y + bounds.height) - box_h - 10)), box_w, box_h);
     }
 
     private static String clipToWidth(final String s, final FontMetrics fm, final int max_px) {
@@ -10174,7 +11371,8 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
      */
     public void pushUndoCheckpoint(final String label) {
         if ((_phylogeny != null) && !_phylogeny.isEmpty()) {
-            _history.checkpoint(_phylogeny, label, isEdited());
+            rememberTimeLengthsBeforeAChange();
+            _history.checkpoint(_phylogeny, label, isEdited(), branchLengthMode(), timeLengths());
             notifyEditMenu();
         }
     }
@@ -10186,7 +11384,7 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
      */
     void pushUndoSnapshot(final Phylogeny pre_state, final boolean was_edited, final String label) {
         if ((pre_state != null) && !pre_state.isEmpty()) {
-            _history.checkpoint(pre_state, label, was_edited);
+            _history.checkpoint(pre_state, label, was_edited, branchLengthMode(), timeLengths());
             notifyEditMenu();
         }
     }
@@ -10209,7 +11407,7 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
 
     /** Restores the previous tree state; returns true if something was undone. */
     boolean undo() {
-        final TreeHistory.Snapshot s = _history.undo(_phylogeny, isEdited());
+        final TreeHistory.Snapshot s = _history.undo(_phylogeny, isEdited(), branchLengthMode(), timeLengths());
         if (s == null) {
             return false;
         }
@@ -10219,7 +11417,7 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
 
     /** Re-applies the last undone state; returns true if something was redone. */
     boolean redo() {
-        final TreeHistory.Snapshot s = _history.redo(_phylogeny, isEdited());
+        final TreeHistory.Snapshot s = _history.redo(_phylogeny, isEdited(), branchLengthMode(), timeLengths());
         if (s == null) {
             return false;
         }
@@ -10231,6 +11429,7 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
         _restoring_snapshot = true;
         try {
             final Phylogeny phy = s.getPhylogeny();
+            followBranchLengthModeOf(s); // a view's trees beneath are laid out before the restored clade joins them
             setTree(phy); // also nulls the preorder cache
             setFoundNodes0(null); // the restored copy's search/selection hits from the mutated tree no longer apply
             setFoundNodes1(null);
@@ -10258,6 +11457,7 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
             // restored tree (unwritten edits survive), or mark it detached when the node is gone. Last, so the
             // windows read a fully recomputed tree (renderable domain architectures, counts).
             rebindNodeFrames(phy);
+            keepTimeLengthsOf(s);
             setEdited(s.isEdited());
         }
         finally {
@@ -10672,6 +11872,109 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
         g.fill(new java.awt.geom.Rectangle2D.Double(x - bx, y - by, w + (2 * bx), h + (2 * by)));
     }
 
+    // Heat-map cell borders (Christian, 2026-09-30, as Archaeopteryx.js a72365b): each cell outlined in a darker shade
+    // of its own hue, so a block of equal values still reads as a block while each cell can be counted. Only where a
+    // cell is big enough to carry one, and not on a heat map so large that it would turn into a mesh. Below the
+    // threshold nothing changes: the cells already tile exactly (tipRowBand, fillGridCell), so there is no seam to seal.
+    static final float HEATMAP_BORDER_MIN_PX = 5f;        // the cell's smaller side, in panel pixels
+    static final int HEATMAP_BORDER_MAX_CELLS = 60000;    // tips x heat-map columns
+    static final float HEATMAP_BORDER_W = 0.75f;          // panel pixels; the cells grow with zoom, the border does not
+    private static final double HEATMAP_BORDER_DARKEN = Math.pow(0.7, 0.8); // d3's darker(0.8): each step x0.7
+
+    /** Whether heat-map cells whose smaller side is {@code cell_min} panel pixels, {@code count} of them, are drawn
+     *  each with a border. */
+    static boolean heatmapCellsBordered(final double cell_min, final long count) {
+        return (count <= HEATMAP_BORDER_MAX_CELLS) && (cell_min >= HEATMAP_BORDER_MIN_PX);
+    }
+
+    /** A heat-map cell's border: its own colour, every channel x 0.7^0.8 and rounded (d3's darker(0.8).formatHex()),
+     *  alpha kept. */
+    static Color heatmapBorderColor(final Color fill) {
+        return new Color(darkenChannel(fill.getRed()), darkenChannel(fill.getGreen()), darkenChannel(fill.getBlue()),
+                fill.getAlpha());
+    }
+
+    private static int darkenChannel(final int c) {
+        return Math.max(0, Math.min(255, (int) Math.round(c * HEATMAP_BORDER_DARKEN)));
+    }
+
+    /** The column types whose cells are heat-map cells: one value on a colour scale. A COLOR_STRIP is a category,
+     *  not a heat map, and keeps its plain cells. */
+    private static boolean isHeatmapCellType(final AnnotationColumns.Type t) {
+        return (t == AnnotationColumns.Type.HEATMAP) || (t == AnnotationColumns.Type.MATRIX);
+    }
+
+    /** How many heat-map columns are drawn (the count the border threshold multiplies by the tips). */
+    private int heatmapColumnCount() {
+        int n = 0;
+        for (int i = 0; i < _annotation_columns.size(); ++i) {
+            if (isHeatmapCellType(_annotation_columns.getColumn(i).getType())) {
+                ++n;
+            }
+        }
+        return n;
+    }
+
+    /** The narrowest heat-map column, in panel pixels, or MAX_VALUE when there is none. */
+    private double narrowestHeatmapColumn() {
+        double min = Double.MAX_VALUE;
+        for (int i = 0; i < _annotation_columns.size(); ++i) {
+            if (isHeatmapCellType(_annotation_columns.getColumn(i).getType())) {
+                min = Math.min(min, annotationColumnWidth(i));
+            }
+        }
+        return min;
+    }
+
+    /** Strokes a heat-map cell's border: centred on its edge, as an SVG stroke is, so a cell drawn later lays its
+     *  border over the shared edge -- the same order of paint as Archaeopteryx.js. */
+    private void drawHeatmapCellBorder(final Graphics2D g, final java.awt.Shape cell, final Color fill) {
+        final Stroke saved = g.getStroke();
+        g.setStroke(new BasicStroke(HEATMAP_BORDER_W));
+        g.setColor(heatmapBorderColor(fill));
+        g.draw(cell);
+        g.setStroke(saved);
+    }
+
+    /** For tests: whether the last paint drew the heat-map cells with borders. */
+    boolean heatmapBorderedForTest() {
+        return _heatmap_bordered_last_paint;
+    }
+
+    /** For tests: the heat-map cell count the last paint weighed against the cap. */
+    long heatmapCellCountForTest() {
+        return _heatmap_cell_count_last_paint;
+    }
+
+    /** For tests: draw heat-map cells WITHOUT borders whatever their size, to measure what is under them (the
+     *  seam-free tiling of fillGridCell, which unbordered cells depend on). */
+    void heatmapBordersOffForTest(final boolean off) {
+        _heatmap_borders_off_for_test = off;
+    }
+
+    private boolean _heatmap_bordered_last_paint = false;
+    private long _heatmap_cell_count_last_paint = 0;
+    private boolean _heatmap_borders_off_for_test = false;
+
+    /** A protein domain under the pointer, and the tip whose architecture it belongs to. */
+    static final class DomainHit {
+        private final PhylogenyNode node;
+        private final ProteinDomain domain;
+
+        DomainHit(PhylogenyNode node, ProteinDomain domain) {
+            this.node = node;
+            this.domain = domain;
+        }
+
+        public PhylogenyNode node() {
+            return node;
+        }
+
+        public ProteinDomain domain() {
+            return domain;
+        }
+    }
+
     /** A cell of an annotation column: the DRAWN column and the tip whose row it is on. */
     static final class AnnotationCell {
         private final int column;
@@ -10697,6 +12000,181 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
     }
 
     /**
+     * The protein domain under the pointer, or null.
+     *
+     * Recomputes the track's origin exactly as the painter does -- the aligned domain column for a phylogram,
+     * the aligned tips plus the longest label for a cladogram -- and then asks the renderable itself which of
+     * its domains is at that x, so the geometry and the E-value threshold are not duplicated here. Rectangular
+     * layouts only for now: the radial track is drawn along a rotated arc, which needs its own test.
+     */
+    DomainHit domainAt(final int x, final int y) {
+        // domainBoxesDrawnInCurrentLayout is the painters' OWN predicate -- it also refuses a radial layout
+        // whose labels are not radial, which is when no boxes are drawn there at all.
+        if (!domainBoxesDrawnInCurrentLayout() || !isShowExternalDataForThisTab() || (getPhylogeny() == null)
+                || getPhylogeny().isEmpty() || !hitTestableLayout()) {
+            return null; // a hit on something not drawn is a lie
+        }
+        final PHYLOGENY_GRAPHICS_TYPE t = getPhylogenyGraphicsType();
+        if (t == PHYLOGENY_GRAPHICS_TYPE.CIRCULAR) {
+            return circularDomainAt(x, y);
+        }
+        if (t == PHYLOGENY_GRAPHICS_TYPE.UNROOTED) {
+            return unrootedDomainAt(x, y);
+        }
+        // Everything the two radial branches above did not take is painted by paintNodeRectangular -- that is
+        // the paint loop's own test, and TRIANGULAR falls in it. Listing the types instead left the rollover
+        // dead in TRIANGULAR while the boxes were drawn there: the same defect as gating on a rule the painter
+        // does not use, one enum constant over.
+        if (isVerticalOrientation() && (_orientation_R_inverse == null)) {
+            return null; // R is built during paint; before the first vertical paint the point cannot be un-rotated
+        }
+        final Point2D.Double p = toLogicalPoint(x, y);
+        // The vertical orientations start the track somewhere else entirely -- paintDomainsVertical uses
+        // verticalDomainColumnStart(), tens to hundreds of px from the horizontal column -- so taking the
+        // horizontal origin there put every hit on a neighbouring domain or on none.
+        final float x1;
+        if (isVerticalOrientation()) {
+            x1 = verticalDomainColumnStart();
+        }
+        else if (getControlPanel().isDrawPhylogram()) {
+            x1 = alignedPhylogramDomainColumnX();
+        }
+        else {
+            x1 = getPhylogeny().getFirstExternalNode().getXcoord() + _length_of_longest_text;
+        }
+        final float start = x1 + RenderableDomainArchitecture.TRACK_LEFT_PAD;
+        if (p.x < start) {
+            return null;
+        }
+        final int h = domainStructureHeight();
+        for (final PhylogenyNode node : visibleExternalTips()) {
+            if (!domainTrackWasPainted(node)) {
+                continue; // "Auto-hide Labels" (and viewport culling) drop tracks the geometry would still find
+            }
+            if (!node.getNodeData().isHasSequence()
+                    || !(node.getNodeData().getSequence().getDomainArchitecture() instanceof
+                            RenderableDomainArchitecture)) {
+                continue;
+            }
+            final double y1 = node.getYcoord() - (h / 2.0);
+            if ((p.y < y1) || (p.y > (y1 + h))) {
+                continue;
+            }
+            final RenderableDomainArchitecture rds = (RenderableDomainArchitecture) node.getNodeData()
+                    .getSequence().getDomainArchitecture();
+            final ProteinDomain d = rds.domainAtX(start, (float) p.x);
+            if (d != null) {
+                return new DomainHit(node, d);
+            }
+        }
+        return null;
+    }
+
+    /**
+     * The domain under the pointer in the CIRCULAR layout.
+     *
+     * Each tip's track rides its own spoke: the painter rotates the graphics by the tip's angle about the
+     * centre and then draws the ordinary horizontal bar. So the test is the same one the rectangular layout
+     * does, after rotating the POINT back by that angle -- which keeps one geometry rather than deriving a
+     * polar one. Every quantity is the painter's own: the common start radius past the longest label, the box
+     * thickness clamped to the arc between adjacent spokes, and the per-tip angle out of the spoke map.
+     */
+    private DomainHit circularDomainAt(final int x, final int y) {
+        if ((_circular_radius <= 0) || _urt_nodeid_angle_map.isEmpty()) {
+            return null; // nothing laid out yet (the map is final, so it is never null -- only ever empty)
+        }
+        final double displayed = circularRowUnits();
+        if (displayed <= 0) {
+            return null;
+        }
+        final double start_r = _circular_radius + _length_of_longest_text_only + DOMAIN_RADIAL_GAP;
+        final int h = TreePanelUtil.domainBoxHeight((float) (start_r * (TWO_PI / displayed)),
+                                                     DOMAIN_STRUCTURE_HEIGHT_MIN, DOMAIN_STRUCTURE_HEIGHT_MAX);
+        final double dx = x - _circular_center_x;
+        final double dy = y - _circular_center_y;
+        for (final java.util.Iterator<PhylogenyNode> it = getPhylogeny().iteratorPreorder(); it.hasNext();) {
+            final PhylogenyNode node = it.next();
+            if (!node.isExternal() || isHiddenUnderCollapse(node) || !domainTrackWasPainted(node)) {
+                continue;
+            }
+            final RenderableDomainArchitecture rds = renderableDomainArchitectureOf(node);
+            final Double a = _urt_nodeid_angle_map.get(node.getId());
+            if ((rds == null) || (a == null)) {
+                continue;
+            }
+            // rotate the point by -angle about the centre: the inverse of the painter's g.rotate(angle, c)
+            final double cos = Math.cos(a);
+            final double sin = Math.sin(a);
+            final double ly = _circular_center_y - (dx * sin) + (dy * cos);
+            final double y1 = _circular_center_y - (h / 2.0);
+            if ((ly < y1) || (ly > (y1 + h))) {
+                continue;
+            }
+            final double lx = _circular_center_x + (dx * cos) + (dy * sin);
+            final float start = (float) (_circular_center_x + start_r)
+                    + RenderableDomainArchitecture.TRACK_LEFT_PAD;
+            if (lx < start) {
+                continue;
+            }
+            final ProteinDomain d = rds.domainAtX(start, (float) lx);
+            if (d != null) {
+                return new DomainHit(node, d);
+            }
+        }
+        return null;
+    }
+
+    /**
+     * The domain under the pointer in the UNROOTED layout.
+     *
+     * The same rotate-the-point-back test as {@link #circularDomainAt}, but each tip's track pivots on the
+     * TIP ITSELF rather than on a common centre, and starts a fixed distance out past the longest label.
+     * The angle comes from {@link #_unrooted_tip_angle_map}, filled as the tips are painted.
+     */
+    private DomainHit unrootedDomainAt(final int x, final int y) {
+        if (_unrooted_tip_angle_map.isEmpty()) {
+            return null; // nothing painted yet, so nothing to point at
+        }
+        final int num_ext = getPhylogeny().getNumberOfExternalNodes();
+        final double spacing = (Math.PI * radialDiameter()) / Math.max(1, num_ext);
+        final int h = TreePanelUtil.domainBoxHeight((float) spacing, DOMAIN_STRUCTURE_HEIGHT_MIN,
+                                                     DOMAIN_STRUCTURE_HEIGHT_MAX);
+        final double start_dist = _length_of_longest_text_only + DOMAIN_RADIAL_GAP;
+        for (final java.util.Iterator<PhylogenyNode> it = getPhylogeny().iteratorPreorder(); it.hasNext();) {
+            final PhylogenyNode node = it.next();
+            if (!node.isExternal() || isHiddenUnderCollapse(node) || !domainTrackWasPainted(node)) {
+                continue;
+            }
+            final RenderableDomainArchitecture rds = renderableDomainArchitectureOf(node);
+            final Double a = _unrooted_tip_angle_map.get(node.getId());
+            if ((rds == null) || (a == null)) {
+                continue;
+            }
+            final double px = node.getXcoord();
+            final double py = node.getYcoord();
+            final double dx = x - px;
+            final double dy = y - py;
+            final double cos = Math.cos(a);
+            final double sin = Math.sin(a);
+            final double ly = py - (dx * sin) + (dy * cos);
+            final double y1 = py - (h / 2.0);
+            if ((ly < y1) || (ly > (y1 + h))) {
+                continue;
+            }
+            final double lx = px + (dx * cos) + (dy * sin);
+            final float start = (float) (px + start_dist) + RenderableDomainArchitecture.TRACK_LEFT_PAD;
+            if (lx < start) {
+                continue;
+            }
+            final ProteinDomain d = rds.domainAtX(start, (float) lx);
+            if (d != null) {
+                return new DomainHit(node, d);
+            }
+        }
+        return null;
+    }
+
+    /**
      * The annotation-column cell under the point, or null -- what the rollover reads out.
      * <p>
      * One hit-test for every layout that draws cells: the rectangular family measures along LOGICAL coordinates (the
@@ -10708,7 +12186,7 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
      * {@link #paintAnnotationColumnsCircular} for the arc -- so what reads out is exactly the cell that was drawn.
      */
     AnnotationCell annotationCellAt(final int x, final int y) {
-        if (!hasAnnotationColumns() || (_annotation_columns == null)
+        if (!hasAnnotationColumns() || (_annotation_columns == null) || !hitTestableLayout()
                 || (getPhylogenyGraphicsType() == PHYLOGENY_GRAPHICS_TYPE.UNROOTED)) {
             return null;
         }
@@ -10817,8 +12295,8 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
      * layout draws no columns, so nothing there can be grabbed.
      */
     int annotationColumnGrabbedAt(final int x, final int y) {
-        if (getPhylogenyGraphicsType() == PHYLOGENY_GRAPHICS_TYPE.UNROOTED) {
-            return -1;
+        if ((getPhylogenyGraphicsType() == PHYLOGENY_GRAPHICS_TYPE.UNROOTED) || !hitTestableLayout()) {
+            return -1; // laid out for an export canvas; see paintPhylogeny. This one MOVES a column.
         }
         return (getPhylogenyGraphicsType() == PHYLOGENY_GRAPHICS_TYPE.CIRCULAR) ? circularAnnotationRingAt(x, y)
                 : annotationHeaderColumnAt(x, y);
@@ -10919,7 +12397,7 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
      * pointer however far it strays sideways from the columns.
      */
     int annotationColumnInsertionSlotAt(final int x, final int y) {
-        if (!hasAnnotationColumns() || (_annotation_columns == null)) {
+        if (!hasAnnotationColumns() || (_annotation_columns == null) || !hitTestableLayout()) {
             return -1;
         }
         final double[] b = annotationColumnSlotPositions();
@@ -11260,6 +12738,16 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
 
     /** Total horizontal space the annotation columns occupy (0 when none), including the gaps around them.
      * Zero for circular/unrooted layouts, where the columns are not drawn, so no width is reserved. */
+    /**
+     * Total horizontal space the annotation columns occupy (0 when none), including the gaps around them; zero in
+     * the circular/unrooted layouts, which do not draw them.
+     * <p>
+     * NON-ELASTIC, so the width budget is told this as a request it cannot shrink and there is no separate
+     * "wanted" or "minimum": the matrix dendrogram and the clustergram derive their geometry from each column's
+     * own {@code annotationColumnWidth(i)}, so a stack total smaller than the sum of those parts puts the marks
+     * over the wrong columns (measured: 5 of 17 columns lost their dendrogram leaf). Squeezing the stack properly
+     * means scaling each column -- a change to the clustergram geometry, not to this reservation.
+     */
     private int annotationColumnsWidth() {
         if (!hasAnnotationColumns() || (getPhylogenyGraphicsType() == PHYLOGENY_GRAPHICS_TYPE.CIRCULAR)
                 || (getPhylogenyGraphicsType() == PHYLOGENY_GRAPHICS_TYPE.UNROOTED)) {
@@ -11423,6 +12911,12 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
         for (final PhylogenyNode t : tips) {
             min_tip_y = Math.min(min_tip_y, t.getYcoord());
         }
+        // a row is 2 x getYdistance() tall; the cell's smaller side is that or the narrowest heat-map column
+        final long cell_count = (long) tips.size() * heatmapColumnCount();
+        final boolean bordered = !_heatmap_borders_off_for_test
+                && heatmapCellsBordered(Math.min(narrowestHeatmapColumn(), 2.0 * pad), cell_count);
+        _heatmap_bordered_last_paint = bordered;
+        _heatmap_cell_count_last_paint = cell_count;
         float x = annotationColumnsStartX();
         for (int i = 0; i < _annotation_columns.size(); ++i) {
             final int w = annotationColumnWidth(i);
@@ -11443,6 +12937,9 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
                         if (c != null) {
                             g.setColor(c);
                             fillGridCell(g, xi, cy, w, cell_h, exporting);
+                            if (bordered && isHeatmapCellType(type)) {
+                                drawHeatmapCellBorder(g, new java.awt.geom.Rectangle2D.Float(xi, cy, w, cell_h), c);
+                            }
                         }
                         break;
                     }
@@ -11543,6 +13040,12 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
         for (final PhylogenyNode t : tips) {
             min_tip_y = Math.min(min_tip_y, t.getYcoord());
         }
+        // as the horizontal path: the cell's smaller side is a row (2 x getYdistance()) or the narrowest heat-map column
+        final long cell_count = (long) tips.size() * heatmapColumnCount();
+        final boolean bordered = !_heatmap_borders_off_for_test
+                && heatmapCellsBordered(Math.min(narrowestHeatmapColumn(), 2.0 * pad), cell_count);
+        _heatmap_bordered_last_paint = bordered;
+        _heatmap_cell_count_last_paint = cell_count;
         float x = annotationColumnsStartX();
         for (int i = 0; i < _annotation_columns.size(); ++i) {
             final int w = annotationColumnWidth(i);
@@ -11562,6 +13065,10 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
                         if (c != null) {
                             g.setColor(c);
                             fillGridCell(g, xi, cy, w, cell_h, exporting);
+                            if (bordered && isHeatmapCellType(type)) {
+                                // in logical coords like the fill: a 90 degree rotation keeps the stroke's width
+                                drawHeatmapCellBorder(g, new java.awt.geom.Rectangle2D.Float(xi, cy, w, cell_h), c);
+                            }
                         }
                         break;
                     }
@@ -11810,20 +13317,19 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
      * image offset AND the label push keeps the image clear of both the branch and the label. Uses the loaded image's
      * drawn size when available, else a conservative default until it loads.
      */
-    private double tipImageRadialFootprint(final PhylogenyNode node, final double theta) {
+    private static double tipImageRadialFootprint(final int[] wh, final double theta) {
+        return (Math.abs(wh[0] * Math.cos(theta)) + Math.abs(wh[1] * Math.sin(theta)));
+    }
+
+    /** The size {@code {w, h}} a tip's image is drawn at -- or, while it is not loaded (or is broken), the widest
+     *  slot it could take, so what is reserved never turns out smaller than what is drawn. */
+    private int[] tipImageScaledSize(final PhylogenyNode node) {
         final int size = getOptions().getTipImageSize();
         final java.awt.image.BufferedImage img = tipImageCache().get(TipImages.imageRefFor(node), imageBaseDir());
-        int dw, dh;
         if (img != null) {
-            final int[] wh = TipImages.scaledSize(img.getWidth(), img.getHeight(), size, tipImageSlotWidth());
-            dw = wh[0];
-            dh = wh[1];
+            return TipImages.scaledSize(img.getWidth(), img.getHeight(), size, tipImageSlotWidth());
         }
-        else {
-            dw = tipImageSlotWidth(); // not loaded / broken marker: reserve the widest possible slot
-            dh = size;
-        }
-        return (Math.abs(dw * Math.cos(theta)) + Math.abs(dh * Math.sin(theta)));
+        return new int[] { tipImageSlotWidth(), size };
     }
 
     /**
@@ -12245,6 +13751,25 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
         return (int) ((radialDiameter() / 2.0) * RADIAL_LABEL_MAX_RATIO);
     }
 
+    /** THE cap on a tip label's drawn text width, whatever the layout: the radial reach in a circular/unrooted
+     *  layout, and in a rectangular one the width the budget leaves the labels once the font auto-fit has bottomed
+     *  out ({@link Integer#MAX_VALUE} while it has not, which is the usual case). One method so the reservation and
+     *  the paint cannot disagree about it. */
+    private int maxTipLabelTextWidth() {
+        return isRadialLayout() ? radialMaxLabelWidth() : _tip_label_pixel_cap;
+    }
+
+    /** Test hook: the cap a tip label's text is currently truncated to ({@link Integer#MAX_VALUE} = none). */
+    final int maxTipLabelTextWidthForTest() {
+        return maxTipLabelTextWidth();
+    }
+
+    /** Test hook: the widest tip label's TEXT alone, without the domain track or tip-image slot that ride the same
+     *  reservation -- the two apart are what distinguish a label that does not fit from a track that does not. */
+    final int lengthOfLongestTextOnlyForTest() {
+        return _length_of_longest_text_only;
+    }
+
 
     /** Protein-domain architectures for the CIRCULAR layout: each external tip's architecture rides its spoke, drawn
      *  as a bar extending radially OUTWARD from a common start radius just past the tip labels -- a clean
@@ -12270,7 +13795,8 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
                 DOMAIN_STRUCTURE_HEIGHT_MIN, DOMAIN_STRUCTURE_HEIGHT_MAX);
         for (final java.util.Iterator<PhylogenyNode> it = _phylogeny.iteratorPreorder(); it.hasNext();) {
             final PhylogenyNode node = it.next();
-            if (!node.isExternal() || isHiddenUnderCollapse(node)) {
+            if (!node.isExternal() || isHiddenUnderCollapse(node)
+                    || _tips_hidden_by_rule.contains(Long.valueOf(node.getId()))) { // its name went, it goes
                 continue;
             }
             final Double a = _urt_nodeid_angle_map.get(node.getId());
@@ -12292,6 +13818,8 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
             return;
         }
         rds.setRenderingHeight(height);
+        ++_radial_domains_drawn;
+        recordDomainPainted(node);
         final java.awt.geom.AffineTransform saved = g.getTransform();
         g.rotate(angle, pivot_x, pivot_y); // the spoke at `angle` becomes the local +x axis
         rds.render((float) (pivot_x + start_dist), (float) (pivot_y - (height / 2.0)), g, this, to_pdf, false);
@@ -12332,8 +13860,7 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
         final double radial_corr0 = radius / max_dist; // px per distance/time unit along the spoke (== the phylogram scale)
         // a CALENDAR tree's date increases toward the tips (larger radius); negate so the earlier bound sits at a
         // smaller radius (toward the centre) and the later bound at a larger radius (toward the tips)
-        final double radial_corr = (effectiveTimeAxisType() == Options.TIME_AXIS_TYPE.CALENDAR) ? -radial_corr0
-                : radial_corr0;
+        final double radial_corr = datesIncreaseTowardTips() ? -radial_corr0 : radial_corr0;
         final Color saved = g.getColor();
         final Stroke saved_stroke = g.getStroke();
         g.setColor(((to_pdf || to_graphics_file) && getOptions().isExportBlackAndWhite()) ? HPD_BAR_COLOR_BW
@@ -12357,10 +13884,11 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
             final double max = date.getMax().doubleValue();
             final double value = (date.getValue() != null) ? date.getValue().doubleValue() : ((min + max) / 2.0);
             final double r_node = circularRadiusFraction(node) * radius;
-            double r_low = r_node - ((max - value) * radial_corr);  // older bound -> smaller radius (toward the root)
-            double r_high = r_node + ((value - min) * radial_corr); // younger bound -> larger radius (toward the tips)
-            r_low = Math.max(0, Math.min(r_low, r_high)); // robust to swapped/degenerate bounds; never past the centre
-            r_high = Math.max(r_low + 1, r_high); // >= 1px floor so a dated node always shows a mark (rectangular parity)
+            // older bound -> smaller radius (toward the root), younger -> larger; ordered, never collapsed to a dot. A
+            // bound past the root's estimate is a NEGATIVE radius: the bar runs on through the centre (the root straddles it)
+            final double[] rr = TreePanelUtil.hpdRadialRange(r_node, value, min, max, radial_corr);
+            final double r_low = rr[0];
+            final double r_high = rr[1];
             if (getOptions().getNodeAgeShape() == Options.NODE_AGE_SHAPE.SPINDLE) {
                 fillRadialNodeAgeSpindle(g, cx, cy, ang, r_low, r_high, r_node); // a radial lens peaking at the node's radius
             }
@@ -12419,7 +13947,7 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
         }
         // a CALENDAR tree's date INCREASES toward the tips (opposite of geologic age, which decreases toward the tips);
         // negate corr so hpdBarXRange places the earlier bound to the left and the later bound to the right
-        final double signed_corr = (effectiveTimeAxisType() == Options.TIME_AXIS_TYPE.CALENDAR) ? -corr : corr;
+        final double signed_corr = datesIncreaseTowardTips() ? -corr : corr;
         final Color saved = g.getColor();
         g.setColor(((to_pdf || to_graphics_file) && getOptions().isExportBlackAndWhite()) ? HPD_BAR_COLOR_BW
                 : HPD_BAR_COLOR);
@@ -12448,6 +13976,17 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
             }
         }
         g.setColor(saved);
+    }
+
+    /** Whether this tree's {@code <date>} values INCREASE toward the tips (calendar years) rather than decrease
+     *  (ages before present) -- which way a node-age bar runs from its node. A unit the tree states decides, NOT the
+     *  Time Axis the user shows: switching a calendar tree's axis Off or to Geologic is a display choice and used to
+     *  mirror every bar. Only for unit-less dates, where the derived type is NONE, is the user's explicit Calendar
+     *  choice the one statement of what the numbers mean. */
+    final boolean datesIncreaseTowardTips() {
+        final Options.TIME_AXIS_TYPE derived = derivedTimeAxisType();
+        return (derived != Options.TIME_AXIS_TYPE.NONE) ? (derived == Options.TIME_AXIS_TYPE.CALENDAR)
+                : (effectiveTimeAxisType() == Options.TIME_AXIS_TYPE.CALENDAR);
     }
 
     /** A tree on CALENDAR time: its tips are dated SAMPLES, not fossils. Decided by the tree's own date units (the
@@ -12581,10 +14120,10 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
             final double max = date.getMax().doubleValue();
             final double value = (date.getValue() != null) ? date.getValue().doubleValue() : ((min + max) / 2.0);
             final double r_node = circularRadiusFraction(node) * radius;
-            double r_low = r_node - ((max - value) * radial_corr);  // FAD (older) -> smaller radius (toward the root)
-            double r_high = r_node + ((value - min) * radial_corr); // LAD (younger) -> larger radius (toward the tips)
-            r_low = Math.max(0, Math.min(r_low, r_high)); // robust to swapped/degenerate bounds; never past the centre
-            r_high = Math.max(r_low + 1, r_high); // >= 1px floor so a dated tip always shows a mark
+            // FAD (older) -> smaller radius (toward the root), LAD (younger) -> larger radius (toward the tips)
+            final double[] rr = TreePanelUtil.hpdRadialRange(r_node, value, min, max, radial_corr);
+            final double r_low = rr[0];
+            final double r_high = rr[1];
             final double cos = Math.cos(ang), sin = Math.sin(ang);
             drawLine(cx + (r_low * cos), cy + (r_low * sin), cx + (r_high * cos), cy + (r_high * sin), g);
         }
@@ -12935,10 +14474,14 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
             // DIFFERENT tips -- NOT getLongestExtNodeInfo() (a per-tip max of text+domain, which under-reserves and
             // clips when they differ). Reserve the sum so both fit on fit-to-window; floor the ring so it can't
             // collapse (this SHRINKS the ring rather than clipping -- the user wants domains + labels to fit).
-            final double reach = _length_of_longest_text_only + _longest_rendered_domain + DOMAIN_RADIAL_GAP + 20;
-            return (int) Math.max(avail - reach, avail * RADIAL_MIN_TREE_RATIO);
+            final double reach = _length_of_longest_text_only + _longest_rendered_domain + DOMAIN_RADIAL_GAP
+                + RenderableDomainArchitecture.TRACK_LEFT_PAD;
+            // The tree's guaranteed share, here measured against the RADIUS -- the same "Tree share" setting the
+            // rectangular layouts divide their width by, so the slider means the same thing in every display type
+            // instead of being inert in two of them.
+            return (int) Math.max(avail - reach, avail * treeWidthShare());
         }
-        final int label = (int) Math.min(getLongestExtNodeInfo(), avail * RADIAL_LABEL_MAX_RATIO);
+        final int label = (int) Math.min(getLongestExtNodeInfo(), avail * (1.0 - treeWidthShare()));
         return (int) (avail - label);
     }
 
@@ -12962,6 +14505,21 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
         final Color fg = getTreeColorSet().getSequenceColor();
         final Color saved_color = g.getColor();
         final Font saved_font = g.getFont();
+        // a ring cell's smaller side is its ring width or its arc at the ring's INNER edge (the arc grows outward),
+        // walked over the same radii the rings are drawn at
+        double cell_min = Double.MAX_VALUE;
+        double rr = circularAnnotationRingStart(radius);
+        for (int i = 0; i < _annotation_columns.size(); ++i) {
+            final int w = annotationColumnWidth(i);
+            if (isHeatmapCellType(_annotation_columns.getColumn(i).getType())) {
+                cell_min = Math.min(cell_min, Math.min(w, rr * 2.0 * half_step));
+            }
+            rr += w + annotationColumnGapAfter(i);
+        }
+        final long cell_count = (long) tips.size() * heatmapColumnCount();
+        final boolean bordered = !_heatmap_borders_off_for_test && heatmapCellsBordered(cell_min, cell_count);
+        _heatmap_bordered_last_paint = bordered;
+        _heatmap_cell_count_last_paint = cell_count;
         double r = circularAnnotationRingStart(radius);
         for (int i = 0; i < _annotation_columns.size(); ++i) {
             final int w = annotationColumnWidth(i);
@@ -12980,7 +14538,11 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
                         final Color c = _annotation_columns.cellColor(t, i);
                         if (c != null) {
                             g.setColor(c);
-                            g.fill(annularSector(cx, cy, r0, r1, a0, a1));
+                            final java.awt.Shape sector = annularSector(cx, cy, r0, r1, a0, a1);
+                            g.fill(sector);
+                            if (bordered && isHeatmapCellType(type)) {
+                                drawHeatmapCellBorder(g, sector, c); // one bordered sector per cell, as JS draws it
+                            }
                         }
                         break;
                     }
@@ -13167,12 +14729,34 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
     /** Whether the alignment track is drawn now: option on, a root-left rectangular layout, and the tree carries an
      *  aligned sequence (so vertical/circular reserve nothing and draw nothing -- the approved per-item exception). */
     private boolean msaShown() {
-        return getOptions().isShowMsa() && !isVerticalOrientation() && !isRadialLayout() && (alignmentLength() > 0);
+        return isShowMsa() && !isVerticalOrientation() && !isRadialLayout() && (alignmentLength() > 0);
     }
 
     /** The number of alignment columns = the longest aligned tip sequence (uncached; O(tips), called a few times per
      *  layout/paint). Tips with a shorter/absent sequence simply run out of cells. */
+    /**
+     * Cached for the duration of a layout/paint pass. It is an O(tips) walk, and the width budget asks for it
+     * repeatedly within one pass -- labelWidthCap, computeWidthBudget and every rightMarginExtraWidth() (itself
+     * called several times in calcParametersForPainting and again while painting) all reach it through
+     * msaShown() / msaTrackWidthWanted(). Invalidated at the top of each pass and whenever the tree is replaced,
+     * so it can never outlive the data it was measured from.
+     */
+    private int _alignment_length_cache = -1;
+
     private int alignmentLength() {
+        if (_alignment_length_cache >= 0) {
+            return _alignment_length_cache;
+        }
+        _alignment_length_cache = computeAlignmentLength();
+        return _alignment_length_cache;
+    }
+
+    /** Drops the per-pass alignment-length memo (a new pass, or new data). */
+    private void invalidateAlignmentLength() {
+        _alignment_length_cache = -1;
+    }
+
+    private int computeAlignmentLength() {
         int max = 0;
         if ((_phylogeny == null) || _phylogeny.isEmpty()) {
             return 0;
@@ -13316,11 +14900,22 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
      *  window is bounded to a share of the viewport so a LONG alignment never drags the tree off-screen -- a short
      *  alignment shows in full, a longer one shows a scrollable window (its own {@link #_msa_scrollbar}). */
     private int msaTrackWidth() {
+        return granted(LayoutWidthBudget.Part.MSA, msaTrackWidthWanted());
+    }
+
+    /** What the alignment window would take if nothing else competed: the whole alignment, capped at the share of
+     *  the viewport it may ever claim. The budget then decides how much of that it actually gets. */
+    private int msaTrackWidthWanted() {
         if (!msaShown()) {
             return 0;
         }
         final int full_px = Math.round(alignmentLength() * getOptions().getMsaColumnWidth());
         return MSA_TRACK_GAP + Math.min(full_px, msaBandBudgetPx());
+    }
+
+    /** The least the alignment window may be squeezed to and still say anything -- never more than it wants. */
+    private int msaTrackWidthMin() {
+        return Math.min(msaTrackWidthWanted(), MSA_TRACK_GAP + MSA_MIN_BAND_PX);
     }
 
     /** The maximum pixel width the MSA window may occupy: a share of the scroll-pane viewport (the tree keeps the rest).
@@ -13369,17 +14964,30 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
         return msaShown() && getOptions().isShowMsaConservation();
     }
 
+    /** Whether the track draws a sequence LOGO rather than a bar chart. */
+    private boolean msaLogoShown() {
+        return msaConservationShown()
+                && (getOptions().getMsaConservationMeasure() == MsaConservation.Measure.LOGO);
+    }
+
     /** The consensus letters are drawn by the same rule the residue letters use -- only when a column is wide
-     *  enough to read one. The band height follows, so no space is reserved for letters that are not drawn. */
+     *  enough to read one. The band height follows, so no space is reserved for letters that are not drawn.
+     *  Never under a LOGO: the letter on top of each stack IS the consensus, so a second row of the same
+     *  characters would say it twice and cost the stack the height instead. */
     private boolean msaConsensusLettersDrawn() {
-        return getOptions().getMsaColumnWidth() >= MSA_LETTER_MIN_WIDTH;
+        return !msaLogoShown() && (getOptions().getMsaColumnWidth() >= MSA_LETTER_MIN_WIDTH);
     }
 
     /** Height of the bar area alone. ONE definition, used by the reserve below AND by the painter: were the two
      *  to drift, the band would either overlap the last alignment row or float clear of the ruler. */
     private int msaConservationBarHeight() {
-        return Math.max(AptxConstants.MSA_CONSERVATION_BAR_HEIGHT_MIN,
-                getFontMetrics(getTreeFontSet().getSmallFont()).getHeight() * 2);
+        final int fh = getFontMetrics(getTreeFontSet().getSmallFont()).getHeight();
+        if (msaLogoShown()) {
+            // A stack has to hold several legible letters where a bar only had to have a readable height, so the
+            // logo band is taller. It takes the room from the tips, like every other reserve here.
+            return Math.max(AptxConstants.MSA_LOGO_BAND_HEIGHT_MIN, fh * 4);
+        }
+        return Math.max(AptxConstants.MSA_CONSERVATION_BAR_HEIGHT_MIN, fh * 2);
     }
 
     /** Height of the conservation band: a row naming the measure, the bar area, and -- when they are drawn -- a
@@ -13619,7 +15227,7 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
         final Font saved_font = g.getFont();
         final Stroke saved_stroke = g.getStroke();
         // A gap is drawn as a faint horizontal line (not blank) so the alignment's extent -- where each row's aligned
-        // sequence begins/ends -- is visible; consecutive gaps join into a continuous dash.
+        // sequence begins/ends -- is visible; a run of consecutive gaps is ONE line (see paintMsaGapRun).
         final Color fg = getTreeColorSet().getSequenceColor();
         final Color gap_line_color = new Color(fg.getRed(), fg.getGreen(), fg.getBlue(), 38);
         final Color boundary_color = new Color(fg.getRed(), fg.getGreen(), fg.getBlue(), 165);
@@ -13645,6 +15253,8 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
             final int cell_h = band[1];
             y_top = Math.min(y_top, cy);
             y_bottom = Math.max(y_bottom, cy + cell_h);
+            int gap_x0 = -1; // start of the current run of gap cells (-1: none open)
+            int gap_x1 = -1; // its end (exclusive)
             for (int i = first_i; i <= last_i; ++i) {
                 final int c = offset + i; // the actual alignment column at window position i
                 if ((c >= total) || (c >= mol.length())) {
@@ -13655,11 +15265,14 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
                 final int cell_w = Math.max(1, Math.round(origin_x + ((i + 1) * cw)) - cx);
                 final Color col = MsaColors.colorFor(res, nucleotide);
                 if (col == null) {
-                    final int mid = cy + (cell_h / 2); // a gap -> faint horizontal line spanning the cell
-                    g.setColor(gap_line_color);
-                    g.drawLine(cx, mid, cx + cell_w, mid);
+                    if (gap_x0 < 0) {
+                        gap_x0 = cx;
+                    }
+                    gap_x1 = cx + cell_w;
                     continue;
                 }
+                paintMsaGapRun(g, gap_line_color, gap_x0, gap_x1, cy, cell_h, !to_pdf);
+                gap_x0 = -1;
                 g.setColor(col);
                 fillGridCell(g, cx, cy, cell_w, cell_h, to_pdf || to_graphics_file);
                 if (draw_letters && (cell_h >= (fm.getAscent() + fm.getDescent()))) {
@@ -13670,6 +15283,7 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
                     g.drawString(ch, cx + ((cell_w - lw) / 2), cy + (((cell_h + fm.getAscent()) - fm.getDescent()) / 2));
                 }
             }
+            paintMsaGapRun(g, gap_line_color, gap_x0, gap_x1, cy, cell_h, !to_pdf);
         }
         // Boundary lines at the REAL start/end of the alignment -- drawn only when that edge is actually in the window
         // (offset 0 shows the start; the window reaching the last column shows the end), so the user can tell a true
@@ -13692,6 +15306,38 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
         g.setColor(saved_color);
         g.setFont(saved_font);
         g.setStroke(saved_stroke);
+    }
+
+    /** One run of consecutive gap cells [{@code x0}, {@code x1}) in the row band [{@code cy}, {@code cy + cell_h}) as
+     *  ONE faint line, one logical px thick, centred in the band and snapped to DEVICE pixels. Drawing a line per cell
+     *  overlapped the translucent ink at every cell border (a darker dot that read as a short vertical tick); an
+     *  antialiased stroke off the pixel grid smears over two or three rows (reads as several lines when magnified);
+     *  and a line snapped to LOGICAL pixels sits in the lower half of an even-height row -- on a 2x screen the device
+     *  grid is fine enough to centre it (a 2-px-tall row: device rows 1-2 of 0-3). On a 1x screen an even-height row
+     *  cannot centre a crisp 1 px line; it then sits half a pixel low. Snapping is for RASTER output only
+     *  ({@code snap}): a vector export (PDF / SVG / EPS, {@code to_pdf}) has no device pixels -- EPS draws pre-scaled
+     *  px->mm (0.353), where "one device px" would be a line 2.8x too thick -- so it gets the exact centre.
+     *  No-op when no run is open ({@code x0 < 0}). */
+    private static void paintMsaGapRun(final Graphics2D g, final Color color, final int x0, final int x1, final int cy,
+                                       final int cell_h, final boolean snap) {
+        if ((x0 < 0) || (x1 <= x0)) {
+            return;
+        }
+        g.setColor(color);
+        g.fill(msaGapLineRect(g.getTransform(), x0, x1, cy, cell_h, snap));
+    }
+
+    /** The rectangle {@link #paintMsaGapRun} fills, in user space, for the transform {@code t} it is drawn under. */
+    static Rectangle2D msaGapLineRect(final java.awt.geom.AffineTransform t, final int x0, final int x1, final int cy,
+                                      final int cell_h, final boolean snap) {
+        if (!snap) {
+            return new Rectangle2D.Double(x0, (cy + (cell_h / 2.0)) - 0.5, x1 - x0, 1);
+        }
+        final double sy = Math.abs(t.getScaleY()) > 1e-9 ? t.getScaleY() : 1.0; // rectangular root-left: scale+translate
+        final double thick = Math.max(1, Math.round(Math.abs(sy))); // device px
+        final double centre = t.getTranslateY() + (sy * (cy + (cell_h / 2.0))); // device y of the band's centre
+        final double top = Math.round(centre - (thick / 2.0)); // device row the line starts on
+        return new Rectangle2D.Double(x0, (top - t.getTranslateY()) / sy, x1 - x0, thick / Math.abs(sy));
     }
 
     /**
@@ -13742,15 +15388,24 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
         final int track_w = Math.round(origin_x + (shown * cw)) - track_x0;
         // ...but not on a transparent-background export, where a wide translucent fill would defeat the cut-out
         // (the same call the zebra stripes make). The bars themselves still draw; they just lose their backdrop.
-        if ((track_w > 0) && !(to_graphics_file && _export_transparent_background)) {
+        if ((track_w > 0) && !msaLogoShown() && !(to_graphics_file && _export_transparent_background)) {
             g.setColor(new Color(ink.getRed(), ink.getGreen(), ink.getBlue(), 26));
             g.fillRect(track_x0, bar_bottom - bar_h, track_w, bar_h);
+        }
+        final boolean logo = msaLogoShown();
+        if (logo) {
+            // where the stacks were actually drawn, for a render test to measure the LETTERS against
+            _msa_logo_band = new int[] { Math.round(origin_x), bar_bottom, bar_h, Math.round(cw) };
         }
         for (int i = 0; i < shown; ++i) {
             final int c = offset + i;
             final double score = cons.scoreAt(c, getOptions().getMsaConservationMeasure());
             final int cx = Math.round(origin_x + (i * cw));
             final int cell_w = Math.max(1, Math.round(origin_x + ((i + 1) * cw)) - cx);
+            if (logo) {
+                paintMsaLogoColumn(g, cons, c, cx, cell_w, bar_bottom, bar_h, ink);
+                continue; // the stack IS the column: no bar behind it and no consensus letter under it
+            }
             final int h = (int) Math.round(score * bar_h);
             if (h > 0) {
                 g.setColor(bar_color);
@@ -13787,6 +15442,88 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
         g.setColor(saved_color);
         g.setFont(saved_font);
         g.setStroke(saved_stroke);
+    }
+
+    /**
+     * One column of the sequence logo: the residues present, stacked from the baseline UP in increasing frequency so
+     * the most frequent ends on TOP, each letter's height its share of the column's information content.
+     * <p>
+     * The letters are scaled NON-UNIFORMLY -- horizontally to fill the column edge to edge whatever the character's
+     * natural aspect, vertically to the height it earned. That is what a logo is; scaling uniformly leaves ragged
+     * columns. The vertical factor divides by the glyph's own INK height ({@link MsaLogoGlyphs}), never the font's
+     * line height, and the baseline is set the glyph's scaled DESCENT above where the ink must end -- without that,
+     * every G and Q hangs through the ruler below. Both are joint with archaeopteryx.js, whose stack this matches
+     * term for term.
+     * <p>
+     * Colours are {@link MsaColors#colorFor} -- the very colours the alignment cells above use, so a letter in the
+     * logo and the same residue in the alignment are never two different colours.
+     */
+    /** The face every logo letter is measured and drawn in -- one instance, so the glyph cache is hit rather than
+     *  re-keyed on an equal-but-new Font once per column per paint. Monospace to match the alignment cells. */
+    private final static Font MSA_LOGO_FONT = new Font(Font.MONOSPACED, Font.BOLD,
+                                                       AptxConstants.MSA_LOGO_GLYPH_MEASURE_SIZE);
+
+    private void paintMsaLogoColumn(final Graphics2D g, final MsaConservation cons, final int col, final int cx,
+                                    final int cell_w, final int bar_bottom, final int bar_h, final Color ink) {
+        final char[] residues = cons.stackResiduesAt(col);
+        if (residues.length < 1) {
+            return; // an all-gap column: nothing is known about it, so nothing is drawn
+        }
+        final double[] fractions = cons.stackFractionsAt(col);
+        final boolean nucleotide = msaIsNucleotide();
+        final Font measured = MSA_LOGO_FONT;
+        final AffineTransform saved = g.getTransform();
+        final Font saved_font = g.getFont();
+        double y = bar_bottom; // where the NEXT letter's ink must end; climbs as the stack grows
+        // least frequent first, so the most frequent letter finishes on top and the eye reads the consensus there
+        for (int k = residues.length - 1; k >= 0; --k) {
+            final double h_px = fractions[k] * bar_h;
+            if (h_px < AptxConstants.MSA_LOGO_MIN_LETTER_PX) {
+                continue;
+            }
+            final char ch = Character.toUpperCase(residues[k]);
+            final float[] box = MsaLogoGlyphs.metrics(measured, ch);
+            final float ink_h = box[1] + box[2];
+            if ((ink_h <= 0) || (box[0] <= 0)) {
+                y -= h_px; // a glyph the face cannot draw still owns its slice of the column
+                continue;
+            }
+            // x by the ADVANCE, y by the letter's own INK -- see MsaLogoGlyphs for why the two differ. The advance
+            // box then lands exactly on the column, so the side bearings become the gap between neighbours.
+            final double sy = h_px / ink_h;
+            final double sx = Math.max(1, cell_w) / (double) box[0];
+            final Color fill = MsaColors.colorFor(ch, nucleotide);
+            g.setColor((fill == null) ? ink : fill);
+            g.setFont(measured);
+            // Place the baseline so the ink ENDS at y: scale about the origin, then translate. The x translation
+            // puts the glyph's left edge at the cell's left edge, since the scaled advance fills the cell exactly.
+            g.translate(cx, y - (box[2] * sy));
+            g.scale(sx, sy);
+            TreePanel.drawString(String.valueOf(ch), 0, 0, g);
+            g.setTransform(saved);
+            y -= h_px;
+        }
+        g.setFont(saved_font);
+    }
+
+    /** Where the last paint put the logo band: {@code { originX, baselineY, bandHeight, columnWidth }}, or null
+     *  when no logo has been drawn. A render test needs the band to measure the LETTERS against; the letters
+     *  themselves it reads off the pixels. */
+    private int[] _msa_logo_band = null;
+
+    /** Test hook: {@code { originX, baselineY, bandHeight, columnWidth }} of the last logo drawn, or null. */
+    final int[] msaLogoBandForTest() {
+        return (_msa_logo_band == null) ? null : _msa_logo_band.clone();
+    }
+
+    /** Test hook: the residues the logo would stack for a 0-based alignment column, most frequent first. */
+    final char[] msaLogoResiduesForTest(final int col) {
+        return msaConservation().stackResiduesAt(col);
+    }
+
+    /** Test hook: each stacked residue's share of the band, in the same order. */
+    final double[] msaLogoFractionsForTest(final int col) {
+        return msaConservation().stackFractionsAt(col);
     }
 
     /**
@@ -13848,7 +15585,13 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
      * label whose horizontal extent is the font height). 0 when neither columns nor bands are shown.
      */
     private int rightMarginExtraWidth() {
-        int extra = annotationColumnsWidth() + msaTrackWidth() + legendColumnReserve();
+        return annotationColumnsWidth() + msaTrackWidth() + legendColumnReserve() + cladeBandsReserve();
+    }
+
+    /** The depth-axis room the clade bars/brackets and their labels need. Non-elastic: squeezing it would break the
+     *  nested-column geometry, so the width allocator is given this as a request it cannot shrink. */
+    private int cladeBandsReserve() {
+        int extra = 0;
         if (hasCladeBands()) {
             if (_clade_bands_mode == CLADE_VIS.BOXES) {
                 extra += CLADE_BAND_RIGHT_PAD;
@@ -13861,6 +15604,222 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
             }
         }
         return extra;
+    }
+
+    // ---- the horizontal width budget ---------------------------------------------------------------------------
+    // The tree is allocated its share of the width FIRST (see LayoutWidthBudget); the tracks beside it then divide
+    // what is left. Recomputed once per layout pass in calcParametersForPainting and read by the reserve methods
+    // below, so every one of them sees the SAME division. Null before the first layout -- each reserve then falls
+    // back to what it wants, which is the pre-allocator behaviour.
+    private LayoutWidthBudget _width_budget;
+
+    /** The width this layout pass granted {@code part}, or {@code want} while no budget has been computed yet. */
+    private int granted(final LayoutWidthBudget.Part part, final int want) {
+        return (_width_budget == null) ? want : Math.min(want, _width_budget.granted(part));
+    }
+
+    /** Test hook: the width the current layout pass granted a part (-1 before the first pass). */
+    final int grantedWidthForTest(final LayoutWidthBudget.Part part) {
+        return (_width_budget == null) ? -1 : _width_budget.granted(part);
+    }
+
+    /** Test hook: the depth-axis width the current layout pass left for the tree itself (-1 before the first pass). */
+    final int grantedTreeWidthForTest() {
+        return (_width_budget == null) ? -1 : _width_budget.treeWidth();
+    }
+
+    /** Test hook: the width the reserves ACTUALLY take off the depth axis. It must not exceed what the budget
+     *  granted them -- otherwise the allocation is arithmetic the layout quietly ignores, and the tree is back to
+     *  being the remainder. */
+    final int actualSideWidthForTest() {
+        return depthLabelReserve() + rightMarginExtraWidth();
+    }
+
+    /** Test hook: the tip-label font size the auto-fit settled on. */
+    final int labelFontSizeForTest() {
+        return getTreeFontSet().getLargeFont().getSize();
+    }
+
+    /** Test hook: the floor the label auto-fit may not shrink past. */
+    final int autofitMinFontSizeForTest() {
+        return autofitMinFontSize();
+    }
+
+    /** Grow the font back only while the labels are under this fraction of their cap -- the hysteresis band that
+     *  keeps the auto-fit from oscillating between two sizes on consecutive passes. 6/7, the ratio the old fixed
+     *  0.6 / 0.7 thresholds had. */
+    private final static double LABEL_CAP_GROW_BACK = 6.0 / 7.0;
+
+    /** Never demand that the labels fit into less than this, however greedy the other tracks are. */
+    private final static int    LABEL_CAP_MIN_PX    = 40;
+
+    /**
+     * The fixed margin the depth axis never gets, which the budget must divide AROUND: the depth scale is
+     * computed as {@code x - 2 * MOVE - labels - rightMarginExtraWidth() - xdistance}, so budgeting against a
+     * single MOVE promised the tree 20 px it was never going to receive (measured: the budget reported 455 px
+     * where the scale got 434). The residual {@code xdistance} is one depth STEP, not a margin, and is left out.
+     */
+    private final static int    DEPTH_AXIS_FIXED_MARGIN = 2 * MOVE;
+
+    // The auto-fit shrinks the tip labels to fit the width the budget leaves them -- but not past readability
+    // (AptxConstants.LABEL_AUTOFIT_MIN_FONT_SIZE). Below that it stops and lets the labels OVERFLOW their cap; the
+    // budget then squeezes the elastic tracks to their minimums and, if it still does not fit, the tree dips under
+    // its share. Better than the alternative: a 3 px label is not a smaller label, it is an unreadable one. (The
+    // old flat "labels may take 70%" rule was loose enough to reach such sizes only on a hopelessly narrow window;
+    // a budget-derived cap reaches them much sooner.)
+    /** The smallest font the label auto-fit may shrink to -- never below what the configuration asks for. */
+    private int autofitMinFontSize() {
+        final int configured = (getConfiguration() == null) ? TreeFontSet.MIN_FONT_SIZE
+                : getConfiguration().getMinBaseFontSize();
+        return Math.max(AptxConstants.LABEL_AUTOFIT_MIN_FONT_SIZE, configured);
+    }
+
+    /** The tree's guaranteed share of the width, from the user's "Tree share" setting (clamped by Options). */
+    private double treeWidthShare() {
+        final Options o = getOptions();
+        return (o == null) ? AptxConstants.TREE_WIDTH_SHARE_DEFAULT : o.getTreeWidthShare();
+    }
+
+    /**
+     * The width the tip labels (with the domain track that rides on them) may occupy -- what is left of the depth
+     * axis once the tree has its guaranteed share and the other tracks have their minimums. The font auto-fit
+     * shrinks the labels into this, so the labels can no longer be "fitted" into width that is already spoken for.
+     * In a vertical or radial layout there is no such column to divide, so the historical 70% rule stands.
+     */
+    private int labelWidthCap(final int x) {
+        if (isRadialLayout()) {
+            // No depth COLUMN to divide: the radial layouts trade the RADIUS instead, in circularRadius().
+            return (int) Math.round(x * 0.7);
+        }
+        final int usable = Math.max(0, x - DEPTH_AXIS_FIXED_MARGIN);
+        final int tree_floor = (int) Math.round(usable * treeWidthShare());
+        // The legend column belongs in here. The auto-fit grows the labels until they FILL this cap, so anything
+        // left out of it is space the labels will take -- and the legend was: computeWidthBudget then found less
+        // than a legend's width of slack, dropped the column, and the legend went back to covering the tracks it
+        // exists to clear (LegendColumnTest catches exactly that).
+        final int others = cladeBandsReserve() + msaTrackWidthMin() + annotationColumnsWidth()
+                + legendColumnReserveWanted();
+        return Math.max(LABEL_CAP_MIN_PX, usable - tree_floor - others);
+    }
+
+    /**
+     * Shortens the tip labels with an ellipsis, as a LAST resort, when the font auto-fit has bottomed out and they
+     * still do not fit {@code label_cap}.
+     * <p>
+     * Why it is last: shrinking the font keeps every character, so it is always the better trade, and above
+     * {@link #autofitMinFontSize()} that is what happens. Below it the choice is between a label that loses its tail
+     * and a "Tree share" setting the program quietly ignores -- and ignoring it is what produced the complaint this
+     * whole budget exists for. A label is never shortened on a tree whose labels fit.
+     * <p>
+     * Converges by MEASURING the outcome rather than predicting it: {@code getLongestExtNodeInfo()} is the label text
+     * PLUS a tip image's slot and the domain track, neither of which the text cap shrinks, so the cap is reduced by
+     * whatever the overflow turns out to be and the reserve re-measured. Two or three rounds in practice; the guard
+     * and the {@link #LABEL_CAP_MIN_PX} floor bound it, and hitting either leaves the labels overflowing exactly as
+     * they did before -- a 40 px label column is the point at which shortening has stopped buying anything.
+     */
+    private void applyTipLabelPixelCap(final int label_cap) {
+        if (isRadialLayout()) {
+            return; // no label COLUMN: radialMaxLabelWidth() already caps these, against the radius
+        }
+        // The overflow test is a COST guard, not a rule: the body below caps the text at (label_cap - overhead),
+        // which is under the text only when the whole reservation is over label_cap, so removing this condition
+        // changes no pixel -- the loop would set a cap that truncates nothing and the worth-it check would hand it
+        // straight back. What it saves is the work: a full calculateLongestExtNodeInfo() plus a budget recompute on
+        // EVERY layout pass of every tree whose labels fit. Measured on a 687-tip tree at 1400x900, 60 passes:
+        // 0.78 ms best / 1.05 ms mean with it, 0.94 / 1.45 without. Kept for that, and a mutation of it survives
+        // the tests for the same reason it is invisible.
+        for (int round = 0; (round < 12) && (getLongestExtNodeInfo() > label_cap); ++round) {
+            // What shortening the TEXT cannot shrink: a tip image's slot and the domain track. Taking it off the cap
+            // aims straight at the right width instead of shaving pixels, and it can only UNDER-shoot (the widest
+            // total and the widest text can be different tips), never truncate more than the fit needs.
+            final int overhead = Math.max(0, getLongestExtNodeInfo() - _length_of_longest_text_only);
+            int next = label_cap - overhead;
+            if (next >= _tip_label_pixel_cap) {
+                // That estimate has stopped biting, so stop estimating and measure: give up exactly the overflow.
+                next = _tip_label_pixel_cap - (getLongestExtNodeInfo() - label_cap);
+            }
+            next = Math.max(LABEL_CAP_MIN_PX, next);
+            if (next >= _tip_label_pixel_cap) {
+                return; // at the floor, or nothing left to give: overflow, exactly as before this existed
+            }
+            _tip_label_pixel_cap = next;
+            calculateLongestExtNodeInfo(); // re-measure at the new cap -- the reserve must match what is DRAWN
+        }
+    }
+
+    /**
+     * The least the tree must gain for shortening the tip labels to be worth it: ONE PERCENT of the width being
+     * divided.
+     * <p>
+     * Not a tuned constant -- it is the resolution of the control the user is turning. The share slider moves in
+     * whole percent, so a tree that would grow by less than one percent cannot be what anybody asked for, and
+     * paying for it with every label on screen is a plainly bad trade. Measured on apaf_deep at the default share:
+     * the labels gave up 196 px of text and the tree grew by 4.
+     */
+    private int worthwhileTreeGain(final int x) {
+        return Math.max(1, Math.max(0, x - DEPTH_AXIS_FIXED_MARGIN) / 100);
+    }
+
+    /**
+     * Whether the "Tree share" setting can change anything for the tree on screen: false when the tree ALREADY has
+     * at least what the largest share would guarantee it, which is the common case on a tree with nothing but short
+     * tip labels beside it (measured: 81% of the width on a 34-tip tree, above the 80% maximum). The control panel
+     * greys the slider out and says so, rather than leaving the user to drag a control that cannot do anything.
+     */
+    final boolean treeShareCanAffectLayout() {
+        if (isRadialLayout() || (_width_budget == null)) {
+            return true; // radial trades the radius instead (circularRadius) -- the share always bites there
+        }
+        if (_tip_label_pixel_cap != Integer.MAX_VALUE) {
+            return true; // the labels are giving up TEXT for the share, which is as direct an effect as there is
+        }
+        if (_width_budget.wasSqueezed()) {
+            return true; // the side components ARE giving width up -- moving the share moves it back and forth
+        }
+        // Nothing was squeezed, so the tree is simply holding everything the side components did not want. The share
+        // can still matter if raising it would start squeezing them; it cannot if the tree is already past the most
+        // it could ever be promised.
+        final int usable = Math.max(0, getWidth() - DEPTH_AXIS_FIXED_MARGIN);
+        final int most = (int) Math.round(usable * AptxConstants.TREE_WIDTH_SHARE_MAX);
+        return _width_budget.treeWidth() < most;
+    }
+
+    /**
+     * Divides this pass's width between the tree and everything drawn beside it, and remembers the result for the
+     * reserve methods to read -- so they all see ONE division instead of each capping itself against the full width.
+     * Run after the label font has settled (the labels are a request like any other, just one that cannot be
+     * shrunk any further by then). Only the rectangular layouts have a depth column to divide: a vertical
+     * orientation reserves along the other axis and a radial one has no column at all, so both keep the old
+     * behaviour by leaving the budget unset.
+     */
+    private void computeWidthBudget(final int x) {
+        if (isRadialLayout()) {
+            // A disc, not a column: the radial layouts honour the same share against the RADIUS (circularRadius).
+            _width_budget = null;
+            return;
+        }
+        final int usable = Math.max(0, x - DEPTH_AXIS_FIXED_MARGIN);
+        final int tree_floor = (int) Math.round(usable * treeWidthShare());
+        // What the layout actually subtracts from the depth axis: in a vertical orientation that is the label's
+        // PROJECTION onto the depth (plus the domain track), not its horizontal reach. Requesting the projection
+        // is what lets the same budget serve root-left and root-top/bottom without a special case.
+        final int labels = depthLabelReserve();
+        final int clade = cladeBandsReserve();
+        final int msa_min = msaTrackWidthMin();
+        final int ann_min = annotationColumnsWidth();
+        // Non-negotiable, like the labels and the clade bands: told to the budget so the tree's share and the
+        // label cap account for it, never shaved (half a legend's width still lets the legend cover the tracks).
+        final int legend_grant = legendColumnReserveWanted();
+        _width_budget = new LayoutWidthBudget.Builder()
+                // labels and clade bands cannot be scaled (text and structural marks), so they ask for exactly
+                // what they need; the alignment and the annotation columns are the elastic ones.
+                .request(LayoutWidthBudget.Part.LABELS, labels, labels)
+                .request(LayoutWidthBudget.Part.CLADE_BANDS, clade, clade)
+                .request(LayoutWidthBudget.Part.LEGEND, legend_grant, legend_grant)
+                .request(LayoutWidthBudget.Part.MSA, msaTrackWidthWanted(), msa_min)
+                // non-elastic, like the labels: told to the budget so it is accounted for, but never reduced
+                .request(LayoutWidthBudget.Part.ANNOTATIONS, ann_min, ann_min)
+                .allocate(x, DEPTH_AXIS_FIXED_MARGIN, treeWidthShare());
     }
 
     /** The depth-axis (horizontal, in the root-left layout) footprint of a clade bar/bracket taxon label, given its
@@ -14185,8 +16144,8 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
     }
 
     final PhylogenyNode findNode(final int x, final int y) {
-        if ((_phylogeny == null) || _phylogeny.isEmpty()) {
-            return null;
+        if ((_phylogeny == null) || _phylogeny.isEmpty() || !hitTestableLayout()) {
+            return null; // laid out for an export canvas; see paintPhylogeny
         }
         // in a vertical orientation the node coords are logical (un-rotated); map the device click back to that space
         final Point2D.Double p = toLogicalPoint(x, y);
@@ -15023,6 +16982,17 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
             repaint();
         } else {
             final PhylogenyNode node = findNode(e.getX(), e.getY());
+            if ((node == null) && isPlainSingleLeftClick(e) && shows(DisplayOption.NODE_DATA_POPUP)) {
+                // Out past the labels: a domain box opens its Pfam entry (or an InterPro lookup). Deliberately
+                // narrow. A PLAIN SINGLE LEFT click only: a right or ctrl click belongs to the context menu, a
+                // shift click to selection, and a double click delivers two MOUSE_CLICKED events, which would
+                // open two browser tabs. Gated on the Rollover option as well, because that is what draws the
+                // card and the hand cursor -- without them the click would have no affordance at all.
+                final DomainHit hit = domainAt(e.getX(), e.getY());
+                if ((hit != null) && openPfamPage(hit.domain())) {
+                    return;
+                }
+            }
             if (node != null) {
                 if (!node.isRoot() && node.getParent().isCollapse()) {
                     return;
@@ -15196,11 +17166,20 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
                 // branch to preview anyway.
                 final AnnotationCell cell = shows(DisplayOption.NODE_DATA_POPUP)
                         ? annotationCellAt(e.getX(), e.getY()) : null;
+                final DomainHit domain = ((cell == null) && shows(DisplayOption.NODE_DATA_POPUP))
+                        ? domainAt(e.getX(), e.getY()) : null;
                 if (cell != null) {
                     showAnnotationCellPopup(e, cell);
                     card_wanted = true;
                     applyHover(null, false); // no node under the pointer -> no focus glow left behind
                     setCursor(ARROW_CURSOR);
+                } else if (domain != null) {
+                    // a domain box: name it, say how good the hit is and whose protein it is on. The hand
+                    // cursor says it is clickable -- a domain with a Pfam accession opens its Pfam page.
+                    showDomainPopup(e, domain);
+                    card_wanted = true;
+                    applyHover(null, false);
+                    setCursor(NodeHoverText.hasLink(domain.domain()) ? HAND_CURSOR : ARROW_CURSOR);
                 } else {
                     // over a branch (Select-Node(s) mode) -> hand cursor + preview the subtree
                     final PhylogenyNode branch = select_mode ? findBranch(e.getX(), e.getY()) : null;
@@ -15274,6 +17253,11 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
      */
     final int[] layoutForExportSize(final int w, final int h) {
         final int[] prior = { getWidth(), getHeight(), _radial_diameter };
+        // This re-lays out EVERY display type for the export frame, so from here the coordinates are not the
+        // panel's -- in the rectangular family too, which the paint itself never re-centres. restoreLayoutAfterExport
+        // puts the distances back and repaints; the node coordinates only return with that paint, and until it
+        // runs a queued mouse event would otherwise hit-test the export's layout.
+        invalidateScreenLayout();
         if (isRadialLayout()) {
             // the radial canvas is a SQUARE driven by _radial_diameter; fit it to the export frame BEFORE
             // calcParametersForPainting so setUpUrtFactor (invoked from there) reads the fitted diameter
@@ -15319,10 +17303,13 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
                 && ((Math.abs(parent_radius * arc) > 1.5) || to_pdf || to_graphics_file)) {
             final double r2 = 2.0 * parent_radius;
             drawArc(root_x - parent_radius, root_y - parent_radius, r2, r2, (-angle - arc), arc, g);
+            // the arc runs from this node's angle to its parent's, at the parent's radius; nobody's own line
+            _branch_obstacles.addArc(root_x, root_y, parent_radius, angle, angle + arc);
         }
         final double inward_x = root_x + (Math.cos(angle) * parent_radius);
         final double inward_y = root_y + (Math.sin(angle) * parent_radius);
         drawLine(c.getXcoord(), c.getYcoord(), inward_x, inward_y, g);
+        _branch_obstacles.add(c.getId(), c.getXcoord(), c.getYcoord(), (float) inward_x, (float) inward_y);
         // "Break Long Branches": mark a capped radial leg with a break glyph, rotated to the spoke, at 0.72 along the
         // leg (clear of the support/length numbers centred at the midpoint)
         if (breakLongBranchesActiveCircular() && (c.getDistanceToParent() > breakLongBranchCap())) {
@@ -15332,9 +17319,9 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
                     to_graphics_file);
         }
         // support + branch-length numbers ride the middle of this radial leg (rectangular draws them via
-        // paintConfidenceValues/paintBranchLength, which are horizontal-branch only)
-        paintBranchDataRadial(g, c, (c.getXcoord() + inward_x) / 2.0, (c.getYcoord() + inward_y) / 2.0, angle, to_pdf,
-                to_graphics_file);
+        // paintConfidenceValues/paintBranchLength, which are horizontal-branch only); painted once the whole tree
+        // is drawn, so every line they might cross is known (see the queue)
+        queueRadialBranchData(c, (c.getXcoord() + inward_x) / 2.0, (c.getYcoord() + inward_y) / 2.0, angle);
         paintNodeBox(c.getXcoord(), c.getYcoord(), c, g, to_pdf, to_graphics_file);
         if (c.isCollapse()) {
             // a collapsed clade-root is a stub here (no box/subtree): its wedge opens outward along the node's ring
@@ -15343,17 +17330,14 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
         }
         final boolean is_in_found_nodes = isInFoundNodes0(c) || isInFoundNodes1(c);
         if (c.isExternal()) {
-            if ((_dynamic_hiding_factor > 1) && !is_in_found_nodes
-                    && ((_urt_nodeid_index_map.get(c.getId()) % _dynamic_hiding_factor) != 1)) {
-                return;
-            }
+            // crowding is decided inside, exactly, against the labels already drawn (no every-k-th thinning)
             paintNodeDataUnrootedCirc(g, c, to_pdf, to_graphics_file, radial_labels, 0, is_in_found_nodes);
         } else {
             // internal-node label (clade names from rank annotation, node/seq names) rides the branch radially; the
             // node's angle is read from _urt_nodeid_angle_map inside. Gated on "Show Internal Data" inside the method.
             // Not dynamic-hiding-culled -- same as the rectangular layout, which also draws every internal label (a
             // shared, deferred perf/clutter concern on very large trees; zoom to declutter).
-            paintNodeDataUnrootedCirc(g, c, to_pdf, to_graphics_file, radial_labels, 0, is_in_found_nodes);
+            queueInternalLabel(c, 0); // painted after every tip label, largest clade first
         }
     }
 
@@ -15406,8 +17390,10 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
         // neighbours sit the mean of their weights apart -- the angular form of the rectangular breadth layout
         final double rows = rowWeight(_root);
         final double row_angle = (rows > 0) ? (TWO_PI / rows) : TWO_PI;
-        assignCircularDisplayedTipAngles(_root, center_x, center_y, radius, row_angle,
-                new double[] { starting_angle, -1 }, new int[] { 0 });
+        final double[] angle = { starting_angle, -1 };
+        assignCircularDisplayedTipAngles(_root, center_x, center_y, radius, row_angle, angle, new int[] { 0 });
+        // past the LAST tip by half its row: the seam, half a row before the first tip (mod a turn)
+        _circular_seam_angle = angle[0] + (Math.max(0, angle[1]) * row_angle / 2.0);
         paintCirculars(phy.getRoot(), phy, center_x, center_y, radius, radial_labels, g, to_pdf, to_graphics_file);
         paintNodeBox(_root.getXcoord(), _root.getYcoord(), _root, g, to_pdf, to_graphics_file);
     }
@@ -15420,23 +17406,25 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
                 && isPhyHasBranchLengths() && (getMaxDistanceToRoot() > 0);
     }
 
-    /** The circular ALIGNED phylogram (the "A" tree-shape button in circular): a phylogram whose branches end at each
-     *  tip's branch-length radius, but whose external tip LABELS are all pinned to the common OUTER ring (radius) with a
-     *  dotted radial leader bridging the gap. The polar twin of the rectangular
-     *  ALIGNED_PHYLOGRAM (labels at a common right column + leader). UNALIGNED ("P") keeps labels at each tip's radius. */
-    private boolean isAlignedCircularPhylogram() {
-        return isCircularPhylogram()
-                && (getControlPanel().getTreeDisplayType() == Options.PHYLOGENY_DISPLAY_TYPE.ALIGNED_PHYLOGRAM);
+    /** Whether the circular tip LABELS ride the common OUTER ring, each short tip bridged to it by a dotted radial
+     *  leader: EVERY circular phylogram, whatever the shape button says (Christian, 2026-09-27, for both programs:
+     *  "no more ugly jagged rings allowed"; archaeopteryx.js had always aligned). Until then only the "A" (aligned
+     *  phylogram) shape aligned, and "P" left each label at its tip's branch-length radius -- a ragged ring in which
+     *  short tips' labels crowded near the centre while the rim had room. In a cladogram every tip already sits on
+     *  the ring, so the anchor is the tip and no leader is needed. The "A" button is therefore inert in circular and
+     *  greyed there (ControlPanel.setDrawPhylogramEnabled), as it was in unrooted. */
+    private boolean circularLabelsOnRing() {
+        return isCircularPhylogram();
     }
 
-    /** The device point where {@code node}'s circular tip label is anchored: the tip's OWN position, EXCEPT in the
-     *  aligned circular phylogram where an external tip's label is pinned to the common outer ring at the tip's angle
-     *  (radius = the tree ring), so all labels line up on a circle. The single source of the anchor shared by the label
+    /** The device point where {@code node}'s circular tip label is anchored: the tip's OWN position, EXCEPT in a
+     *  circular phylogram, where an external tip's label is pinned to the common outer ring at the tip's angle
+     *  (radius = the tree ring), so all labels line up on a circle (see {@link #circularLabelsOnRing}). The single source of the anchor shared by the label
      *  paint + leader ({@link #paintNodeDataUnrootedCirc}) and the render test, so they can never drift. The centre +
      *  radius are derived from {@link #getPreferredSize()} + {@link #circularRadius} -- IDENTICAL to how the enclosing
      *  paintCircular set the node coords in the same pass, so anchor and drawn tree agree on screen and in exports. */
     private Point2D.Double circularLabelAnchor(final PhylogenyNode node) {
-        if (node.isExternal() && (_graphics_type == PHYLOGENY_GRAPHICS_TYPE.CIRCULAR) && isAlignedCircularPhylogram()
+        if (node.isExternal() && (_graphics_type == PHYLOGENY_GRAPHICS_TYPE.CIRCULAR) && circularLabelsOnRing()
                 && (_circular_radius > 0)) {
             final Double a = _urt_nodeid_angle_map.get(node.getId());
             if (a != null) {
@@ -15505,7 +17493,6 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
             node.setXcoord((float) (cx + (r * radius * Math.cos(m))));
             node.setYcoord((float) (cy + (r * radius * Math.sin(m))));
             _urt_nodeid_angle_map.put(node.getId(), m);
-            _urt_nodeid_index_map.put(node.getId(), index[0]++);
         }
         else {
             for (int i = 0; i < node.getNumberOfDescendants(); ++i) {
@@ -15547,6 +17534,23 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
         paintPhylogeny(g, to_pdf, true, width, height, x, y, vector);
     }
 
+    /**
+     * Paints the tree -- on screen, and into every export.
+     * <p>
+     * The radial layouts centre the figure on the CANVAS ({@link #radialCanvasCenterX}), which for a full export
+     * is the EXPORT size, not the panel's. That layout is not local to the paint: the ring's centre and radius
+     * live on the panel and every node's x/y is rewritten as it is drawn. So after a fixed-size PDF/PNG/SVG of a
+     * circular or unrooted tree, the panel describes the export -- measured on a 900x700 panel exported at
+     * 2400x1800, the centre moved from (450,350) to (1200,900) and all 50 node coordinates with it.
+     * <p>
+     * The export's layout is deliberately LEFT in place: rendering at a size and then reading the coordinates it
+     * produced is how this codebase checks its own drawing, and restoring them here blinded sixteen render tests
+     * to the thing they render. What is fixed instead is the wrong answer that followed -- the panel now knows
+     * its layout is not the screen's, {@link #hitTestableLayout} says so, and the hit-tests that map a SCREEN
+     * point onto the tree decline until the repaint this schedules has laid the tree out for the panel again.
+     * Declining for one repaint is a rollover that does not appear; the alternative was a rollover, a click
+     * target and a legend anchor that pointed at a canvas the user never saw.
+     */
     final void paintPhylogeny(final Graphics2D g,
                               final boolean to_pdf,
                               final boolean to_graphics_file,
@@ -15565,6 +17569,81 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
                               final int graphics_file_height,
                               final int graphics_file_x,
                               final int graphics_file_y, final boolean vector) {
+        final boolean to_screen = !to_pdf && !to_graphics_file;
+        // One pass, one occupancy map: reset here, at the single entry every paint goes through (screen, PDF,
+        // SVG/EPS and raster alike), so a mark is tested against what THIS pass has drawn and nothing else.
+        final float cell = Math.max(getTreeFontSet().getFontMetricsSmall().getHeight(),
+                AptxConstants.SUPPORT_SYMBOL_MAX_DIAMETER);
+        _number_occupancy.reset(cell);
+        _symbol_occupancy.reset(cell);
+        _branch_obstacles.reset(cell * 2f); // cells about the size of a number's box, so a query touches a few
+        _label_occupancy.reset(cell * 2f);
+        if (_label_boxes_for_test != null) {
+            _label_boxes_for_test.clear();
+        }
+        if (_refused_label_boxes_for_test != null) {
+            _refused_label_boxes_for_test.clear();
+        }
+        if (_internal_label_order_for_test != null) {
+            _internal_label_order_for_test.clear(); // a pass that queues NO clade label must not report the last one's
+        }
+        // let go of the previous pass's nodes here too: a paint that threw between its tree pass and its
+        // flush would otherwise keep them reachable until the next radial paint succeeds
+        java.util.Arrays.fill(_queued_number_nodes, 0, _queued_number_count, null);
+        java.util.Arrays.fill(_queued_internal_nodes, 0, _queued_internal_count, null);
+        _queued_number_count = 0;
+        _queued_internal_count = 0;
+        resetCrowdingCounters();
+        invalidateAlignmentLength();
+        final long paint_started = to_screen ? System.nanoTime() : 0L;
+        try {
+            paintPhylogenyImpl(g, to_pdf, to_graphics_file, graphics_file_width, graphics_file_height,
+                    graphics_file_x, graphics_file_y, vector);
+        } finally {
+            if (to_screen) {
+                recordFrameTime(System.nanoTime() - paint_started);
+                // the ONLY way back: this paint has just laid the tree out for the panel
+                _layout_is_screen_layout = true;
+            }
+            // Did this paint put the ring somewhere a screen paint would not? That is the whole question, so it
+            // is asked directly rather than approximated: radialCanvasCenterX/Y centre a full-canvas export on
+            // the EXPORT frame, and with the centre goes every node coordinate. Asking it this way covers for
+            // free the two exports that move nothing -- a VISIBLE-ONLY one (which falls back to the panel's own
+            // size) and one whose canvas simply IS the panel's -- neither of which should cost a frame of
+            // rollover. The rectangular family is never re-centred here; it is re-laid-out by
+            // layoutForExportSize on the fixed-size paths, which invalidates there instead.
+            else if (isRadialLayout()
+                    && ((radialCanvasCenterX(graphics_file_width, to_pdf, to_graphics_file) != (getWidth() / 2))
+                            || (radialCanvasCenterY(graphics_file_height, to_pdf,
+                                    to_graphics_file) != (getHeight() / 2)))) {
+                invalidateScreenLayout();
+            }
+        }
+    }
+
+    /** Whether the coordinates currently on the tree are the ones the panel is showing -- false between an
+     *  EXPORT paint and the repaint that follows it. Every hit-test that turns a screen point into a node, a
+     *  cell, a domain or an annotation-column ring asks this first: during that window the tree is laid out for
+     *  a canvas that was never on screen, and any answer would be about that canvas. */
+    final boolean hitTestableLayout() {
+        return _layout_is_screen_layout;
+    }
+
+    /** The tree is now laid out for something other than this panel; decline screen hit-tests and ask for the
+     *  repaint that puts it back. A LATCH -- only a screen paint clears it, so a second export cannot declare
+     *  the layout good again while the repaint the first one asked for is still queued. */
+    final private void invalidateScreenLayout() {
+        _layout_is_screen_layout = false;
+        repaint();
+    }
+
+    final private void paintPhylogenyImpl(final Graphics2D g,
+                                          final boolean to_pdf,
+                                          final boolean to_graphics_file,
+                                          final int graphics_file_width,
+                                          final int graphics_file_height,
+                                          final int graphics_file_x,
+                                          final int graphics_file_y, final boolean vector) {
         if ((_phylogeny == null) || _phylogeny.isEmpty()) {
             return;
         }
@@ -15580,6 +17659,13 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
             }
         }
         refreshCollapsedRowWeights(); // collapsing, undo and tree swaps all change the rows; one refresh per paint
+        // Start this paint's record of the domain tracks actually drawn (see _domains_painted). A partial repaint
+        // still walks the whole tree and culls against the VIEWPORT (not the damaged clip), so every screen paint
+        // records the same set; an export records nothing and leaves the screen's set alone.
+        _recording_domain_paints = !to_pdf && !to_graphics_file;
+        if (_recording_domain_paints) {
+            _domains_painted.clear();
+        }
         // The support scale ceiling (a single preorder scan) feeds both the support symbols and the "min.
         // confidence shown" label filter (a fraction of this ceiling). Skip the scan -- keeping the cheap 1.0
         // fallback -- when neither consumer is active (the default), so plain repaints on the hot hover/scroll/
@@ -15834,23 +17920,8 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
                 }
             }
         } else if (getPhylogenyGraphicsType() == PHYLOGENY_GRAPHICS_TYPE.UNROOTED) {
-            if (getControlPanel().getDynamicallyHideData() != null) {
-                getControlPanel().setDynamicHidingIsOn(false);
-            }
             final double angle = getStartingAngle();
             final boolean radial_labels = getOptions().getNodeLabelDirection() == NODE_LABEL_DIRECTION.RADIAL;
-            _dynamic_hiding_factor = 0;
-            if (shows(DisplayOption.DYNAMICALLY_HIDE_DATA)) {
-                _dynamic_hiding_factor = (int) ((getFontMetricsForLargeDefaultFont().getHeight() * 1.5
-                        * getPhylogeny().getNumberOfExternalNodes()) / (TWO_PI * 10));
-            }
-            if (getControlPanel().getDynamicallyHideData() != null) {
-                if (_dynamic_hiding_factor > 1) {
-                    getControlPanel().setDynamicHidingIsOn(true);
-                } else {
-                    getControlPanel().setDynamicHidingIsOn(false);
-                }
-            }
             paintUnrooted(_phylogeny.getRoot(),
                     angle,
                     (float) (angle + (2 * Math.PI)),
@@ -15860,6 +17931,12 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
                     to_graphics_file,
                     graphics_file_width,
                     graphics_file_height);
+            paintQueuedInternalLabels(g, to_pdf, to_graphics_file); // after every tip label
+            paintQueuedRadialBranchData(g, to_pdf, to_graphics_file); // now that every line and label is known
+            if ((getControlPanel().getDynamicallyHideData() != null) && !to_pdf && !to_graphics_file) {
+                // the control panel's cue says what the SCREEN hides; an export paint at another size must not move it
+                getControlPanel().setDynamicHidingIsOn((_labels_hidden + _internal_labels_hidden) > 0);
+            }
             paintRadialOverlays(g, to_pdf, to_graphics_file); // dots + pies + hover preview + halos (coords set above)
             if (getOptions().isShowScale()) {
                 if (!(to_graphics_file || to_pdf)) {
@@ -15902,30 +17979,21 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
             _circular_center_x = center_x; // so circularLabelAnchor / the ring hit-test match this exact geometry
             _circular_center_y = center_y;
             _circular_radius = radius;
-            _dynamic_hiding_factor = 0;
-            if (shows(DisplayOption.DYNAMICALLY_HIDE_DATA) && (radius > 0)) {
-                _dynamic_hiding_factor = (int) ((getFontMetricsForLargeDefaultFont().getHeight() * 1.5
-                        * getPhylogeny().getNumberOfExternalNodes()) / (TWO_PI * radius));
-            }
-            if (getControlPanel().getDynamicallyHideData() != null) {
-                if (_dynamic_hiding_factor > 1) {
-                    getControlPanel().setDynamicHidingIsOn(true);
-                } else {
-                    getControlPanel().setDynamicHidingIsOn(false);
-                }
-            }
             // concentric ICS geologic bands behind the tree (a no-op unless GEOLOGIC + a circular phylogram); it is an
             // alternative radial time-scale representation, so it suppresses the numeric distance rings when on
             paintGeologicRingsCircular(g, center_x, center_y, radius > 0 ? radius : 0, to_pdf, to_graphics_file);
             // concentric CALENDAR-year rings behind the tree (a no-op unless CALENDAR + a circular phylogram)
             paintCalendarRingsCircular(g, center_x, center_y, radius > 0 ? radius : 0, to_pdf, to_graphics_file);
-            if (!geologicRingsApplyCircular() && !calendarRingsApplyCircular() && !breakLongBranchesActiveCircular()) {
-                // concentric distance rings behind the tree (a no-op unless this is a circular PHYLOGRAM); suppressed
-                // while capping -- the radius is the CAPPED distance, so linear distance rings would misalign
-                paintCircularScaleRings(g, center_x, center_y, radius > 0 ? radius : 0, to_pdf, to_graphics_file);
-            }
+            // the Scale Grid as concentric distance rings behind the tree (self-gated: circularDistanceScaleApplies)
+            paintCircularScaleRings(g, center_x, center_y, radius > 0 ? radius : 0, to_pdf, to_graphics_file);
             paintCircular(_phylogeny, getStartingAngle(), center_x, center_y, radius > 0 ? radius : 0, g, to_pdf,
                     to_graphics_file);
+            paintQueuedInternalLabels(g, to_pdf, to_graphics_file); // after every tip label
+            paintQueuedRadialBranchData(g, to_pdf, to_graphics_file); // now that every line and label is known
+            if ((getControlPanel().getDynamicallyHideData() != null) && !to_pdf && !to_graphics_file) {
+                // the control panel's cue says what the SCREEN hides; an export paint at another size must not move it
+                getControlPanel().setDynamicHidingIsOn((_labels_hidden + _internal_labels_hidden) > 0);
+            }
             // (aligned circular phylogram: the tip->ring leaders are drawn per-tip inside paintNodeDataUnrootedCirc,
             // right where the label is, so a leader appears iff its label does)
             // faint alternating angular wedges (row-tracking aid), over the tree but UNDER the rings/clade bands
@@ -15949,6 +18017,21 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
             paintDomainsCircular(g, center_x, center_y, radius > 0 ? radius : 0, to_pdf, to_graphics_file);
             paintRadialOverlays(g, to_pdf, to_graphics_file); // dots + pies + hover preview + halos (coords set above)
             paintTimeAxisHint(g, to_pdf, to_graphics_file); // a dated circular CLADOGRAM: say why the ring axis isn't showing
+            // the Scale Axis: a ruler in the seam (after paintCircular, which records the seam), over the tree
+            paintCircularScaleAxis(g, center_x, center_y, radius > 0 ? radius : 0, to_pdf, to_graphics_file);
+            // the Scale bar, bottom left as in the other layouts; one unit of distance is radius / tree height here. It
+            // stays while long branches are capped, sized to the unbroken scale (the radius is then normalised by the
+            // CAPPED height), as the rectangular bar does -- only the axis and grid, which span the capped part, go
+            if (getOptions().isShowScale() && circularScaleBarApplies() && (radius > 0)) {
+                final double px_per_unit = radius / circularRadialNormaliser();
+                if (!(to_graphics_file || to_pdf)) {
+                    paintScale(g, getVisibleRect().x, getVisibleRect().y + getVisibleRect().height, px_per_unit,
+                            to_pdf, to_graphics_file);
+                } else {
+                    paintScale(g, graphics_file_x, graphics_file_y + graphics_file_height, px_per_unit, to_pdf,
+                            to_graphics_file);
+                }
+            }
             if (getOptions().isShowOverview() && isOvOn() && !to_graphics_file && !to_pdf) {
                 final int radius_ov = (int) (getOvMaxHeight() < getOvMaxWidth() ? getOvMaxHeight() / 2
                         : getOvMaxWidth() / 2);
@@ -15983,64 +18066,78 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
         // (circular), so their legend is shown there too and suppressed ONLY in the UNROOTED layout, where the columns
         // aren't drawn (its bounds nulled so a stale hit region from a prior paint isn't clickable). The RANK legend
         // keys BRANCH colors, which render in every layout.
-        final boolean draw_annotation_legend = annotationLegendVisible();
-        final boolean draw_color_legend = hasColorByPropertyLegend();
-        if (draw_annotation_legend || draw_color_legend || hasRankLegend()) {
-            final boolean to_screen = !(to_pdf || to_graphics_file);
-            final Rectangle legend_bounds = to_screen
-                    ? getVisibleRect()
-                    : new Rectangle(graphics_file_x, graphics_file_y, graphics_file_width, graphics_file_height);
-            // one legend slot; a header-focused annotation-column legend wins (the user just clicked it),
-            // else the property-color legend, else the rank legend
-            if (draw_annotation_legend) {
-                drawAnnotationColumnLegend(g, legend_bounds, to_screen);
-            } else if (draw_color_legend) {
-                drawPropertyColorLegend(g, legend_bounds, to_screen);
+        _default_legend_claims = new java.util.ArrayList<>(); // this pass's default spots (claimDefaultLegendSpot)
+        try {
+            final boolean draw_annotation_legend = annotationLegendVisible();
+            final boolean draw_color_legend = hasColorByPropertyLegend();
+            if (draw_annotation_legend || draw_color_legend || hasRankLegend()) {
+                final boolean to_screen = !(to_pdf || to_graphics_file);
+                final Rectangle legend_bounds = to_screen
+                        ? getVisibleRect()
+                        : new Rectangle(graphics_file_x, graphics_file_y, graphics_file_width, graphics_file_height);
+                // one legend slot; a header-focused annotation-column legend wins (the user just clicked it),
+                // else the property-color legend, else the rank legend
+                if (draw_annotation_legend) {
+                    drawAnnotationColumnLegend(g, legend_bounds, to_screen);
+                } else if (draw_color_legend) {
+                    drawPropertyColorLegend(g, legend_bounds, to_screen);
+                } else {
+                    drawRankLegend(g, legend_bounds, to_screen);
+                }
             } else {
-                drawRankLegend(g, legend_bounds, to_screen);
+                _property_legend_bounds = null; // nothing in the shared slot -> no stale hit region
             }
-        } else {
-            _property_legend_bounds = null; // nothing in the shared slot -> no stale hit region
-        }
-        // "Size by" has its OWN legend (a separate, independently placed key), drawn last so it can appear
-        // ALONGSIDE the color/rank legend -- the whole point of the combined color+size figure. Its size dots now
-        // render in every layout, so the legend shows in every layout too.
-        if (isSizeByProperty()) {
-            final boolean to_screen = !(to_pdf || to_graphics_file);
-            final Rectangle legend_bounds = to_screen ? getVisibleRect()
-                    : new Rectangle(graphics_file_x, graphics_file_y, graphics_file_width, graphics_file_height);
-            drawSizeLegend(g, legend_bounds, to_screen);
-        }
-        // ancestral-state pies have their OWN key (state -> color), drawn last so it can appear alongside the others.
-        // Pies draw in EVERY layout (rectangular family + circular/unrooted), so the legend is never orphaned.
-        if (isShowAncestralPies()) {
-            final boolean to_screen = !(to_pdf || to_graphics_file);
-            final Rectangle legend_bounds = to_screen ? getVisibleRect()
-                    : new Rectangle(graphics_file_x, graphics_file_y, graphics_file_width, graphics_file_height);
-            drawAncestralPieLegend(g, legend_bounds, to_screen,
-                    (to_pdf || to_graphics_file) && getOptions().isExportBlackAndWhite());
-        }
-        // the internal-taxonomy key has its OWN text key (taxa by rank), drawn last (on top) so it can appear
-        // alongside the others; a no-op unless the option is on AND the tree carries internal taxa.
-        if (getOptions().isShowInternalTaxonomyKey()) {
-            final boolean to_screen = !(to_pdf || to_graphics_file);
-            final Rectangle legend_bounds = to_screen ? getVisibleRect()
-                    : new Rectangle(graphics_file_x, graphics_file_y, graphics_file_width, graphics_file_height);
-            drawInternalTaxonomyKey(g, legend_bounds, to_screen);
-        }
-        // the protein-domain legend (LEGEND label mode): its own draggable slot, drawn last so an overlap grab wins;
-        // E-value-cutoff aware. Layout-agnostic (rides every layout + export), like the other legends.
-        {
-            final boolean to_screen = !(to_pdf || to_graphics_file);
-            final Rectangle legend_bounds = to_screen ? getVisibleRect()
-                    : new Rectangle(graphics_file_x, graphics_file_y, graphics_file_width, graphics_file_height);
-            drawDomainLegend(g, legend_bounds, to_screen);
+            // "Size by" has its OWN legend (a separate, independently placed key), drawn last so it can appear
+            // ALONGSIDE the color/rank legend -- the whole point of the combined color+size figure. Its size dots now
+            // render in every layout, so the legend shows in every layout too.
+            if (isSizeByProperty()) {
+                final boolean to_screen = !(to_pdf || to_graphics_file);
+                final Rectangle legend_bounds = to_screen ? getVisibleRect()
+                        : new Rectangle(graphics_file_x, graphics_file_y, graphics_file_width, graphics_file_height);
+                drawSizeLegend(g, legend_bounds, to_screen);
+            }
+            // ancestral-state pies have their OWN key (state -> color), drawn last so it can appear alongside the
+            // others.
+            // Pies draw in EVERY layout (rectangular family + circular/unrooted), so the legend is never orphaned.
+            if (isShowAncestralPies()) {
+                final boolean to_screen = !(to_pdf || to_graphics_file);
+                final Rectangle legend_bounds = to_screen ? getVisibleRect()
+                        : new Rectangle(graphics_file_x, graphics_file_y, graphics_file_width, graphics_file_height);
+                drawAncestralPieLegend(g, legend_bounds, to_screen,
+                        (to_pdf || to_graphics_file) && getOptions().isExportBlackAndWhite());
+            }
+            // the internal-taxonomy key has its OWN text key (taxa by rank), drawn last (on top) so it can appear
+            // alongside the others; a no-op unless the option is on AND the tree carries internal taxa.
+            if (getOptions().isShowInternalTaxonomyKey()) {
+                final boolean to_screen = !(to_pdf || to_graphics_file);
+                final Rectangle legend_bounds = to_screen ? getVisibleRect()
+                        : new Rectangle(graphics_file_x, graphics_file_y, graphics_file_width, graphics_file_height);
+                drawInternalTaxonomyKey(g, legend_bounds, to_screen);
+            }
+            // the protein-domain legend (LEGEND label mode): its own draggable slot, drawn last so an overlap grab
+            // wins;
+            // E-value-cutoff aware. Layout-agnostic (rides every layout + export), like the other legends.
+            {
+                final boolean to_screen = !(to_pdf || to_graphics_file);
+                final Rectangle legend_bounds = to_screen ? getVisibleRect()
+                        : new Rectangle(graphics_file_x, graphics_file_y, graphics_file_width, graphics_file_height);
+                drawDomainLegend(g, legend_bounds, to_screen);
+            }
+        } finally {
+            _default_legend_claims = null; // no pass, no claims -- also when a draw throws
         }
         // reconcile the "Pulse Found Nodes" animation timer after EVERY screen paint (all layouts): starts it when a
         // hit halo was drawn (rectangular OR radial), stops it when none was (option off / no hit).
         if (!to_pdf && !to_graphics_file) {
             updatePulseTimer();
             paintHoverCard(g); // the node hover card: last, over everything, screen only, every layout
+            // The diagnostic readout belongs HERE, not in the rectangular block it started in: that block is
+            // gated on the graphics type, so circular and unrooted never reached it and the counter simply did
+            // not appear there. It is viewport chrome about the PAINT, which every layout does, so it is drawn
+            // from the layout-agnostic tail -- and after the hover card, so nothing covers it.
+            if (getOptions().isShowFps()) {
+                paintFpsCounter(g, getVisibleRect().x, getVisibleRect().width, getVisibleRect().y);
+            }
         }
     }
 
@@ -16551,6 +18648,411 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
                 tipImageAdvance(node));
     }
 
+    // "Auto-hide crowded data": what has already been drawn this pass, so a mark that would land on top of one
+    // is dropped instead. Two maps, because the two channels are drawn in deliberately different places -- the
+    // symbol sits ON the branch line, the numbers just above and below it -- and sharing one map would make a
+    // branch's own symbol block its own numbers. See LabelOccupancy for why this replaced a branch-length rule.
+    private final LabelOccupancy _number_occupancy = new LabelOccupancy();
+
+    /** The branch lines drawn so far this radial pass, so a number can refuse to lie across a foreign one. */
+    private final BranchObstacles _branch_obstacles = new BranchObstacles();
+
+    /** The tip labels drawn so far this radial pass, as ORIENTED boxes (a label rides its spoke at any angle, and
+     *  its axis-aligned bounds would hide neighbours that do not touch). A later label that would lie across one is
+     *  not drawn, and the branch numbers keep clear of them all. See OrientedOccupancy for the measurements. */
+    private final OrientedOccupancy _label_occupancy = new OrientedOccupancy();
+    private int _labels_drawn;          // external-tip labels the radial paint drew
+    private int _labels_hidden;         // ...and dropped for lying across a label already drawn
+    private int _internal_labels_drawn; // the same for internal-node (clade) labels, painted after every tip
+    private int _internal_labels_hidden;
+    private int _numbers_off_labels;    // numbers refused for lying across a label
+    private int _radial_domains_drawn;  // domain architectures the radial painters drew this pass
+
+    /** The tips whose label the rule hid this pass. What else a tip draws off its label goes with the label: the
+     *  rectangular layout hides a thinned row's label and domain track together (the same early return), so the
+     *  radial layouts skip the architecture of a tip in this set -- an architecture without its name is
+     *  identifiable only by which spoke it sits on (archaeopteryx.js measured 7 of 31 on one tree, 2026-09-27,
+     *  after asking "what else is drawn on the assumption that the label will be there?"). Labels switched OFF
+     *  altogether hide nothing by the rule, so every architecture still draws then. */
+    private final java.util.Set<Long> _tips_hidden_by_rule = new java.util.HashSet<Long>();
+
+    /** Test hook: domain architectures the last radial paint drew. */
+    final int radialDomainsDrawnForTest() {
+        return _radial_domains_drawn;
+    }
+
+    // Internal-node labels are painted AFTER the tree pass (paintQueuedInternalLabels), largest clade first: a
+    // clade name then never displaces a tip name, and the two radial painters -- which visit an internal node
+    // before its subtree (unrooted) and after it (circular) -- give the same answer.
+    private PhylogenyNode[] _queued_internal_nodes = new PhylogenyNode[64];
+    private double[]        _queued_internal_angles = new double[64];
+    private int             _queued_internal_count;
+
+    private void queueInternalLabel(final PhylogenyNode node, final double angle) {
+        if (!isShowInternalDataForThisTab()) {
+            return; // nothing would be drawn: do not queue, sort and walk thousands of nodes for it
+        }
+        if (_queued_internal_count == _queued_internal_nodes.length) {
+            _queued_internal_nodes = java.util.Arrays.copyOf(_queued_internal_nodes, _queued_internal_count * 2);
+            _queued_internal_angles = java.util.Arrays.copyOf(_queued_internal_angles, _queued_internal_count * 2);
+        }
+        _queued_internal_nodes[_queued_internal_count] = node;
+        _queued_internal_angles[_queued_internal_count] = angle;
+        ++_queued_internal_count;
+    }
+
+    /** Paints the internal-node labels queued by this pass's radial painter -- LARGER clade first (more tips), and
+     *  among clades of equal size the shallower one (so a node's label always precedes its single child's), a
+     *  stable order beyond that -- and lets go of the nodes. Depths come from one O(n) pass with a memo rather than
+     *  a walk to the root per node: on a 5,000-tip caterpillar that walk was ~12.5 million hops per repaint. */
+    private void paintQueuedInternalLabels(final Graphics2D g, final boolean to_pdf, final boolean to_graphics_file) {
+        final int n = _queued_internal_count;
+        if (n == 0) {
+            return;
+        }
+        final boolean radial_labels = getOptions().getNodeLabelDirection() == NODE_LABEL_DIRECTION.RADIAL;
+        final java.util.Map<PhylogenyNode, Integer> depths = new java.util.IdentityHashMap<PhylogenyNode, Integer>(n * 2);
+        final java.util.ArrayDeque<PhylogenyNode> path = new java.util.ArrayDeque<PhylogenyNode>();
+        for (int i = 0; i < n; ++i) {
+            PhylogenyNode p = _queued_internal_nodes[i];
+            while (!p.isRoot() && !depths.containsKey(p)) {
+                path.push(p);
+                p = p.getParent();
+            }
+            int d = p.isRoot() ? 0 : depths.get(p).intValue();
+            while (!path.isEmpty()) {
+                depths.put(path.pop(), Integer.valueOf(++d));
+            }
+        }
+        final Integer[] order = new Integer[n];
+        for (int i = 0; i < n; ++i) {
+            order[i] = Integer.valueOf(i);
+        }
+        java.util.Arrays.sort(order, (a, b) -> {
+            final PhylogenyNode na = _queued_internal_nodes[a.intValue()], nb = _queued_internal_nodes[b.intValue()];
+            final int by_size = Integer.compare(nb.getNumberOfExternalNodes(), na.getNumberOfExternalNodes());
+            return (by_size != 0) ? by_size : Integer.compare(depths.get(na).intValue(), depths.get(nb).intValue());
+        });
+        if (_internal_label_order_for_test != null) {
+            _internal_label_order_for_test.clear();
+        }
+        for (final Integer i : order) {
+            final PhylogenyNode node = _queued_internal_nodes[i.intValue()];
+            if (_internal_label_order_for_test != null) {
+                _internal_label_order_for_test.add(Long.valueOf(node.getId()));
+            }
+            paintNodeDataUnrootedCirc(g, node, to_pdf, to_graphics_file, radial_labels,
+                    _queued_internal_angles[i.intValue()], isInFoundNodes(node));
+        }
+        java.util.Arrays.fill(_queued_internal_nodes, 0, n, null);
+        _queued_internal_count = 0;
+    }
+
+    /** Set with {@link #setRecordLabelBoxesForTest}: the node ids of the queued internal labels in the order they
+     *  were offered to the rule -- larger clade first, shallower among equals. */
+    private java.util.List<Long> _internal_label_order_for_test = null;
+
+    final java.util.List<Long> internalLabelOrderForTest() {
+        return _internal_label_order_for_test;
+    }
+
+    /** Test hooks: internal-node labels the last radial paint drew / dropped for lying across a label. */
+    final int internalLabelsDrawnForTest() {
+        return _internal_labels_drawn;
+    }
+
+    final int internalLabelsHiddenForTest() {
+        return _internal_labels_hidden;
+    }
+
+    /** Set by {@link #setRecordLabelBoxesForTest} only: each drawn tip label's {@code {cx, cy, hw, hh, theta, node
+     *  id}} (the id as a float: node ids are small integers). */
+    private java.util.List<double[]> _label_boxes_for_test = null;
+    private java.util.List<double[]> _refused_label_boxes_for_test = null;
+
+    final void setRecordLabelBoxesForTest(final boolean on) {
+        _label_boxes_for_test = on ? new java.util.ArrayList<double[]>() : null;
+        _refused_label_boxes_for_test = on ? new java.util.ArrayList<double[]>() : null;
+        _internal_label_order_for_test = on ? new java.util.ArrayList<Long>() : null;
+    }
+
+    /** Test hook: the oriented boxes of the tip labels the last paint DREW, in paint order (a fresh list per
+     *  {@link #setRecordLabelBoxesForTest}, so a test reads one paint and not the one before it). */
+    final java.util.List<double[]> labelBoxesForTest() {
+        return _label_boxes_for_test;
+    }
+
+    /** For tests: the boxes the rule REFUSED this pass, same layout as {@link #labelBoxesForTest}. Together they let
+     *  a test state the tooltip's own sentence -- "nothing is hidden unless something already drawn is really in its
+     *  way" -- as an invariant: every refused box overlaps a drawn one (archaeopteryx.js pins the same, 2026-09-27). */
+    final java.util.List<double[]> refusedLabelBoxesForTest() {
+        return _refused_label_boxes_for_test;
+    }
+
+    /** Test hook: external-tip labels the last radial paint drew / dropped for lying across another label. */
+    final int labelsDrawnForTest() {
+        return _labels_drawn;
+    }
+
+    final int labelsHiddenForTest() {
+        return _labels_hidden;
+    }
+
+    /** Test hook: radial branch numbers the last paint refused for lying across a tip label. */
+    final int numbersRefusedForLabelsForTest() {
+        return _numbers_off_labels;
+    }
+
+    /** How close to a foreign line's CENTRE a number's ink may come: a 1 px line's antialiasing reaches a pixel out,
+     *  and so does a glyph's, so at 1.0 the two fringes still met (measured on the dense fan: one pixel, tree
+     *  #f1f1f1 under number #dddddd). At 2.0 they cannot. */
+    private static final double BRANCH_INK_MARGIN_PX = 2.0;
+
+    // Radial branch numbers are painted AFTER the tree (paintQueuedRadialBranchData) because each must be tested
+    // against every line it might cross, and the radial painters draw their lines as they lay the tree out. The
+    // queue keeps the painters' own order, so which of two competing numbers wins is exactly what it was when
+    // they were painted inline. Parallel primitive arrays: a paint of a large tree queues thousands of these.
+    private PhylogenyNode[] _queued_number_nodes = new PhylogenyNode[256];
+    private double[]        _queued_number_geometry = new double[256 * 3]; // mid_x, mid_y, branch angle
+    private int             _queued_number_count;
+
+    private void queueRadialBranchData(final PhylogenyNode node, final double mid_x, final double mid_y,
+                                       final double angle) {
+        if (_queued_number_count == _queued_number_nodes.length) {
+            _queued_number_nodes = java.util.Arrays.copyOf(_queued_number_nodes, _queued_number_count * 2);
+            _queued_number_geometry = java.util.Arrays.copyOf(_queued_number_geometry, _queued_number_count * 6);
+        }
+        _queued_number_nodes[_queued_number_count] = node;
+        _queued_number_geometry[_queued_number_count * 3] = mid_x;
+        _queued_number_geometry[(_queued_number_count * 3) + 1] = mid_y;
+        _queued_number_geometry[(_queued_number_count * 3) + 2] = angle;
+        ++_queued_number_count;
+    }
+
+    /** Paints the numbers queued by this pass's radial painter, in its order, and lets go of the nodes. */
+    private void paintQueuedRadialBranchData(final Graphics2D g, final boolean to_pdf,
+                                             final boolean to_graphics_file) {
+        for (int i = 0; i < _queued_number_count; ++i) {
+            paintBranchDataRadial(g, _queued_number_nodes[i], _queued_number_geometry[i * 3],
+                    _queued_number_geometry[(i * 3) + 1], _queued_number_geometry[(i * 3) + 2], to_pdf,
+                    to_graphics_file);
+        }
+        java.util.Arrays.fill(_queued_number_nodes, 0, _queued_number_count, null); // hold no tree between paints
+        _queued_number_count = 0;
+    }
+
+    /** Whether a branch number is made of digits, a point and a sign only -- ink that never leaves the band between
+     *  the baseline and the digits' cap height. */
+    private static boolean digitsOnly(final String s) {
+        for (int i = 0; i < s.length(); ++i) {
+            final char c = s.charAt(i);
+            if (((c < '0') || (c > '9')) && (c != '.') && (c != '-')) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private Font   _digit_cap_font;
+    private double _digit_cap;
+
+    /** How far the digits' ink rises above the baseline in {@code fm}'s font -- measured from the glyphs, once per
+     *  font, because the line box's ascent is the LINE's, not the ink's (see the MSA logo for the same trap). */
+    private double digitCapHeight(final FontMetrics fm) {
+        if (fm.getFont() != _digit_cap_font) {
+            _digit_cap_font = fm.getFont();
+            _digit_cap = -fm.getFont().createGlyphVector(fm.getFontRenderContext(), "0123456789.-")
+                    .getVisualBounds().getMinY();
+        }
+        return _digit_cap;
+    }
+    private final LabelOccupancy _symbol_occupancy = new LabelOccupancy();
+
+    /** Whether the auto-hide rules bite at all. No crowding term is needed: the occupancy test is self-limiting,
+     *  since in a sparse view nothing overlaps and so nothing is hidden. Switch the option off and every mark is
+     *  drawn at any size -- which is what a final figure wants, and what keeps an export reproducible. */
+    private boolean autoHideCrowdedData() {
+        return shows(DisplayOption.DYNAMICALLY_HIDE_DATA);
+    }
+
+    // What the last paint did, so the effect is observable rather than inferred from pixels.
+    private int _numbers_drawn;
+    private int _numbers_suppressed;
+    private int _symbols_drawn;
+    private int _symbols_suppressed;
+
+    /**
+     * Depth bookkeeping that pins the claim ORDER, recorded only while a test asks for it.
+     * <p>
+     * Why any of this: a COUNT of suppressed marks is nearly blind to order, and the archaeopteryx.js session
+     * shipped a leaf-first claim pass that their own acceptance measure could not see. Ours is preorder, but until
+     * now nothing in the suite SAID so.
+     * <p>
+     * What is recorded is the depth of the FIRST node to offer a mark, and the shallowest depth any node offers
+     * one at. Running root-first, those are the same number. This is deliberately not the more obvious property
+     * ("the shallowest mark is never the one dropped"): that one was tried first and MEASURED not to discriminate
+     * on the nest fixture -- the root-most mark is granted under either order there, because nothing happens to be
+     * in its way whenever it claims, so the assertion would have passed a fully inverted pass while its comment
+     * claimed to forbid one. Which node claims FIRST is the thing the order actually determines.
+     * <p>
+     * Off by default: {@code node.calculateDepth()} walks to the root, and nothing else here needs it.
+     */
+    private boolean _record_mark_depths = false;
+    private int     _shallowest_offered = Integer.MAX_VALUE;
+    private int     _first_offered      = Integer.MAX_VALUE;
+
+    /** Notes how deep in the tree a mark was offered. {@code granted} is not recorded: which marks SURVIVE is a
+     *  fact about the geometry, while which claims FIRST is the fact about the order. */
+    private void noteMarkDepth(final PhylogenyNode node, final boolean granted) {
+        if (!_record_mark_depths || (node == null)) {
+            return;
+        }
+        final int depth = node.calculateDepth();
+        if (_first_offered == Integer.MAX_VALUE) {
+            _first_offered = depth;
+        }
+        if (depth < _shallowest_offered) {
+            _shallowest_offered = depth;
+        }
+    }
+
+    /** Claims the space a branch-anchored NUMBER is about to occupy; false when a number is already there.
+     *  NOTE what the map does NOT hold: a refused claim records nothing (so a rejected mark cannot block a later
+     *  one), and with auto-hide off a refused mark is drawn anyway. The map is therefore what was GRANTED, never
+     *  a record of everything drawn -- do not build a hit-test on it. */
+    /** As below, additionally recording how deep {@code node} sits when a test has asked for it. */
+    /**
+     * The one funnel for a branch NUMBER's claim, so the search-hit policy lives in one place: a hit's number is
+     * NOT exempt from auto-hide -- it is refused like any other when something is in its way. Decided (Christian,
+     * 2026-09-26, joint with archaeopteryx.js): a search finds nodes by their NAMES, so a hit's tip label is
+     * always drawn ({@link #paintNodeDataUnrootedCirc}), while a hit's number drawn across a neighbour's would
+     * misreport a value in order to draw attention to itself. The found state colours a number (dimNonMatch)
+     * and never places it. The same holds for the support symbols (claimSymbolSpace).
+     */
+    private boolean claimNumberSpace(final PhylogenyNode node, final float x, final float y, final float w,
+                                     final float h) {
+        final boolean granted = claimNumberSpace(x, y, w, h);
+        noteMarkDepth(node, granted);
+        return granted;
+    }
+
+    private boolean claimNumberSpace(final float x, final float y, final float w, final float h) {
+        final boolean free = _number_occupancy.claim(x, y, w, h);
+        if (free || !autoHideCrowdedData()) {
+            ++_numbers_drawn;
+            return true;
+        }
+        ++_numbers_suppressed;
+        return false;
+    }
+
+    /** The symbol equivalent, recording depth; see {@link #claimNumberSpace(PhylogenyNode, float, float, float, float)}. */
+    private boolean claimSymbolSpace(final PhylogenyNode node, final float x, final float y, final float d) {
+        final boolean granted = claimSymbolSpace(x, y, d);
+        noteMarkDepth(node, granted);
+        return granted;
+    }
+
+    /** The symbol equivalent; see {@link #paintNodeSupportSymbol}. */
+    private boolean claimSymbolSpace(final float x, final float y, final float d) {
+        final boolean free = _symbol_occupancy.claim(x, y, d, d);
+        if (free || !autoHideCrowdedData()) {
+            ++_symbols_drawn;
+            return true;
+        }
+        ++_symbols_suppressed;
+        return false;
+    }
+
+    private void resetCrowdingCounters() {
+        _numbers_drawn = 0;
+        _numbers_suppressed = 0;
+        _numbers_off_branches = 0;
+        _numbers_off_labels = 0;
+        _labels_drawn = 0;
+        _labels_hidden = 0;
+        _internal_labels_drawn = 0;
+        _internal_labels_hidden = 0;
+        _radial_domains_drawn = 0;
+        _tips_hidden_by_rule.clear();
+        _symbols_drawn = 0;
+        _symbols_suppressed = 0;
+        _shallowest_offered = Integer.MAX_VALUE;
+        _first_offered = Integer.MAX_VALUE;
+    }
+
+    /**
+     * Test hook: the node order the last rectangular paint actually walked, which is the order marks claim their
+     * space in. Null before the first paint.
+     * <p>
+     * The array itself is what to assert on -- "every node's parent appears before it" holds for any tree
+     * whatever, so unlike a property read off a rendered figure it cannot fall quiet on a fixture where the
+     * crowding happens to sit somewhere harmless.
+     */
+    final PhylogenyNode[] paintOrderForTest() {
+        return (_nodes_in_preorder == null) ? null : _nodes_in_preorder.clone();
+    }
+
+    /** Test hook: start (or stop) recording how deep the offered and refused marks sit. */
+    final void setRecordMarkDepthsForTest(final boolean on) {
+        _record_mark_depths = on;
+    }
+
+    /** Test hook: {@code { depthOfTheFirstMarkOffered, shallowestDepthAnyMarkIsOfferedAt }} from the last paint,
+     *  {@link Integer#MAX_VALUE} for "none". A root-first pass makes the two EQUAL. */
+    final int[] markDepthsForTest() {
+        return new int[] { _first_offered, _shallowest_offered };
+    }
+
+    /** Set by {@link #setRecordRadialNumberClaimsForTest} only: the space each radial branch offered to claim for
+     *  its numbers, keyed by node id. Null (and untouched) in production -- a per-branch allocation on every paint
+     *  pass answers a question only a test asks. */
+    private java.util.Map<Long, float[]> _radial_number_claims = null;
+
+    /** Test hook: start (or stop) recording what {@link #paintBranchDataRadial} reserves, so a test can ask whether
+     *  the reserved band is where the ink actually lands -- the two are computed from one baseline precisely so
+     *  they cannot drift, and that is a claim worth checking rather than asserting in a comment. Turning it on
+     *  starts a FRESH recording, so a test reads one paint and never a stale box from the layout before it. */
+    final void setRecordRadialNumberClaimsForTest(final boolean on) {
+        _radial_number_claims = on ? new java.util.HashMap<Long, float[]>() : null;
+    }
+
+    /** Test hook: the box {@code node}'s branch numbers claimed in the last paint, or null: {@code {x, y, w, h}} in
+     *  device space, then the geometry it was built from -- {@code mid_x, mid_y, m} (the frame's rotation) and the
+     *  local box {@code box_w} wide from {@code top} to {@code bottom} in that frame -- so a test can reason about
+     *  the ROTATED box and not only its axis-aligned bounds -- and last whether the claim was GRANTED (1) or the
+     *  numbers were dropped as crowded (0). */
+    final float[] radialNumberClaimForTest(final PhylogenyNode node) {
+        return (_radial_number_claims == null) ? null : _radial_number_claims.get(Long.valueOf(node.getId()));
+    }
+
+    // Of the suppressed, those refused because their ink would have crossed a foreign branch (radial only).
+    private int _numbers_off_branches;
+
+    /** Test hook: radial branch numbers the last paint refused for lying across a branch not their own. Counted
+     *  inside {@link #numbersSuppressedForTest} as well: it is one more way of being crowded. */
+    final int numbersRefusedForBranchesForTest() {
+        return _numbers_off_branches;
+    }
+
+    /** Test hook: branch numbers the last paint drew / dropped for want of space. */
+    final int numbersDrawnForTest() {
+        return _numbers_drawn;
+    }
+
+    final int numbersSuppressedForTest() {
+        return _numbers_suppressed;
+    }
+
+    /** Test hook: support symbols the last paint drew / dropped for want of space. */
+    final int symbolsDrawnForTest() {
+        return _symbols_drawn;
+    }
+
+    final int symbolsSuppressedForTest() {
+        return _symbols_suppressed;
+    }
+
     /** Whether a branch-length value should be drawn for {@code node} -- the same gate {@link #paintNodeData} used
      *  inline, factored out so the vertical-orientation path (which draws it separately) shares one condition. */
     private boolean shouldWriteBranchLength(final PhylogenyNode node) {
@@ -16798,6 +19300,17 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
 
     final void setShows(final DisplayOption which, final boolean on) {
         _display_state.put(which, Boolean.valueOf(on));
+    }
+
+    /** Whether THIS tab draws the sequence alignment beside its tips. Per-tab, like every other Display-Data
+     *  toggle behind the shared "Sequence Alignment" checkbox, so two tabs showing two alignments can differ.
+     *  Not the same question as {@link #msaShown()}, which also asks whether this layout can draw one at all. */
+    final boolean isShowMsa() {
+        return shows(DisplayOption.SHOW_MSA);
+    }
+
+    final void setShowMsa(final boolean on) {
+        setShows(DisplayOption.SHOW_MSA, on);
     }
 
     /** For tests: whether this tab has its own opinion on {@code which} yet. */

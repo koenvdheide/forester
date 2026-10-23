@@ -561,6 +561,7 @@ public final class MainFrameApplication extends MainFrame {
 
     /** Recomputes derived tree state and repaints after branches were removed by a collapse tool. */
     private void refreshAfterBranchCollapse(final Phylogeny phy) {
+        getCurrentTreePanel().settleMergedBranchesInTime(); // a merged branch in time: the signed sum of its pieces
         phy.externalNodesHaveChanged();
         phy.clearHashIdToNodeMap();
         phy.recalculateNumberOfExternalDescendants(true);
@@ -863,8 +864,15 @@ public final class MainFrameApplication extends MainFrame {
      * called while the source tab is still the selected one. Package-visible for testing.
      */
     void addDerivedPhylogenyInNewTab(final Phylogeny derived) {
-        final Options.PHYLOGENY_DISPLAY_TYPE source_type = _mainpanel.getControlPanel().getTreeDisplayType();
+        // the tab's STORED type, not the radio: in a radial layout a stored ALIGNED shows as P ("A" is greyed
+        // there), and the derived tab must inherit the choice the source tab will return to, not what it shows
+        final Options.PHYLOGENY_DISPLAY_TYPE source_type = _mainpanel.getControlPanel().getStoredTreeDisplayType();
+        final TreePanel source_panel = _mainpanel.getCurrentTreePanel();
         _mainpanel.addPhylogenyInNewTab(derived, getConfiguration(), derived.getName(), null);
+        if (_mainpanel.getCurrentTreePanel() != null) {
+            // the derived tree is in the source tab's layout (Time | Div), and has its lengths in time
+            _mainpanel.getCurrentTreePanel().takeBranchLengthLayoutOf(source_panel);
+        }
         final boolean source_is_phylogram = (source_type == Options.PHYLOGENY_DISPLAY_TYPE.UNALIGNED_PHYLOGRAM)
                 || (source_type == Options.PHYLOGENY_DISPLAY_TYPE.ALIGNED_PHYLOGRAM);
         if (!source_is_phylogram || ((_mainpanel.getCurrentTreePanel() != null)
@@ -1763,23 +1771,23 @@ public final class MainFrameApplication extends MainFrame {
                 + scope_hint + "</html>");
         _file_jmenu.add(_export_node_data_item = new JMenuItem("Export Node Data (TSV)..."));
         _export_node_data_item.setToolTipText("<html>Write the tip data (names, taxonomy, sequence, branch "
-                + "length, properties) to a tab-separated table." + scope_hint + "</html>");
-        _file_jmenu.add(_import_annotations_item = new JMenuItem("Import Annotations (CSV/TSV)..."));
+                + "length, metadata) to a tab-separated table." + scope_hint + "</html>");
+        _file_jmenu.add(_import_annotations_item = new JMenuItem("Import Metadata (CSV/TSV)..."));
         _import_annotations_item.setToolTipText("<html>Read a CSV or TSV table and join its columns onto the tips: "
                 + "match a chosen key column against the tip name, sequence accession, or taxonomy, with a preview of "
                 + "the match before committing.<br><i>Recognized columns fill taxonomy/sequence fields; any other "
-                + "column becomes a node property you can color by or show as an annotation column.</i></html>");
-        _file_jmenu.add(_import_annotations_url_item = new JMenuItem("Import Annotations from URL..."));
+                + "column becomes a metadata field you can color by or show as a metadata column.</i></html>");
+        _file_jmenu.add(_import_annotations_url_item = new JMenuItem("Import Metadata from URL..."));
         _import_annotations_url_item.setToolTipText("<html>Fetch a CSV/TSV from a URL (e.g. a Google Sheet published "
                 + "to the web as CSV) and run the same import dialog.</html>");
-        _file_jmenu.add(_reimport_annotations_item = new JMenuItem("Re-import Annotations"));
-        _reimport_annotations_item.setToolTipText("<html>Re-fetch this tree's last annotation source (file or URL) and "
+        _file_jmenu.add(_reimport_annotations_item = new JMenuItem("Re-import Metadata"));
+        _reimport_annotations_item.setToolTipText("<html>Re-fetch this tree's last metadata source (file or URL) and "
                 + "re-apply the same key column, match attribute, and column mapping with one click.<br><i>Edit your "
                 + "sheet/file, then pull the changes in without walking the dialog again.</i></html>");
         _file_jmenu.add(_import_gtdb_item = new JMenuItem("Import GTDB Taxonomy..."));
         _import_gtdb_item.setToolTipText("<html>Read a GTDB-Tk table (a tip-name column + a GTDB classification column, "
                 + "<i>d__Bacteria;p__…;s__…</i>) and write the genome-based bacterial/archaeal taxonomy onto the tips: "
-                + "each rank becomes a <i>gtdb:&lt;rank&gt;</i> property (so you can Color by / add an Annotation Column "
+                + "each rank becomes a <i>gtdb:&lt;rank&gt;</i> metadata field (so you can Color by / add a Metadata Column "
                 + "for gtdb:phylum, gtdb:family, gtdb:genus …) plus a taxonomy at the most specific rank. Entirely "
                 + "offline. Undoable.</html>");
         _file_jmenu.add(_load_alignment_item = new JMenuItem("Load Alignment (FASTA)..."));
@@ -2040,15 +2048,15 @@ public final class MainFrameApplication extends MainFrame {
         _tools_menu.add(_clade_bands_jmi = new JMenuItem("Annotate Clades by Rank…"));
         customizeJMenuItem(_clade_bands_jmi);
         _clade_bands_jmi.setToolTipText("mark clades at a chosen rank with shaded boxes or right-edge bars + labels");
-        _tools_menu.add(_annotation_columns_jmi = new JMenuItem("Annotation Fields…"));
+        _tools_menu.add(_annotation_columns_jmi = new JMenuItem("Metadata Fields…"));
         customizeJMenuItem(_annotation_columns_jmi);
         _annotation_columns_jmi.setToolTipText(
-                "choose how each node annotation field is shown -- as a tip-aligned column (color strip, symbol, heat map, bar, or text) or in the node label -- and in which order");
+                "choose how each metadata field is shown -- as a tip-aligned column (color strip, symbol, heat map, bar, or text) or in the node label -- and in which order");
         _tools_menu.addSeparator();
         _tools_menu.add(_clear_overlays_jmi = new JMenuItem("Clear All Overlays"));
         customizeJMenuItem(_clear_overlays_jmi);
-        _clear_overlays_jmi.setToolTipText("Switch off every overlay on this tree at once -- annotation columns, "
-                + "clade marks, colour-by, size-by, ancestral pies and the properties shown in the labels. The tree "
+        _clear_overlays_jmi.setToolTipText("Switch off every overlay on this tree at once -- metadata columns, "
+                + "clade marks, colour-by, size-by, ancestral pies and the metadata shown in the labels. The tree "
                 + "itself, its layout and its labels are untouched.");
         _clear_overlays_jmi.addActionListener(e -> clearAllOverlays());
         // Clearing styles & colors
@@ -2087,7 +2095,7 @@ public final class MainFrameApplication extends MainFrame {
         _tools_menu.add(_extract_dates_jmi = new JMenuItem("Extract Dates from Labels…"));
         customizeJMenuItem(_extract_dates_jmi);
         _extract_dates_jmi.setToolTipText(
-                "Parse a sampling date out of each tip label (ISO / numeric / month-name / decimal-year / bare-year) into a <date> + a Color-by-able data:date property, so a tip-dated tree gets the Calendar axis; shows a preview first");
+                "Parse a sampling date out of each tip label (ISO / numeric / month-name / decimal-year / bare-year) into a <date> + a Color-by-able data:date metadata field, so a tip-dated tree gets the Calendar axis; shows a preview first");
         _jmenubar.add(_tools_menu);
     }
 

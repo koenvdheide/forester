@@ -46,17 +46,42 @@ final class TreeHistory {
 
     static final int DEFAULT_MAX_DEPTH = 25;
 
-    /** One recorded tree state: the (copied) tree, the operation label, and the edited flag at capture time. */
+    /** One recorded tree state: the (copied) tree, the operation label, the edited flag at capture time, and the
+     *  layout the tree's branch lengths were in (time or divergence -- the lengths themselves are IN the copy, so
+     *  a restore that kept the panel's mode of the moment would show one layout and call it the other), and the
+     *  lengths the tab's branches had IN TIME at that moment: a copy in divergence does not carry them, and what the
+     *  tab keeps now may be of an edit this undo takes back. */
     static final class Snapshot {
 
-        private final Phylogeny _phylogeny;
-        private final String    _label;
-        private final boolean   _edited;
+        private final Phylogeny               _phylogeny;
+        private final String                  _label;
+        private final boolean                 _edited;
+        private final BranchLengthLayout.MODE _branch_length_mode;
+        private final BranchLengthLayout.TimeLengths _time_lengths;
 
         Snapshot( final Phylogeny phylogeny, final String label, final boolean edited ) {
+            this( phylogeny, label, edited, BranchLengthLayout.MODE.TIME, null );
+        }
+
+        Snapshot( final Phylogeny phylogeny,
+                  final String label,
+                  final boolean edited,
+                  final BranchLengthLayout.MODE branch_length_mode,
+                  final BranchLengthLayout.TimeLengths time_lengths ) {
             _phylogeny = phylogeny;
             _label = label;
             _edited = edited;
+            _branch_length_mode = ( branch_length_mode == null ) ? BranchLengthLayout.MODE.TIME : branch_length_mode;
+            _time_lengths = time_lengths;
+        }
+
+        BranchLengthLayout.MODE getBranchLengthMode() {
+            return _branch_length_mode;
+        }
+
+        /** The lengths the tab's branches had in time when this was captured, or null when none were given. */
+        BranchLengthLayout.TimeLengths getTimeLengths() {
+            return _time_lengths;
         }
 
         Phylogeny getPhylogeny() {
@@ -90,10 +115,20 @@ final class TreeHistory {
      * depth cap are dropped.
      */
     void checkpoint( final Phylogeny current, final String label, final boolean edited ) {
+        checkpoint( current, label, edited, BranchLengthLayout.MODE.TIME, null );
+    }
+
+    /** {@link #checkpoint(Phylogeny, String, boolean)}, recording the layout {@code current}'s lengths are in, and
+     *  the lengths the tab's branches have in time (immutable, so held as given). */
+    void checkpoint( final Phylogeny current,
+                     final String label,
+                     final boolean edited,
+                     final BranchLengthLayout.MODE mode,
+                     final BranchLengthLayout.TimeLengths time ) {
         if ( ( current == null ) || current.isEmpty() ) {
             return;
         }
-        _undo.addFirst( new Snapshot( current.copy(), label, edited ) );
+        _undo.addFirst( new Snapshot( current.copy(), label, edited, mode, time ) );
         while ( _undo.size() > _max_depth ) {
             _undo.pollLast();
         }
@@ -123,11 +158,20 @@ final class TreeHistory {
      * install as the new live tree (or {@code null} when there is nothing to undo).
      */
     Snapshot undo( final Phylogeny current, final boolean current_edited ) {
+        return undo( current, current_edited, BranchLengthLayout.MODE.TIME, null );
+    }
+
+    /** {@link #undo(Phylogeny, boolean)}, recording the layout {@code current}'s lengths are in, and its lengths in
+     *  time. */
+    Snapshot undo( final Phylogeny current,
+                   final boolean current_edited,
+                   final BranchLengthLayout.MODE mode,
+                   final BranchLengthLayout.TimeLengths time ) {
         if ( _undo.isEmpty() ) {
             return null;
         }
         final Snapshot previous = _undo.pollFirst();
-        _redo.addFirst( new Snapshot( current.copy(), previous.getLabel(), current_edited ) );
+        _redo.addFirst( new Snapshot( current.copy(), previous.getLabel(), current_edited, mode, time ) );
         while ( _redo.size() > _max_depth ) {
             _redo.pollLast();
         }
@@ -139,11 +183,20 @@ final class TreeHistory {
      * install as the new live tree (or {@code null} when there is nothing to redo).
      */
     Snapshot redo( final Phylogeny current, final boolean current_edited ) {
+        return redo( current, current_edited, BranchLengthLayout.MODE.TIME, null );
+    }
+
+    /** {@link #redo(Phylogeny, boolean)}, recording the layout {@code current}'s lengths are in, and its lengths in
+     *  time. */
+    Snapshot redo( final Phylogeny current,
+                   final boolean current_edited,
+                   final BranchLengthLayout.MODE mode,
+                   final BranchLengthLayout.TimeLengths time ) {
         if ( _redo.isEmpty() ) {
             return null;
         }
         final Snapshot next = _redo.pollFirst();
-        _undo.addFirst( new Snapshot( current.copy(), next.getLabel(), current_edited ) );
+        _undo.addFirst( new Snapshot( current.copy(), next.getLabel(), current_edited, mode, time ) );
         while ( _undo.size() > _max_depth ) {
             _undo.pollLast();
         }
