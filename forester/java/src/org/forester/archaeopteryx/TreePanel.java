@@ -759,7 +759,6 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
         final double normal_scale = Math.abs(transform.getDeterminant())
                 / Math.hypot(transform.getScaleX(), transform.getShearY());
         final boolean segmented = !vector && (colours.size() > 1) && (width * normal_scale < 1);
-        // Per-branch graphics clones make large provider-coloured trees slow in SwingJS.
         final Stroke old_stroke = g.getStroke();
         final Color old_color = g.getColor();
         try {

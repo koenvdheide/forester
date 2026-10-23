@@ -712,7 +712,6 @@ public final class MainFrameApplication extends MainFrame {
             }
         }
         dialog.setLocation(clampFullyOnScreen(dialog.getLocation(), dialog.getSize(), usable));
-        // continue from the answer, as a browser's modal dialog does not block
         pane.addPropertyChangeListener(JOptionPane.VALUE_PROPERTY, event -> {
             if (pane.getValue() != JOptionPane.UNINITIALIZED_VALUE) {
                 dialog.dispose();
