@@ -146,6 +146,38 @@ public final class DemoTreesTest {
         // sequence alignment: tips carry equal-length aligned molecular sequences (the alignment shown beside the tree)
         ok &= alignmentDemoOk( "alignment.xml" );
 
+        // "Tree share": the demo is only a demo if EVERY width-hungry track is really on the one tree -- long
+        // labels, a domain architecture, an aligned sequence and a colourable field. Miss one and the crowding
+        // the width budget exists to resolve never happens.
+        ok &= alignmentDemoOk( "crowded-tracks.xml" );
+        ok &= hasDomainArchitectures( "crowded-tracks.xml", 8 );
+        ok &= hasCategoricalRef( "crowded-tracks.xml", "demo:family" );
+        ok &= hasBranchLengths( "crowded-tracks.xml" );
+        ok &= hasLongTipLabels( "crowded-tracks.xml", 30 );
+
+        // The sequence-logo demo has to SHOW the cases its description promises, or it teaches nothing: a
+        // fully conserved column, a graded one, a conserved-but-half-gapped one, and an all-gap one.
+        ok &= alignmentDemoOk( "sequence-logo.xml" );
+        ok &= sequenceLogoDemoOk( "sequence-logo.xml" );
+
+        // "Auto-hide crowded data": the nest must actually BE a nest -- near-zero internal branches carrying
+        // support -- and must still contain the contrasting roomy branches, including the lone zero-length one
+        // whose number is kept ("zero is a value, not an absence").
+        ok &= zeroLengthNestOk( "zero-length-nest.xml" );
+
+        // "A branch number never lies across a branch that is not its own": the pair must be the SAME radiation at
+        // two sizes -- the one that fits and the one that cannot -- so what the rule refuses is the crowding alone.
+        // Whether they actually fit / crowd is measured where the paint is, in RadialBranchNumberRenderTest.
+        ok &= radialNumbersPairOk( "radial-numbers-fit.xml", "radial-numbers-crowded.xml" );
+
+        // "a tip label never lies across another": the SAME radiation, named, at two sizes -- the one that fits and
+        // the one that cannot -- so what the rule refuses is the crowding alone. Whether they actually fit / crowd
+        // is measured where the paint is, in RadialTipLabelRenderTest.
+        ok &= radialLabelsPairOk( "radial-labels-fit.xml", "radial-labels-crowded.xml" );
+
+        // every generated demo is what the generator writes TODAY: a file can fall behind its generator
+        ok &= demosAreFreshOk();
+
         // bat phylogeny: a large taxonomy tree (common + scientific names + synonyms at the tips, ranks on the clades)
         ok &= batTreeOk( "bat-phylogeny.xml" );
 
@@ -220,6 +252,27 @@ public final class DemoTreesTest {
         // BEAST / BEAST X output: a NEXUS tree whose [&...] annotations parse into HPD date intervals (Node Age
         // Bars), posterior confidences (support), and a numeric beast:rate property (Color-by)
         ok &= beastAnnotationsOk( "beast-annotations.nex" );
+        // the Time | Div pair: the same tree with a clock rate on every branch (offered the switch) and with one
+        // rate taken out (not offered it)
+        ok &= beastRatePairOk( "beast-annotations.nex", "beast-rate-missing.nex" );
+        ok &= beastAnnotationsOk( "beast-rate-missing.nex" ); // ...and everything else is read as in its twin
+        // the joint rule, "both layouts can state every branch": a twin with one DATE taken out, and one with one
+        // recorded DIVERGENCE taken out -- each the same tree as its original, neither offered the switch
+        ok &= twinWithOneDatumOutOk( "beast-annotations.nex", "beast-date-missing.nex", "isolate_B", true, 9 );
+        ok &= beastAnnotationsOk( "beast-date-missing.nex" );
+        ok &= twinWithOneDatumOutOk( "nextstrain-nexus.nex", "nextstrain-div-missing.nex", "A/Dakar/8/2016", false, 12 );
+        ok &= divSpellingOk( "nextstrain-nexus.nex", "nextstrain-div-spelling.nex" );
+        // three more trees that are not offered the switch, each beast-annotations.nex with one thing changed
+        ok &= notOfferedTwinOk( "beast-length-missing.nex", 8, 7, 8, false, BranchLengthLayout.DIVERGENCE_SOURCE.CLOCK_RATE );
+        ok &= notOfferedTwinOk( "beast-rates-zero.nex", 8, 8, 8, true, BranchLengthLayout.DIVERGENCE_SOURCE.CLOCK_RATE );
+        ok &= notOfferedTwinOk( "beast-rate-spelling.nex", 8, 8, 8, true, BranchLengthLayout.DIVERGENCE_SOURCE.NONE );
+        ok &= rateSpellingOk( "beast-rate-spelling.nex" ) && ratesZeroOk( "beast-rates-zero.nex" );
+        // the file's lengths are not the gaps between its heights: time is the tree that was opened
+        ok &= lengthsNotHeightsOk( "beast-lengths-not-heights.nex" );
+        ok &= beastAnnotationsOk( "beast-lengths-not-heights.nex" );
+        // a node dated before its parent: time keeps the sign, divergence draws it at 0
+        ok &= negativeSpanOk( "beast-negative-span.nex" );
+        ok &= beastAnnotationsOk( "beast-negative-span.nex" );
         // what Nextstrain / TreeTime / MrBayes really write, each read exactly as File > Open reads it
         ok &= nextstrainNexusOk( "nextstrain-nexus.nex" );
         ok &= treeTimePairOk( "treetime-nexus.nex", "treetime-divergence.nex" );
@@ -533,6 +586,278 @@ public final class DemoTreesTest {
 
     /** The alignment demo: enough tips, they carry aligned molecular sequences, and all aligned rows are the same
      *  length (a real alignment) with a reasonable number of columns. */
+    /** At least {@code min} tips whose name is at least {@code chars} long -- what makes the labels a real
+     *  competitor for the width rather than a token one. */
+    private static boolean hasLongTipLabels( final String file_name, final int chars ) {
+        final Phylogeny phy = load( file_name );
+        if ( phy == null ) {
+            return false;
+        }
+        int long_ones = 0;
+        for( final PhylogenyNode ext : phy.getExternalNodes() ) {
+            if ( ( ext.getName() != null ) && ( ext.getName().length() >= chars ) ) {
+                ++long_ones;
+            }
+        }
+        if ( long_ones < phy.getNumberOfExternalNodes() ) {
+            return note( file_name + " every tip label must be at least " + chars + " characters, only " + long_ones
+                    + " of " + phy.getNumberOfExternalNodes() + " are" );
+        }
+        return true;
+    }
+
+    /**
+     * The nest demo: a run of internal branches short enough that their centred support numbers must overlap,
+     * AND the contrasting roomy branches -- one of them of length exactly zero, whose number the auto-hide must
+     * keep because nothing is beside it.
+     */
+    private static boolean zeroLengthNestOk( final String file_name ) {
+        final Phylogeny phy = load( file_name );
+        if ( phy == null ) {
+            return false;
+        }
+        int nested = 0;
+        boolean exact_zero_with_support = false;
+        for( final PhylogenyNodeIterator it = phy.iteratorPreorder(); it.hasNext(); ) {
+            final PhylogenyNode n = it.next();
+            if ( n.isRoot() ) {
+                continue;
+            }
+            final boolean has_support = n.getBranchData().isHasConfidences();
+            if ( !n.isExternal() && has_support && ( n.getDistanceToParent() > 0 )
+                    && ( n.getDistanceToParent() < 0.001 ) ) {
+                ++nested;
+            }
+            if ( has_support && ( n.getDistanceToParent() == 0.0 ) ) {
+                exact_zero_with_support = true;
+            }
+        }
+        if ( nested < 10 ) {
+            return note( file_name + " must carry at least 10 near-zero internal branches WITH support (the nest), "
+                    + "got " + nested );
+        }
+        if ( !exact_zero_with_support ) {
+            return note( file_name + " must also carry a branch of length EXACTLY zero with a support value -- the "
+                    + "case whose number must be KEPT (zero is a value, not an absence)" );
+        }
+        return true;
+    }
+
+    /** The radial-labels pair: both a single radiation of NAMED tips (every branch a tip of the root with a name and
+     *  a length), the crowded one at least five times the size of the one that fits. */
+    private static boolean radialLabelsPairOk( final String fit_name, final String crowded_name ) {
+        final Phylogeny fit = load( fit_name );
+        final Phylogeny crowded = load( crowded_name );
+        if ( ( fit == null ) || ( crowded == null ) ) {
+            return false;
+        }
+        for( final Phylogeny phy : new Phylogeny[] { fit, crowded } ) {
+            final String name = ( phy == fit ) ? fit_name : crowded_name;
+            for( final PhylogenyNodeIterator it = phy.iteratorPreorder(); it.hasNext(); ) {
+                final PhylogenyNode n = it.next();
+                if ( n.isRoot() ) {
+                    continue;
+                }
+                if ( !n.isExternal() || ( n.getParent() != phy.getRoot() ) ) {
+                    return note( name + " must be a single radiation (every branch a tip of the root)" );
+                }
+                if ( ( n.getName() == null ) || n.getName().isEmpty() || ( n.getDistanceToParent() <= 0 ) ) {
+                    return note( name + " must name every tip and give it a length (tip " + n.getId() + ")" );
+                }
+            }
+        }
+        final int f = fit.getNumberOfExternalNodes(), c = crowded.getNumberOfExternalNodes();
+        if ( ( f < 8 ) || ( c < ( 5 * f ) ) ) {
+            return note( "the crowded radiation must be at least five times the one that fits (" + f + " vs " + c
+                    + " tips)" );
+        }
+        return true;
+    }
+
+    /** The radial-numbers pair: both a single radiation (every branch a tip of the root, every branch with a length),
+     *  the crowded one at least three times the size of the one that fits. */
+    private static boolean radialNumbersPairOk( final String fit_name, final String crowded_name ) {
+        final Phylogeny fit = load( fit_name );
+        final Phylogeny crowded = load( crowded_name );
+        if ( ( fit == null ) || ( crowded == null ) ) {
+            return false;
+        }
+        for( final Phylogeny phy : new Phylogeny[] { fit, crowded } ) {
+            final String name = ( phy == fit ) ? fit_name : crowded_name;
+            for( final PhylogenyNodeIterator it = phy.iteratorPreorder(); it.hasNext(); ) {
+                final PhylogenyNode n = it.next();
+                if ( n.isRoot() ) {
+                    continue;
+                }
+                if ( !n.isExternal() || ( n.getParent() != phy.getRoot() ) ) {
+                    return note( name + " must be a single radiation (every branch a tip of the root)" );
+                }
+                if ( n.getDistanceToParent() <= 0 ) {
+                    return note( name + " must carry a length on every branch (" + n.getName() + " has none)" );
+                }
+            }
+        }
+        final int f = fit.getNumberOfExternalNodes(), c = crowded.getNumberOfExternalNodes();
+        if ( ( f < 8 ) || ( c < ( 3 * f ) ) ) {
+            return note( "the crowded radiation must be at least three times the one that fits (" + f + " vs " + c
+                    + " tips)" );
+        }
+        return true;
+    }
+
+    /**
+     * Every generated demo in forester/demo is byte-identical to what {@code DemoTreeGenerator} writes today.
+     * <p>
+     * A demo FILE can fall behind its GENERATOR: 0.11.163 shipped sequence-logo.xml with a description its
+     * generator no longer wrote ("carries no information", of a twelve-way column that still holds 17% of the
+     * band), because the generator was edited after the last regeneration and both went into one commit. The
+     * generator is deterministic (measured: two runs, identical bytes), so this is a plain comparison, and a stale
+     * file fails BY NAME with the one thing to do about it.
+     */
+    private static boolean demosAreFreshOk() {
+        File scratch = null;
+        try {
+            scratch = java.nio.file.Files.createTempDirectory( "aptx-demo-fresh" ).toFile();
+            final File out = new File( scratch, "forester/demo" );
+            if ( !out.mkdirs() ) {
+                return note( "could not create a scratch demo directory at " + out );
+            }
+            org.forester.demo.DemoTreeGenerator.writeAllQuietly( out ); // its per-file lines are for the command line
+            final File[] generated = out.listFiles();
+            if ( ( generated == null ) || ( generated.length < 20 ) ) {
+                return note( "expected the generator to write at least 20 demos, got "
+                        + ( ( generated == null ) ? 0 : generated.length ) );
+            }
+            boolean ok = true;
+            final java.util.Set<String> generated_names = new java.util.HashSet<String>();
+            for( final File f : generated ) {
+                generated_names.add( f.getName() );
+                final File shipped = new File( DEMO_DIR + f.getName() );
+                if ( !shipped.exists() ) {
+                    ok = note( f.getName() + " is generated but not shipped in forester/demo" ) && ok;
+                    continue;
+                }
+                // compared blind to the line ending: the writer uses the platform's, the shipped files are LF
+                if ( !unixLines( f ).equals( unixLines( shipped ) ) ) {
+                    ok = note( f.getName() + " in forester/demo is not what DemoTreeGenerator writes now: regenerate "
+                            + "(run org.forester.demo.DemoTreeGenerator from the repository root) and ship the result" )
+                            && ok;
+                }
+            }
+            // ...and the other direction: a demo the generator STOPPED writing (renamed, removed) would otherwise
+            // stay behind in forester/demo, with its README row, and never be noticed -- the class of stale
+            // artefact this test exists for (a review find, 2026-09-27). The few hand-authored files are named.
+            final File[] shipped_all = new File( DEMO_DIR ).listFiles();
+            if ( shipped_all != null ) {
+                for( final File s : shipped_all ) {
+                    if ( s.getName().startsWith( "." ) || generated_names.contains( s.getName() )
+                            || HAND_AUTHORED_DEMOS.contains( s.getName() ) ) {
+                        continue;
+                    }
+                    ok = note( s.getName() + " ships in forester/demo but DemoTreeGenerator does not write it: remove it "
+                            + "(and its README row), restore its generator, or name it in HAND_AUTHORED_DEMOS if it "
+                            + "really is hand-made" ) && ok;
+                }
+            }
+            return ok;
+        }
+        catch ( final Exception e ) {
+            return note( "could not regenerate the demos to compare: " + e );
+        }
+        finally {
+            // the whole scratch tree, whichever way the comparison ended: the generator writes dozens of files into
+            // two nested directories, and a run that only deleted the files left the directories behind (a review
+            // find, 2026-09-25)
+            if ( scratch != null ) {
+                deleteTree( scratch );
+            }
+        }
+    }
+
+    /** The shipped demo files that no generator writes -- real data and the catalogue -- so the freshness check
+     *  can name an orphan without naming these. */
+    private static final java.util.Set<String> HAND_AUTHORED_DEMOS = new java.util.HashSet<String>(
+            java.util.Arrays.asList( "README.md", "filoviridae-tree.xml", "nextstrain-ncov.json" ) );
+
+    /** The file's text with every line ending as LF, for a comparison that does not care which platform wrote it. */
+    private static String unixLines( final File f ) throws java.io.IOException {
+        return java.nio.file.Files.readString( f.toPath() ).replace( "\r\n", "\n" );
+    }
+
+    /** Removes {@code dir} and everything under it. A scratch tree, so a file that will not go is not a failure. */
+    private static void deleteTree( final File dir ) {
+        final File[] children = dir.listFiles();
+        if ( children != null ) {
+            for( final File c : children ) {
+                deleteTree( c );
+            }
+        }
+        dir.delete();
+    }
+
+    /**
+     * The sequence-logo demo, checked against what its description claims rather than against its own existence.
+     * <p>
+     * A demo of a display is worthless if the data does not exercise the display -- the auto-hide demo shipped once
+     * with seventeen tips and suppressed nothing at all. So this asserts the four columns that carry the lesson:
+     * one at FULL information (a single letter filling the band), one GRADED (a tall letter over a short one), one
+     * conserved but HALF GAPPED (full letter, half height -- the rule that gaps scale a stack instead of joining
+     * it), and one ALL GAP (nothing drawn, which must not look like zero conservation).
+     */
+    private static boolean sequenceLogoDemoOk( final String file_name ) {
+        final Phylogeny phy = load( file_name );
+        if ( phy == null ) {
+            return false;
+        }
+        final java.util.List<String> rows = new java.util.ArrayList<String>();
+        for( final PhylogenyNode ext : phy.getExternalNodes() ) {
+            if ( ext.getNodeData().isHasSequence()
+                    && ext.getNodeData().getSequence().isMolecularSequenceAligned() ) {
+                rows.add( ext.getNodeData().getSequence().getMolecularSequence() );
+            }
+        }
+        if ( rows.size() < 8 ) {
+            return note( file_name + " needs at least 8 aligned rows for a logo to mean anything, has "
+                    + rows.size() );
+        }
+        final int len = rows.get( 0 ).length();
+        final MsaConservation c = MsaConservation.compute( rows, len, false );
+        boolean full = false, graded = false, half_gapped = false, all_gap = false;
+        for( int col = 0; col < len; col++ ) {
+            final char[] res = c.stackResiduesAt( col );
+            final double h = c.informationAt( col );
+            if ( ( res.length == 1 ) && ( h > 0.99 ) ) {
+                full = true;
+            }
+            // one residue, yet well under full height: the column is gapped, not variable
+            if ( ( res.length == 1 ) && ( h > 0.3 ) && ( h < 0.7 ) ) {
+                half_gapped = true;
+            }
+            // two or more letters of clearly DIFFERENT heights -- what makes the stacking order readable
+            if ( ( res.length >= 2 ) && ( c.stackFractionsAt( col )[ 0 ] > ( 2 * c.stackFractionsAt( col )[ 1 ] ) ) ) {
+                graded = true;
+            }
+            if ( res.length == 0 ) {
+                all_gap = true;
+            }
+        }
+        boolean ok = true;
+        if ( !full ) {
+            ok = note( file_name + " has no fully conserved column, so the logo never fills the band" );
+        }
+        if ( !graded ) {
+            ok = note( file_name + " has no column with a tall letter over a clearly shorter one" );
+        }
+        if ( !half_gapped ) {
+            ok = note( file_name + " has no conserved-but-gapped column, so it never shows that gaps scale the "
+                    + "stack rather than joining it" );
+        }
+        if ( !all_gap ) {
+            ok = note( file_name + " has no all-gap column, so it never shows that 'no data' draws nothing" );
+        }
+        return ok;
+    }
+
     private static boolean alignmentDemoOk( final String file_name ) {
         final Phylogeny phy = load( file_name );
         if ( phy == null ) {
@@ -810,6 +1135,36 @@ public final class DemoTreesTest {
         }
         if ( n < min_tips ) {
             return note( file_name + " must carry domain architectures on >= " + min_tips + " tips, found " + n );
+        }
+        // The domain rollover offers two different links, and the README says so, so the demo has to show
+        // BOTH: a domain with a Pfam accession opens its entry, one with only a name can be looked up. If
+        // every domain gained an accession -- or lost one -- half of what the gallery entry promises would
+        // silently stop being demonstrated while this check stayed green.
+        int with_acc = 0;
+        int without_acc = 0;
+        for( final PhylogenyNode tip : phy.getExternalNodes() ) {
+            if ( !tip.getNodeData().isHasSequence()
+                    || ( tip.getNodeData().getSequence().getDomainArchitecture() == null ) ) {
+                continue;
+            }
+            final org.forester.phylogeny.data.DomainArchitecture da = tip.getNodeData().getSequence()
+                    .getDomainArchitecture();
+            for( int k = 0; k < da.getNumberOfDomains(); ++k ) {
+                if ( NodeHoverText.pfamAccession( da.getDomain( k ) ) != null ) {
+                    ++with_acc;
+                }
+                else {
+                    ++without_acc;
+                }
+            }
+        }
+        if ( with_acc < 1 ) {
+            return note( file_name + " must carry at least one real Pfam accession, so the rollover's "
+                    + "entry link is demonstrated; found none" );
+        }
+        if ( without_acc < 1 ) {
+            return note( file_name + " must leave at least one domain WITHOUT an accession, so the "
+                    + "look-it-up-by-name route is demonstrated too; all " + with_acc + " have one" );
         }
         return true;
     }
@@ -1585,6 +1940,364 @@ public final class DemoTreesTest {
             return note( file_name + " must carry two FigTree branch colours, got " + colours );
         }
         return true;
+    }
+
+    /** The Time | Div pair. {@code rated} states a clock rate on all 8 branches and is offered the switch;
+     *  {@code one_unrated} is the SAME tree -- names, lengths, dates, every other rate -- with isolate_C's rate taken
+     *  out, and is not. Both date their 5 tips at height 0 and both have a time layout, so the refusal is for the
+     *  rate and nothing else. The numbers the README row quotes (8, 7, 5) are asserted here. */
+    private static boolean beastRatePairOk( final String rated, final String one_unrated ) {
+        final Phylogeny full = loadAsOpened( rated );
+        final Phylogeny part = loadAsOpened( one_unrated );
+        if ( ( full == null ) || ( part == null ) ) {
+            return false;
+        }
+        if ( ( full.getNodeCount() != 9 ) || ( part.getNodeCount() != 9 ) ) {
+            return note( "the Time | Div pair must have 9 nodes (8 branches) each, got " + full.getNodeCount()
+                    + " and " + part.getNodeCount() );
+        }
+        final Iterator<PhylogenyNode> fi = full.iteratorPreorder();
+        final Iterator<PhylogenyNode> pi = part.iteratorPreorder();
+        int full_rated = 0;
+        int part_rated = 0;
+        int zero_tips = 0;
+        String unrated_name = null;
+        while ( fi.hasNext() ) {
+            final PhylogenyNode f = fi.next();
+            final PhylogenyNode p = pi.next();
+            if ( !f.getName().equals( p.getName() ) || ( f.getDistanceToParent() != p.getDistanceToParent() )
+                    || ( f.getNumberOfDescendants() != p.getNumberOfDescendants() ) ) {
+                return note( one_unrated + " must be the same tree as " + rated + " (differs at \"" + f.getName()
+                        + "\")" );
+            }
+            final org.forester.phylogeny.data.Date fd = f.getNodeData().getDate();
+            final org.forester.phylogeny.data.Date pd = p.getNodeData().getDate();
+            if ( ( fd == null ) || ( pd == null ) || ( fd.getValue() == null ) || ( pd.getValue() == null )
+                    || ( fd.getValue().compareTo( pd.getValue() ) != 0 ) ) {
+                return note( "every node of the Time | Div pair must carry the same date (at \"" + f.getName() + "\")" );
+            }
+            if ( f.isExternal() && ( fd.getValue().signum() == 0 ) ) {
+                ++zero_tips;
+            }
+            if ( f.isRoot() ) {
+                continue;
+            }
+            final String fr = rateOf( f );
+            final String pr = rateOf( p );
+            if ( fr != null ) {
+                ++full_rated;
+            }
+            if ( pr != null ) {
+                ++part_rated;
+                if ( !pr.equals( fr ) ) {
+                    return note( "a rate " + one_unrated + " states must be the one " + rated + " states (at \""
+                            + f.getName() + "\")" );
+                }
+            }
+            else {
+                unrated_name = p.getName();
+            }
+        }
+        if ( zero_tips != 5 ) {
+            return note( rated + " must date its 5 tips at height 0, got " + zero_tips );
+        }
+        if ( full_rated != 8 ) {
+            return note( rated + " must state a rate on all 8 branches, got " + full_rated );
+        }
+        if ( ( part_rated != 7 ) || !"isolate_C".equals( unrated_name ) ) {
+            return note( one_unrated + " must state a rate on 7 of 8 branches, all but isolate_C; got " + part_rated
+                    + ", unrated: " + unrated_name );
+        }
+        if ( !BranchLengthLayout.isTimeDerivable( full ) || !BranchLengthLayout.isTimeDerivable( part ) ) {
+            return note( "both halves of the Time | Div pair must have a time layout (tips dated 0 are dated)" );
+        }
+        if ( !BranchLengthLayout.isApplicable( full )
+                || ( BranchLengthLayout.divergenceSource( full ) != BranchLengthLayout.DIVERGENCE_SOURCE.CLOCK_RATE ) ) {
+            return note( rated + " must be offered Time | Div, its divergence derived from the clock rate" );
+        }
+        if ( BranchLengthLayout.isApplicable( part )
+                || ( BranchLengthLayout.divergenceSource( part ) != BranchLengthLayout.DIVERGENCE_SOURCE.NONE ) ) {
+            return note( one_unrated + " must NOT be offered Time | Div: one branch states no rate" );
+        }
+        return true;
+    }
+
+    private static String numberOf( final PhylogenyNode n, final String ref ) {
+        if ( ( n.getNodeData().getProperties() == null ) || n.getNodeData().getProperties().getProperties( ref ).isEmpty() ) {
+            return null;
+        }
+        return n.getNodeData().getProperties().getProperties( ref ).get( 0 ).getValue();
+    }
+
+    private static String dateOf( final PhylogenyNode n ) {
+        return ( ( n.getNodeData().getDate() == null ) || ( n.getNodeData().getDate().getValue() == null ) ) ? null
+                : n.getNodeData().getDate().getValue().toPlainString();
+    }
+
+    /**
+     * A pair for the joint rule. {@code twin} is {@code original} with ONE datum taken out at {@code where} -- its
+     * date ({@code date_out}) or its recorded divergence -- and is otherwise the same tree: names, lengths, every
+     * other date, divergence and rate. The original is offered Time | Div, the twin is not, and for the reason
+     * named: the layout that lost the datum cannot state every branch, the other still can. {@code nodes} is the
+     * number the README row quotes: the original states the datum on all of them, the twin on all but one.
+     */
+    private static boolean twinWithOneDatumOutOk( final String original,
+                                                  final String twin,
+                                                  final String where,
+                                                  final boolean date_out,
+                                                  final int nodes ) {
+        final Phylogeny full = loadAsOpened( original );
+        final Phylogeny part = loadAsOpened( twin );
+        if ( ( full == null ) || ( part == null ) ) {
+            return false;
+        }
+        if ( ( full.getNodeCount() != nodes ) || ( part.getNodeCount() != nodes ) ) {
+            return note( original + " and " + twin + " must have " + nodes + " nodes each, got " + full.getNodeCount()
+                    + " and " + part.getNodeCount() );
+        }
+        final Iterator<PhylogenyNode> fi = full.iteratorPreorder();
+        final Iterator<PhylogenyNode> pi = part.iteratorPreorder();
+        int differences = 0;
+        int stated_in_full = 0;
+        int stated_in_part = 0;
+        while ( fi.hasNext() ) {
+            final PhylogenyNode f = fi.next();
+            final PhylogenyNode p = pi.next();
+            if ( ( date_out ? dateOf( f ) : numberOf( f, "nextstrain:div" ) ) != null ) {
+                ++stated_in_full;
+            }
+            if ( ( date_out ? dateOf( p ) : numberOf( p, "nextstrain:div" ) ) != null ) {
+                ++stated_in_part;
+            }
+            if ( !f.getName().equals( p.getName() ) || ( f.getDistanceToParent() != p.getDistanceToParent() ) ) {
+                return note( twin + " must be the same tree as " + original + " (differs at \"" + f.getName() + "\")" );
+            }
+            final String[] of_full = { dateOf( f ), numberOf( f, "nextstrain:div" ), numberOf( f, "beast:rate" ) };
+            final String[] of_part = { dateOf( p ), numberOf( p, "nextstrain:div" ), numberOf( p, "beast:rate" ) };
+            for( int i = 0; i < 3; ++i ) {
+                if ( ( of_full[ i ] == null ) ? ( of_part[ i ] != null ) : !of_full[ i ].equals( of_part[ i ] ) ) {
+                    ++differences;
+                    final boolean the_one = where.equals( f.getName() ) && ( i == ( date_out ? 0 : 1 ) )
+                            && ( of_full[ i ] != null ) && ( of_part[ i ] == null );
+                    if ( !the_one ) {
+                        return note( twin + " may differ from " + original + " only by the "
+                                + ( date_out ? "date" : "divergence" ) + " of \"" + where + "\"; it differs at \""
+                                + f.getName() + "\": " + of_full[ i ] + " / " + of_part[ i ] );
+                    }
+                }
+            }
+        }
+        if ( differences != 1 ) {
+            return note( twin + " must differ from " + original + " by exactly one datum, got " + differences );
+        }
+        if ( ( stated_in_full != nodes ) || ( stated_in_part != ( nodes - 1 ) ) ) {
+            return note( original + " must state the " + ( date_out ? "date" : "divergence" ) + " on all " + nodes
+                    + " nodes and " + twin + " on " + ( nodes - 1 ) + "; got " + stated_in_full + " and "
+                    + stated_in_part );
+        }
+        if ( !BranchLengthLayout.isApplicable( full ) ) {
+            return note( original + " must be offered Time | Div, or its twin's refusal proves nothing" );
+        }
+        if ( BranchLengthLayout.isApplicable( part ) ) {
+            return note( twin + " must NOT be offered Time | Div: a layout cannot state the branch of \"" + where + "\"" );
+        }
+        final boolean time_ok = BranchLengthLayout.isTimeDerivable( part );
+        final boolean div_ok = BranchLengthLayout.divergenceSource( part ) != BranchLengthLayout.DIVERGENCE_SOURCE.NONE;
+        if ( date_out ? ( time_ok || !div_ok ) : ( !time_ok || div_ok ) ) {
+            return note( twin + " must be refused for its " + ( date_out ? "date" : "divergence" )
+                    + " and nothing else; time layout " + time_ok + ", divergence layout " + div_ok );
+        }
+        return true;
+    }
+
+    /** A twin of {@code beast-annotations.nex} that is NOT offered Time | Div, for the reason its numbers name: of its
+     *  {@code branches} branches {@code with_length} state a length and {@code with_rate} state a {@code beast:rate}
+     *  property (as written, whatever it is worth); it has a time layout or not; its divergence source is
+     *  {@code source}. The original is offered the switch, or the refusal proves nothing. */
+    private static boolean notOfferedTwinOk( final String twin,
+                                             final int branches,
+                                             final int with_length,
+                                             final int with_rate,
+                                             final boolean time_layout,
+                                             final BranchLengthLayout.DIVERGENCE_SOURCE source ) {
+        final Phylogeny full = loadAsOpened( "beast-annotations.nex" );
+        final Phylogeny part = loadAsOpened( twin );
+        if ( ( full == null ) || ( part == null ) ) {
+            return false;
+        }
+        if ( !BranchLengthLayout.isApplicable( full ) ) {
+            return note( "beast-annotations.nex must be offered Time | Div, or the refusal of " + twin + " proves nothing" );
+        }
+        int n_branches = 0;
+        int n_length = 0;
+        int n_rate = 0;
+        for( final Iterator<PhylogenyNode> it = part.iteratorPreorder(); it.hasNext(); ) {
+            final PhylogenyNode n = it.next();
+            if ( n.isRoot() ) {
+                continue;
+            }
+            ++n_branches;
+            if ( n.getDistanceToParent() != org.forester.phylogeny.data.PhylogenyDataUtil.BRANCH_LENGTH_DEFAULT ) {
+                ++n_length;
+            }
+            if ( rateOf( n ) != null ) {
+                ++n_rate;
+            }
+        }
+        if ( ( n_branches != branches ) || ( n_length != with_length ) || ( n_rate != with_rate ) ) {
+            return note( twin + " must have " + branches + " branches, " + with_length + " with a length and " + with_rate
+                    + " with a rate; got " + n_branches + ", " + n_length + ", " + n_rate );
+        }
+        if ( BranchLengthLayout.isApplicable( part ) ) {
+            return note( twin + " must NOT be offered Time | Div" );
+        }
+        if ( ( BranchLengthLayout.isTimeDerivable( part ) != time_layout )
+                || ( BranchLengthLayout.divergenceSource( part ) != source ) ) {
+            return note( twin + " must be refused for the reason it names: time layout " + time_layout + ", source "
+                    + source + "; got " + BranchLengthLayout.isTimeDerivable( part ) + ", "
+                    + BranchLengthLayout.divergenceSource( part ) );
+        }
+        return true;
+    }
+
+    /** The div of A/Dakar/8/2016 is WRITTEN {@code 0.0189d}: the Nexus reader keeps it as the text it is
+     *  ({@code beast:div}), never as a recorded divergence, and the tree is refused for that alone -- its twin,
+     *  differing by that one letter, is offered Time | Div. (A phyloXML {@code nextstrain:div} spelled so reaches
+     *  {@link BranchLengthLayout} as text, which refuses it itself: BranchLengthLayoutTest.) */
+    private static boolean divSpellingOk( final String original, final String twin ) {
+        final Phylogeny full = loadAsOpened( original );
+        final Phylogeny part = loadAsOpened( twin );
+        if ( ( full == null ) || ( part == null ) ) {
+            return false;
+        }
+        final PropertiesList props = part.getNode( "A/Dakar/8/2016" ).getNodeData().getProperties();
+        final String as_text = ( props == null ) || props.getProperties( "beast:div" ).isEmpty() ? null
+                : props.getProperties( "beast:div" ).get( 0 ).getValue();
+        if ( !"0.0189d".equals( as_text )
+                || ( ( props != null ) && !props.getProperties( BranchLengthLayout.DIV_PROPERTY_REF ).isEmpty() ) ) {
+            return note( twin + ": A/Dakar/8/2016's div must be kept as the text 0.0189d, not as a recorded divergence;"
+                    + " got " + as_text );
+        }
+        if ( !BranchLengthLayout.isApplicable( full ) || ( BranchLengthLayout.divergenceSource( full )
+                != BranchLengthLayout.DIVERGENCE_SOURCE.STORED ) ) {
+            return note( original + " must be offered Time | Div from its recorded divergence" );
+        }
+        if ( BranchLengthLayout.isApplicable( part ) || !BranchLengthLayout.isTimeDerivable( part )
+                || ( BranchLengthLayout.divergenceSource( part ) != BranchLengthLayout.DIVERGENCE_SOURCE.NONE ) ) {
+            return note( twin + " must be refused for its spelling alone: time layout yes, no divergence source" );
+        }
+        return true;
+    }
+
+    /** The rate of isolate_C is WRITTEN {@code 0.0026d} in the file, and read as written. */
+    private static boolean rateSpellingOk( final String file_name ) {
+        final Phylogeny phy = loadAsOpened( file_name );
+        return ( phy != null ) && ( "0.0026d".equals( rateOf( phy.getNode( "isolate_C" ) ) )
+                || note( file_name + ": isolate_C's rate must read 0.0026d, got " + rateOf( phy.getNode( "isolate_C" ) ) ) );
+    }
+
+    /** Every one of the 8 branches states a rate, and every rate is 0. */
+    private static boolean ratesZeroOk( final String file_name ) {
+        final Phylogeny phy = loadAsOpened( file_name );
+        if ( phy == null ) {
+            return false;
+        }
+        for( final Iterator<PhylogenyNode> it = phy.iteratorPreorder(); it.hasNext(); ) {
+            final PhylogenyNode n = it.next();
+            if ( !n.isRoot() && ( ( rateOf( n ) == null ) || ( Double.parseDouble( rateOf( n ) ) != 0 ) ) ) {
+                return note( file_name + ": every branch must state a rate of 0; " + n.getName() + " states " + rateOf( n ) );
+            }
+        }
+        return true;
+    }
+
+    /** {@code beast-lengths-not-heights.nex}: isolate_A is stated 1.407 long between two nodes dated 1.2 apart.
+     *  Offered the switch; divergence is 0.0031 x 1.407; and Time gives 1.407 back, the tree that was opened. */
+    private static boolean lengthsNotHeightsOk( final String file_name ) {
+        final Phylogeny phy = loadAsOpened( file_name );
+        if ( phy == null ) {
+            return false;
+        }
+        final PhylogenyNode a = phy.getNode( "isolate_A" );
+        final double gap = a.getParent().getNodeData().getDate().getValue().doubleValue()
+                - a.getNodeData().getDate().getValue().doubleValue();
+        if ( ( a.getDistanceToParent() != 1.407 ) || ( Math.abs( gap - 1.2 ) > 1e-12 ) ) {
+            return note( file_name + ": isolate_A must state 1.407 between nodes dated 1.2 apart; got "
+                    + a.getDistanceToParent() + " and " + gap );
+        }
+        if ( !BranchLengthLayout.isApplicable( phy ) || BranchLengthLayout.arrivesShowingDivergence( phy ) ) {
+            return note( file_name + " must be offered Time | Div and arrive showing time" );
+        }
+        final BranchLengthLayout.TimeLengths kept = BranchLengthLayout.TimeLengths.onScreen( phy );
+        BranchLengthLayout.applyDivergence( phy, kept );
+        if ( Math.abs( a.getDistanceToParent() - ( 0.0031 * 1.407 ) ) > 1e-15 ) {
+            return note( file_name + ": divergence must be 0.0031 x 1.407, got " + a.getDistanceToParent() );
+        }
+        BranchLengthLayout.applyTime( phy, kept );
+        if ( a.getDistanceToParent() != 1.407 ) {
+            return note( file_name + ": Time must give back 1.407, got " + a.getDistanceToParent() );
+        }
+        return true;
+    }
+
+    /** {@code beast-negative-span.nex}: 9 nodes, every one dated and every branch rated, so it is offered the switch;
+     *  exactly ONE of its 8 branches runs backwards, the (D,E) node's, stated at -0.05. Time keeps it, divergence
+     *  states 0, and with the sign kept the lengths from the root to each of the 5 tips add up to 2.1, the gap
+     *  between the root's date and the tip's. */
+    private static boolean negativeSpanOk( final String file_name ) {
+        final Phylogeny phy = loadAsOpened( file_name );
+        if ( phy == null ) {
+            return false;
+        }
+        if ( ( phy.getNodeCount() != 9 ) || !BranchLengthLayout.isApplicable( phy ) ) {
+            return note( file_name + " must have 9 nodes and be offered Time | Div" );
+        }
+        final PhylogenyNode de = phy.getNode( "isolate_D" ).getParent();
+        int negative = 0;
+        for( final Iterator<PhylogenyNode> it = phy.iteratorPreorder(); it.hasNext(); ) {
+            final PhylogenyNode n = it.next();
+            if ( !n.isRoot() && ( n.getDistanceToParent() < 0 ) ) {
+                ++negative;
+            }
+        }
+        if ( ( negative != 1 ) || ( de.getDistanceToParent() != -0.05 ) ) {
+            return note( file_name + " must state exactly one negative length, -0.05 on the (D,E) node; got " + negative
+                    + ", (D,E)=" + de.getDistanceToParent() );
+        }
+        final BranchLengthLayout.TimeLengths kept = BranchLengthLayout.TimeLengths.onScreen( phy );
+        BranchLengthLayout.applyDivergence( phy, kept );
+        if ( Double.doubleToRawLongBits( de.getDistanceToParent() ) != 0L ) {
+            return note( file_name + ": divergence must state 0 for the negative length, got " + de.getDistanceToParent() );
+        }
+        BranchLengthLayout.applyTime( phy, kept );
+        if ( de.getDistanceToParent() != -0.05 ) {
+            return note( file_name + ": time must give back -0.05 as the file states it; got " + de.getDistanceToParent() );
+        }
+        int tips = 0;
+        for( final PhylogenyNode tip : phy.getExternalNodes() ) {
+            ++tips;
+            double signed = 0; // NOT calculateDistanceToRoot(): it leaves negative lengths out of the sum
+            for( PhylogenyNode n = tip; !n.isRoot(); n = n.getParent() ) {
+                signed += n.getDistanceToParent();
+            }
+            if ( Math.abs( signed - 2.1 ) > 1e-12 ) {
+                return note( file_name + ": the lengths from the root to " + tip.getName() + " must add up to 2.1; got "
+                        + signed );
+            }
+        }
+        if ( tips != 5 ) {
+            return note( file_name + " must have 5 tips, got " + tips );
+        }
+        return true;
+    }
+
+    /** The node's {@code beast:rate} as written, or null when it states none. */
+    private static String rateOf( final PhylogenyNode n ) {
+        if ( ( n.getNodeData().getProperties() == null )
+                || n.getNodeData().getProperties().getProperties( "beast:rate" ).isEmpty() ) {
+            return null;
+        }
+        return n.getNodeData().getProperties().getProperties( "beast:rate" ).get( 0 ).getValue();
     }
 
     /** A demo file read exactly as File > Open (and aptx_render) reads it: parser by name / first line, the shared

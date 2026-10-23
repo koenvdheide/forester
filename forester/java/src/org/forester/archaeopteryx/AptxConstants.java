@@ -29,8 +29,8 @@ import org.forester.util.ForesterConstants;
 public final class AptxConstants {
 
     public final static String PRG_NAME = "Archaeopteryx";
-    final static String VERSION = "0.11.156";
-    final static String PRG_DATE = "2026-09-21";
+    final static String VERSION = "0.11.175";
+    final static String PRG_DATE = "2026-10-01";
     // The first three are bundled and registered at startup (see FontResources), so they are always
     // present and give identical, reproducible figure type across platforms; the rest are fallbacks.
     final static String[] DEFAULT_FONT_CHOICES = {
@@ -74,11 +74,30 @@ public final class AptxConstants {
             100);
     final static short DEFAULT_NODE_SHAPE_SIZE_DEFAULT = 5;
     final static int   TIP_IMAGE_SIZE_DEFAULT           = 40; // tip-image target height (px); user-adjustable
+    // How the width of a rectangular tree view is divided between the tree and everything drawn beside it
+    // (LayoutWidthBudget). The tree is allocated its share FIRST and is never merely the remainder -- before this
+    // existed, labels + domains + alignment + legend could each cap themselves against the FULL width, sum past
+    // 100%, and leave the tree a negative width, i.e. a single line.
+    final static double TREE_WIDTH_SHARE_DEFAULT        = 0.40; // the tree's guaranteed share out of the box
+    final static double TREE_WIDTH_SHARE_MIN            = 0.25; // ...and the least the slider will let it drop to
+    final static double TREE_WIDTH_SHARE_MAX            = 0.80;
+    // The smallest the tip-label auto-fit may shrink the font to while fitting the labels into the width the
+    // budget leaves them. Below this a label is not smaller, it is unreadable -- so the labels overflow instead
+    // and the budget absorbs it (LayoutWidthBudget). Named here so a test can pin the shipped value.
+    final static int   LABEL_AUTOFIT_MIN_FONT_SIZE      = 6;
     final static int   MSA_COLUMN_WIDTH_DEFAULT         = 7;  // alignment cell width (px/residue); user-adjustable
     final static int   MSA_COLUMN_WIDTH_MIN             = 1;
     final static int   MSA_COLUMN_WIDTH_MAX             = 40;
     final static int   MSA_CONSERVATION_BAR_HEIGHT_MIN  = 22; // the conservation bar area, at least this tall (px)
     final static int   MSA_CONSERVATION_TOP_GAP          = 4;  // separates the conservation band from the last row
+    // A sequence logo's band, at least this tall (px). A stack of letters needs room a bar does not: at the
+    // bar's 22 px a three-residue column gives ~7 px a letter, which is a smudge. Joint with archaeopteryx.js.
+    final static int   MSA_LOGO_BAND_HEIGHT_MIN         = 46;
+    // A logo letter is MEASURED at this size and then scaled to its own height, so the scale factors stay
+    // well-conditioned; it is never the size anything is drawn at.
+    final static int   MSA_LOGO_GLYPH_MEASURE_SIZE      = 24;
+    // Below half a pixel of ink a letter is a smear that still costs a glyph to render, so it is skipped.
+    final static double MSA_LOGO_MIN_LETTER_PX          = 0.5;
     // "Export at a fixed size" (ExportSizeSpec): DPI + width/height bounds and the default journal-figure size.
     final static int    EXPORT_SIZE_DPI_DEFAULT         = 300; // publication default
     final static int    EXPORT_SIZE_DPI_MIN             = 72;

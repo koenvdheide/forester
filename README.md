@@ -24,6 +24,18 @@ for phylogenetic trees.
 > [`forester/java/src/org/forester/archaeopteryx/`](forester/java/src/org/forester/archaeopteryx));
 > the links above are its user-facing front door and full documentation.
 
+> ### 🧬 Need a tree to look at?
+>
+> **phylobuild** builds a well-annotated protein phylogeny from a FASTA file in a
+> single command — Pfam domain architectures, taxonomy and branch support — and
+> writes **phyloXML**, so the result opens in Archaeopteryx with its domains,
+> names and support already in place.
+>
+> - **<https://github.com/cmzmasek/phylobuild>**
+>
+> A separate project, not part of this repository; it uses forester to write its
+> output.
+
 
 What's in forester
 ------------------
@@ -42,13 +54,30 @@ What's in forester
   as a plain `nh:comment` property instead, as earlier versions did. The phyloXML
   schema is bundled in this repository under `forester/resources/phyloxml_schema/`; the `phyloxml.org`
   domain is no longer under the format authors' control and should not be used
-  as a source for it.
+  as a source for it. A `Phylogeny` writes itself back out with
+  `toNewHampshire()`, `toNewHampshireX()`, `toNexus()` and `toPhyloXML(level)`;
+  `toAscii()` draws it instead, as plain ASCII for a terminal, which is a quicker
+  way to see what you just parsed than opening a viewer:
+
+  ```
+  +-- Archosauria
+     +-- Crocodylia
+     `-- Dinosauria
+        +-- Ornithischia
+        |  +-- Stegosaurus
+        |  `-- Triceratops
+        `-- Saurischia
+  ```
+
+  Structure and names only — a node is named the way `toNewHampshire()` would name
+  it, so a tree carrying its identity in `<taxonomy>` or `<sequence>` rather than
+  in `<name>` still reads. It refuses a tree of more than
+  `Phylogeny.MAX_ASCII_EXTERNAL_NODES` (1000) tips, or one that many nodes deep,
+  rather than flooding a terminal.
 - **SDI / GSDI / GSDIR** (`org.forester.sdi`) — speciation–duplication inference:
   reconcile a gene tree against a species tree to infer gene duplications and
   speciations.
 - **RIO** (`org.forester.rio`) — Resampled Inference of Orthologs.
-- **cladinator** (`org.forester.clade_analysis`) — classify / place query
-  sequences against annotated reference clades.
 - **surfacing** (`org.forester.surfacing`) — genome-wide protein-domain-architecture
   analysis and comparison.
 - **MSA tools** (`org.forester.msa`, `org.forester.msa_compactor`) —
@@ -59,7 +88,7 @@ What's in forester
   sequence/taxonomy web-service clients (`ws`), and general utilities.
 
 **Command-line tools** live in `org.forester.application` — among them `gsdi`,
-`rio`, `cladinator`, `decorator`, `count_support`, `confadd`, `nj`,
+`rio`, `decorator`, `count_support`, `confadd`, `nj`,
 `phyloxml_converter`, the `msa_*` alignment utilities, and `aptx_render`. Each is
 a `main`-class you can run from the built jar, e.g.:
 

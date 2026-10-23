@@ -76,6 +76,8 @@ public final class DemoTreeGenerator {
     // exemplary phyloXML types: real numbers are xsd:decimal, categories / free text are xsd:string
     private static final String NUM = "xsd:decimal";
     private static final String TEXT = "xsd:string";
+    /** Set while {@link #writeAllQuietly} runs: the per-file lines are for the command line, not for a test's log. */
+    private static boolean _quiet = false;
 
     public static void main( final String[] args ) throws IOException, PhyloXmlDataFormatException {
         final File dir = new File( System.getProperty( "user.dir" ), "forester/demo" );
@@ -83,6 +85,24 @@ public final class DemoTreeGenerator {
             System.err.println( "could not create demo directory: " + dir.getAbsolutePath() );
             System.exit( 1 );
         }
+        writeAll( dir );
+        System.out.println( "Wrote demo trees to " + dir.getAbsolutePath() );
+    }
+
+    /** Every generated demo, written into {@code dir} -- what {@code main} does, callable by a test that regenerates
+     *  into a scratch directory and compares with the shipped files (DemoTreesTest), because a shipped demo can fall
+     *  behind its generator when the two are edited in one sitting. Deterministic: two runs write identical bytes. */
+    public static void writeAllQuietly( final File dir ) throws IOException, PhyloXmlDataFormatException {
+        _quiet = true;
+        try {
+            writeAll( dir );
+        }
+        finally {
+            _quiet = false;
+        }
+    }
+
+    public static void writeAll( final File dir ) throws IOException, PhyloXmlDataFormatException {
         write( dir, "size-by-property.xml", sizeByPropertyTree() );
         write( dir, "color-by-property.xml", colorByPropertyTree() );
         write( dir, "annotation-columns.xml", annotationColumnsTree() );
@@ -114,6 +134,13 @@ public final class DemoTreeGenerator {
         write( dir, "heatmap-matrix.xml", heatmapMatrixTree() );
         write( dir, "import-annotations.xml", importAnnotationsTree() );
         write( dir, "alignment.xml", alignmentTree() );
+        write( dir, "crowded-tracks.xml", crowdedTracksTree() );
+        write( dir, "sequence-logo.xml", sequenceLogoTree() );
+        write( dir, "zero-length-nest.xml", zeroLengthNestTree() );
+        write( dir, "radial-numbers-fit.xml", radialNumbersTree( 10, true ) );
+        write( dir, "radial-numbers-crowded.xml", radialNumbersTree( 32, false ) );
+        write( dir, "radial-labels-fit.xml", radialLabelsTree( 12, true ) );
+        write( dir, "radial-labels-crowded.xml", radialLabelsTree( 96, false ) );
         write( dir, "gtdb-genomes.xml", gtdbGenomeTree() );
         writeText( dir, "gtdb-classifications.tsv", gtdbClassificationsTsv() );
         writeText( dir, "import-annotations.csv", importAnnotationsCsv() );
@@ -128,6 +155,15 @@ public final class DemoTreeGenerator {
         write( dir, "node-data-editor.xml", nodeDataEditorTree() );
         write( dir, "tree-properties.xml", treePropertiesTree() );
         writeText( dir, "beast-annotations.nex", beastAnnotationsNexus() );
+        writeText( dir, "beast-rate-missing.nex", beastRateMissingNexus() );
+        writeText( dir, "beast-date-missing.nex", beastDateMissingNexus() );
+        writeText( dir, "beast-negative-span.nex", beastNegativeSpanNexus() );
+        writeText( dir, "nextstrain-div-missing.nex", nextstrainDivMissingNexus() );
+        writeText( dir, "beast-length-missing.nex", beastLengthMissingNexus() );
+        writeText( dir, "beast-rates-zero.nex", beastRatesZeroNexus() );
+        writeText( dir, "beast-rate-spelling.nex", beastRateSpellingNexus() );
+        writeText( dir, "nextstrain-div-spelling.nex", nextstrainDivSpellingNexus() );
+        writeText( dir, "beast-lengths-not-heights.nex", beastLengthsNotHeightsNexus() );
         writeText( dir, "nextstrain-nexus.nex", nextstrainNexus() );
         writeText( dir, "treetime-nexus.nex", treeTimeNexus( true ) );
         writeText( dir, "treetime-divergence.nex", treeTimeNexus( false ) );
@@ -144,12 +180,13 @@ public final class DemoTreeGenerator {
         write( dir, "tanglegram-host-tree.xml", tanglegramHostTree() );
         write( dir, "tanglegram-parasite-tree.xml", tanglegramParasiteTree() );
         writeText( dir, "tanglegram-association.tsv", tanglegramAssociationTsv() );
-        System.out.println( "Wrote demo trees to " + dir.getAbsolutePath() );
     }
 
     private static void write( final File dir, final String file_name, final Phylogeny phy ) throws IOException {
         new PhylogenyWriter().toPhyloXML( phy, 0, new File( dir, file_name ) );
-        System.out.println( "  " + file_name + " (" + phy.getNumberOfExternalNodes() + " tips)" );
+        if ( !_quiet ) {
+            System.out.println( "  " + file_name + " (" + phy.getNumberOfExternalNodes() + " tips)" );
+        }
     }
 
     // ----- "BEAST / BEAST X output": a small time-calibrated NEXUS tree with FigTree-style [&...] annotations
@@ -165,6 +202,106 @@ public final class DemoTreeGenerator {
                 + "[&!color=#-8381639,posterior=0.92,height=0.5,height_95%_HPD={0.35,0.7},rate=0.0034]:0.3)"
                 + "[&posterior=0.81,height=0.8,height_95%_HPD={0.6,1.1},rate=0.0029]:1.3)"
                 + "[&posterior=1.0,height=2.1,height_95%_HPD={1.8,2.5},rate=0.0030];\n" + "END;\n";
+    }
+
+    // ----- "A BEAST tree with one branch left unrated": beast-annotations.nex with exactly ONE thing taken out --
+    //       isolate_C's rate. The Time | Div switch derives divergence as rate x time, so it is offered only to a
+    //       tree that states a rate on EVERY branch: beast-annotations.nex is offered it, this file is not. The
+    //       pair that a rule which REFUSES something ships with.
+    private static String beastRateMissingNexus() {
+        return replaceTheOne( replaceTheOne( beastAnnotationsNexus(), "isolate_C[&height=0.0,rate=0.0026]",
+                                             "isolate_C[&height=0.0]" ),
+                              "TREE beast_demo =", "TREE beast_rate_missing =" );
+    }
+
+    /** {@code text} with its ONE occurrence of {@code what} replaced by {@code by}; the twin of a pair differs from
+     *  its original by exactly what is named, or the generator stops. */
+    private static String replaceTheOne( final String text, final String what, final String by ) {
+        if ( ( text.indexOf( what ) < 0 ) || ( text.indexOf( what ) != text.lastIndexOf( what ) ) ) {
+            throw new IllegalStateException( "must occur exactly once: " + what );
+        }
+        return text.replace( what, by );
+    }
+
+    // ----- "A BEAST tree with one node left undated": beast-annotations.nex with exactly ONE thing taken out --
+    //       isolate_B's height. Time | Div is offered only when both layouts can state EVERY branch; the time layout
+    //       cannot state isolate_B's, so the switch is not offered (it was, while a majority of dated branches was
+    //       enough, and drew that branch at length 0).
+    private static String beastDateMissingNexus() {
+        return replaceTheOne( replaceTheOne( beastAnnotationsNexus(), "isolate_B[&height=0.0,rate=0.0028]",
+                                             "isolate_B[&rate=0.0028]" ),
+                              "TREE beast_demo =", "TREE beast_date_missing =" );
+    }
+
+    // ----- "A node dated before its parent": beast-annotations.nex with the (D,E) node moved from height 0.5 to 0.85,
+    //       0.05 OLDER than its parent (0.8) -- what a summary tree's median heights do in real files (35 of the 1372
+    //       branches of one influenza tree). Its branch is stated at -0.05. Time keeps the sign, so the lengths
+    //       from the root add up to each node's own date; Div states 0. (The window draws a negative length at 0.)
+    private static String beastNegativeSpanNexus() {
+        String s = beastAnnotationsNexus();
+        s = replaceTheOne( s, "(isolate_D[&height=0.0,rate=0.0035]:0.5,isolate_E[&height=0.0,rate=0.0033]:0.5)",
+                           "(isolate_D[&height=0.0,rate=0.0035]:0.85,isolate_E[&height=0.0,rate=0.0033]:0.85)" );
+        s = replaceTheOne( s, "posterior=0.92,height=0.5,height_95%_HPD={0.35,0.7},rate=0.0034]:0.3)",
+                           "posterior=0.92,height=0.85,height_95%_HPD={0.7,1.0},rate=0.0034]:-0.05)" );
+        return replaceTheOne( s, "TREE beast_demo =", "TREE beast_negative_span =" );
+    }
+
+    // ----- "A branch that states no length": beast-annotations.nex with exactly ONE thing taken out -- the length of
+    //       isolate_C's branch. Time shows the lengths a tree states, and divergence is a rate times them: a branch
+    //       without one cannot be stated by either layout, so the switch is not offered.
+    private static String beastLengthMissingNexus() {
+        return replaceTheOne( replaceTheOne( beastAnnotationsNexus(), "isolate_C[&height=0.0,rate=0.0026]:0.8,",
+                                             "isolate_C[&height=0.0,rate=0.0026]," ),
+                              "TREE beast_demo =", "TREE beast_length_missing =" );
+    }
+
+    // ----- "Every rate 0": beast-annotations.nex with each of its nine rates written 0. Every branch states a rate,
+    //       but divergence is 0 along every one of them: a picture of nothing, which is not offered.
+    private static String beastRatesZeroNexus() {
+        final String full = beastAnnotationsNexus();
+        final String zero = full.replaceAll( "rate=0\\.00[0-9]+", "rate=0" );
+        int rates = 0;
+        for( int i = zero.indexOf( "rate=0" ); i >= 0; i = zero.indexOf( "rate=0", i + 1 ) ) {
+            ++rates;
+        }
+        if ( ( rates != 9 ) || zero.contains( "rate=0." ) ) {
+            throw new IllegalStateException( "beast-annotations.nex must state nine rates, all to be written 0; got " + rates );
+        }
+        return replaceTheOne( zero, "TREE beast_demo =", "TREE beast_rates_zero =" );
+    }
+
+    // ----- "A rate that is not written as a number": beast-annotations.nex with isolate_C's rate written 0.0026d, the
+    //       way a Java program may print a double. A rate is a plain decimal number, with or without an exponent
+    //       (joint with Archaeopteryx.js); anything else is no rate, and one branch without a rate is enough.
+    private static String beastRateSpellingNexus() {
+        return replaceTheOne( replaceTheOne( beastAnnotationsNexus(), "isolate_C[&height=0.0,rate=0.0026]",
+                                             "isolate_C[&height=0.0,rate=0.0026d]" ),
+                              "TREE beast_demo =", "TREE beast_rate_spelling =" );
+    }
+
+    // ----- "Lengths that are not the gaps between the heights": beast-annotations.nex with isolate_A's branch stated
+    //       at 1.407 while its two nodes are dated 1.2 apart -- what a summary tree does when its lengths and its
+    //       median heights are two summaries of one posterior. Time is the tree that was opened: 1.407, before the
+    //       switch is pressed and after; divergence is 0.0031 x 1.407.
+    private static String beastLengthsNotHeightsNexus() {
+        return replaceTheOne( replaceTheOne( beastAnnotationsNexus(), "(isolate_A[&!color=#-8381639,height=0.0,rate=0.0031]:1.2,",
+                                             "(isolate_A[&!color=#-8381639,height=0.0,rate=0.0031]:1.407," ),
+                              "TREE beast_demo =", "TREE beast_lengths_not_heights =" );
+    }
+
+    // ----- "A recorded divergence left out on one node": nextstrain-nexus.nex with exactly ONE thing taken out --
+    //       the div of A/Dakar/8/2016. The divergence layout cannot state that tip's branch, so Time | Div is not
+    //       offered; the tree opens and stays in time, as its twin opens.
+    private static String nextstrainDivMissingNexus() {
+        return replaceTheOne( nextstrainNexus(), "country=Senegal,div=0.0189]", "country=Senegal]" );
+    }
+
+    // ----- "A recorded divergence that is not written as a number": nextstrain-nexus.nex with the div of
+    //       A/Dakar/8/2016 written 0.0189d. A recorded divergence is a plain decimal number, as a rate is (joint with
+    //       Archaeopteryx.js): the reader keeps this one as text (beast:div), and one node without a recorded
+    //       divergence is enough for no divergence layout.
+    private static String nextstrainDivSpellingNexus() {
+        return replaceTheOne( nextstrainNexus(), "country=Senegal,div=0.0189]", "country=Senegal,div=0.0189d]" );
     }
 
     // ----- "Ancestral-state pie charts": a BEAST-style phylogeography tree. Each TIP carries its single sampled
@@ -521,7 +658,9 @@ public final class DemoTreeGenerator {
     /** Write a companion plain-text data file (e.g. a CSV to import onto a demo tree). */
     private static void writeText( final File dir, final String file_name, final String content ) throws IOException {
         java.nio.file.Files.writeString( new File( dir, file_name ).toPath(), content );
-        System.out.println( "  " + file_name + " (" + content.lines().count() + " lines)" );
+        if ( !_quiet ) {
+            System.out.println( "  " + file_name + " (" + content.lines().count() + " lines)" );
+        }
     }
 
     // ----- "Import annotations": a plain-named tip tree with NO per-tip data, paired with a companion CSV to
@@ -533,11 +672,11 @@ public final class DemoTreeGenerator {
                 clade( 0.05, leaf( "isolate_07" ), leaf( "isolate_08" ),
                        clade( 0.03, leaf( "isolate_09" ), leaf( "isolate_10" ) ) ),
                 clade( 0.06, leaf( "isolate_11" ), leaf( "isolate_12" ) ) );
-        return tree( root, "Import annotations (demo)",
+        return tree( root, "Import metadata (demo)",
                      "A plain 12-tip tree (isolate_01..isolate_12) carrying NO per-tip data. Pair it with the "
-                             + "companion import-annotations.csv: File > Import Annotations, pick the CSV, match the "
+                             + "companion import-annotations.csv: File > Import Metadata, pick the CSV, match the "
                              + "\"name\" column against the tip name; the host/country/reads columns are joined onto "
-                             + "the tips -- then Color by host, or show reads as an annotation column." );
+                             + "the tips -- then Color by host, or show reads as a metadata column." );
     }
 
     /** The companion table for {@link #importAnnotationsTree()}: a categorical 'host', a quoted 'country' (with an
@@ -629,7 +768,7 @@ public final class DemoTreeGenerator {
                                             + "Pair it with the companion pangenome-presence-absence.tsv: 40 genes, "
                                             + "each cell an ordinal certainty 0..4 that the gene is present (0 "
                                             + "definitely absent .. 4 definitely present), a blank cell NOT "
-                                            + "ASSESSED. File > Import Annotations, match the \"strain\" column "
+                                            + "ASSESSED. File > Import Metadata, match the \"strain\" column "
                                             + "against the tip name, then View > Clustergram." );
         final List<PhylogenyNode> tips = phy.getExternalNodes();
         final int n = tips.size();
@@ -824,7 +963,7 @@ public final class DemoTreeGenerator {
                                     "50 synthetic strains in six lineages, carrying NO per-tip data. Pair it with "
                                             + "the companion sparse-accessory-genome.tsv: 18 genes, each cell an "
                                             + "ordinal certainty 0..4 that the gene is present, a blank cell NOT "
-                                            + "ASSESSED. File > Import Annotations, match the \"strain\" column "
+                                            + "ASSESSED. File > Import Metadata, match the \"strain\" column "
                                             + "against the tip name, then View > Clustergram -- and compare the two "
                                             + "clustered orders in View > Order Matrix Columns: the eight rare genes "
                                             + "clump together under \"Clustered (co-occurrence)\", which counts the "
@@ -992,8 +1131,8 @@ public final class DemoTreeGenerator {
                      "A tree of 14 Bacteria + Archaea genomes named only by their assembly accession -- no taxonomy. "
                              + "Pair it with the companion gtdb-classifications.tsv (a GTDB-Tk-style table): "
                              + "File > Import GTDB Taxonomy, pick the TSV. Each GTDB rank becomes a gtdb:<rank> "
-                             + "property (+ a taxonomy at the most specific rank), so you can Color by gtdb:phylum "
-                             + "or gtdb:domain, add an Annotation Column for gtdb:family, and search gtdb:genus -- "
+                             + "metadata field (+ a taxonomy at the most specific rank), so you can Color by gtdb:phylum "
+                             + "or gtdb:domain, add a Metadata Column for gtdb:family, and search gtdb:genus -- "
                              + "entirely offline." );
     }
 
@@ -1031,8 +1170,8 @@ public final class DemoTreeGenerator {
         final PhylogenyNode root = clade( 0, clade( 0.05, a, b ),
                                           clade( 0.04, clade( 0.03, c, d ),
                                                  clade( 0.03, clade( 0.02, e, f ), clade( 0.02, g, h ) ) ) );
-        return tree( root, "Size by property (demo)",
-                     "Synthetic avian-influenza tree. Each tip carries a numeric 'read_count' property. "
+        return tree( root, "Size by metadata (demo)",
+                     "Synthetic avian-influenza tree. Each tip carries a numeric 'read_count' metadata field. "
                              + "Try Size by: read_count -- the tip symbol AREA is proportional to the value." );
     }
 
@@ -1119,7 +1258,7 @@ public final class DemoTreeGenerator {
         return tree( root, "Node Data Editor (demo)",
                      "Every kind of node data the editor handles, on a small BRCA1 ortholog tree: taxonomy, two "
                              + "sequences on the human tip, confidences, a dated node with a speciation event, a "
-                             + "distribution, a reference, and typed properties. Set \"Click on Node to: Edit Node "
+                             + "distribution, a reference, and typed metadata fields. Set \"Click on Node to: Edit Node "
                              + "Data\" and click a node. Schematic sequences (truncated), not real data." );
     }
 
@@ -1182,7 +1321,7 @@ public final class DemoTreeGenerator {
                                             + "identifier, type and branch-length unit (editable), two kinds of "
                                             + "support values, a polytomy and a zero-length branch, and a coverage "
                                             + "map of which tips carry taxonomy, sequences, dates, a distribution "
-                                            + "and properties. Schematic sequences, not real data." );
+                                            + "and metadata. Schematic sequences, not real data." );
         phy.setIdentifier( new Identifier( "demo:myh6-myh7", "archaeopteryx" ) );
         phy.setType( "gene tree" );
         phy.setDistanceUnit( "substitutions/site" );
@@ -1266,7 +1405,7 @@ public final class DemoTreeGenerator {
         final PhylogenyNode root = clade( 0, clade( 0.06, tips[ 0 ], tips[ 1 ], tips[ 4 ], tips[ 10 ] ),
                                           clade( 0.05, clade( 0.03, tips[ 2 ], tips[ 3 ], tips[ 6 ], tips[ 11 ] ),
                                                  clade( 0.04, tips[ 5 ], tips[ 7 ], tips[ 8 ], tips[ 9 ] ) ) );
-        return tree( root, "Color by property (demo)",
+        return tree( root, "Color by metadata (demo)",
                      "Synthetic influenza-surveillance tree. Each tip has a categorical 'host' and a numeric 'year'; "
                              + "two environmental samples carry no host. Try Color by: host (a distinct color per "
                              + "host; the legend's dashed 'no value' row counts the host-less tips) or Color by: "
@@ -1282,7 +1421,7 @@ public final class DemoTreeGenerator {
         return n;
     }
 
-    // ----- "Annotation Columns": several properties of the four supported kinds so the tool can render a color strip
+    // ----- "Metadata Columns": several metadata fields of the four supported kinds so the tool can render a color strip
     //       (categorical), a heat map / bar (numeric) and a text column side by side. Load -> Tools > Annotation Fields.
     private static Phylogeny annotationColumnsTree() {
         final PhylogenyNode[] tips = {
@@ -1299,9 +1438,9 @@ public final class DemoTreeGenerator {
         final PhylogenyNode root = clade( 0, clade( 0.05, tips[ 0 ], tips[ 1 ], tips[ 4 ], tips[ 7 ] ),
                                           clade( 0.05, clade( 0.03, tips[ 2 ], tips[ 6 ], tips[ 9 ] ),
                                                  clade( 0.03, tips[ 3 ], tips[ 5 ], tips[ 8 ] ) ) );
-        return tree( root, "Annotation columns (demo)",
-                     "Synthetic tree with four annotation kinds per tip: 'host' and 'segment' (categorical), "
-                             + "'viral_load' (numeric) and 'clade' (text). Try Tools > Annotation Fields to render "
+        return tree( root, "Metadata columns (demo)",
+                     "Synthetic tree with four kinds of metadata per tip: 'host' and 'segment' (categorical), "
+                             + "'viral_load' (numeric) and 'clade' (text). Try Tools > Metadata Fields to render "
                              + "them as tip-aligned color-strip, heat-map/bar and text columns." );
     }
 
@@ -1332,10 +1471,10 @@ public final class DemoTreeGenerator {
         final PhylogenyNode root = clade( 0, clade( 0.05, tips[ 0 ], tips[ 1 ], tips[ 2 ], tips[ 3 ] ),
                                           clade( 0.05, clade( 0.03, tips[ 4 ], tips[ 6 ] ),
                                                  clade( 0.03, tips[ 5 ], tips[ 7 ] ) ) );
-        return tree( root, "Properties in labels (demo)",
-                     "Synthetic tree whose tips each carry SIX properties: 'accession' (a different value on every "
+        return tree( root, "Metadata in labels (demo)",
+                     "Synthetic tree whose tips each carry SIX metadata fields: 'accession' (a different value on every "
                              + "tip), 'host', 'country', 'clade', 'passage' and 'year'. Showing all six in the tip "
-                             + "label makes it unreadable, so give each field ONE role in Tools > Annotation Fields: "
+                             + "label makes it unreadable, so give each field ONE role in Tools > Metadata Fields: "
                              + "keep 'accession' and 'passage' in the label, render 'host', 'country' and 'clade' as "
                              + "color-strip columns and 'year' as a heat map -- and use the up/down buttons to set "
                              + "the order the label reads in. Note that 'accession' is offered for the LABEL even "
@@ -1371,7 +1510,7 @@ public final class DemoTreeGenerator {
                                           clade( 0.05, tips[ 4 ], tips[ 5 ], tips[ 6 ], tips[ 7 ] ) );
         return tree( root, "Symbol columns (demo)",
                      "Synthetic tree whose tips carry a binary 'resistant' flag (yes / no / untested) and a "
-                             + "categorical 'host'. Try Tools > Annotation Fields and pick the 'Symbol' render "
+                             + "categorical 'host'. Try Tools > Metadata Fields and pick the 'Symbol' render "
                              + "type: a present value draws a filled mark, an explicit 'no' a hollow mark, and an "
                              + "untested tip nothing -- a presence/absence (binary) mark column. A many-valued "
                              + "categorical field ('host') becomes distinct colored marks." );
@@ -1408,7 +1547,7 @@ public final class DemoTreeGenerator {
                                           clade( 0.05, tips[ 7 ], tips[ 8 ], tips[ 9 ] ) );
         return tree( root, "Stacked bar columns (demo)",
                      "Synthetic metagenomic-sample tree: each tip carries read counts for three bacterial phyla "
-                             + "('firmicutes', 'bacteroidetes', 'proteobacteria'). Try Tools > Annotation Fields, set "
+                             + "('firmicutes', 'bacteroidetes', 'proteobacteria'). Try Tools > Metadata Fields, set "
                              + "all three to 'Stacked bar' -- they merge into one segmented bar per tip (segment length "
                              + "= the read count, so the bar's total length shows sequencing depth AND its segments show "
                              + "composition). Tick 'Normalize stacked bars to 100%' for pure proportional composition." );
@@ -1898,7 +2037,7 @@ public final class DemoTreeGenerator {
         return tree( root, "Zebra stripes (demo)",
                 "Synthetic 16-tip tree with a categorical 'host' and numeric 'reads' per tip. Turn on Settings > "
                         + "Display > Zebra Stripes -- faint alternating row bands make it easy to track a tip label "
-                        + "across to its annotation columns (Tools > Annotation Fields)." );
+                        + "across to its metadata columns (Tools > Metadata Fields)." );
     }
 
     // ----- "Reverse Tip Order": an 8-tip ladder (caterpillar) tree with sequentially-numbered tips, so the tip order
@@ -2012,7 +2151,7 @@ public final class DemoTreeGenerator {
                 "Synthetic SARS-CoV-2-like tree whose tips carry the SAMPLING DATE in the label (mixed formats: ISO "
                         + "2020-02-20, ISO year-month 2020-01, bare year 2019, month-name 01-Dec-2021) but NO "
                         + "structured <date>. Run Tools > Extract Dates from Labels... to pull each date into a <date> "
-                        + "+ a Color-by-able data:date property; the tree then gets the Calendar axis." );
+                        + "+ a Color-by-able data:date metadata field; the tree then gets the Calendar axis." );
     }
 
     // ----- "Node Age Bars (HPD)": a dated (ultrametric) mammal phylogram, branch lengths = time (My). Each internal
@@ -2329,9 +2468,32 @@ public final class DemoTreeGenerator {
         return n;
     }
 
-    /** A protein domain with a strong (well below the default 1e-3 threshold) e-value so it is drawn. */
+    /**
+     * A protein domain with a strong (well below the default 1e-3 threshold) e-value so it is drawn, and its
+     * real Pfam accession, which is what makes the domain's rollover able to link out to its Pfam entry.
+     * <p>
+     * The accessions were read out of Pfam 38.0 rather than remembered. The DRAWN names are the colloquial
+     * ones a biologist says -- SH3, SAM, Ig -- while Pfam's own names for those entries are SH3_1, SAM_1 and
+     * ig; the accession is what identifies the entry, so the two need not match.
+     */
+    private static final java.util.Map<String, String> PFAM_ACCESSIONS = java.util.Map.of( "SH3",
+                                                                                           "PF00018",
+                                                                                           "SH2",
+                                                                                           "PF00017",
+                                                                                           "Pkinase",
+                                                                                           "PF00069",
+                                                                                           "PH",
+                                                                                           "PF00169",
+                                                                                           "SAM",
+                                                                                           "PF00536" );
+    // "Ig" deliberately has NO accession, which gives the demo both halves of the pair: five domains that
+    // link straight to their Pfam entry and one that can only be looked up by name. It is also the honest
+    // answer -- Pfam has both "ig" (PF00047) and "I-set" (PF07679), so "Ig" does not identify one entry.
+
     private static ProteinDomain dom( final String name, final int from, final int to ) {
-        return new ProteinDomain( name, from, to, 1e-6 );
+        final String acc = PFAM_ACCESSIONS.get( name );
+        return ( acc == null ) ? new ProteinDomain( name, from, to, 1e-6 )
+                               : new ProteinDomain( name, from, to, acc, 1e-6 );
     }
 
     // ----- "Heat map matrix": each tip carries a row of numeric values across six samples (s1..s6). Add s1..s6 as
@@ -2348,7 +2510,7 @@ public final class DemoTreeGenerator {
                        matrixLeaf( "gene_H", 0.21, 4, 2, 0, 6, 7, 8 ) ) );
         return tree( root, "Heat map matrix (demo)",
                      "Synthetic tree where each tip carries an abundance value across six samples (s1..s6). View as a "
-                             + "phylogram, then Tools > Annotation Fields and add s1..s6 as \"Heat map (matrix)\": "
+                             + "phylogram, then Tools > Metadata Fields and add s1..s6 as \"Heat map (matrix)\": "
                              + "they render on ONE shared color scale (a clustergram grid), best in a vertical "
                              + "orientation with Tip Labels Below Columns." );
     }
@@ -2376,6 +2538,72 @@ public final class DemoTreeGenerator {
         n.setName( name );
         n.setDistanceToParent( 0.02 );
         return n;
+    }
+
+    // ---- sequence logo (the conservation track drawn as stacked letters) --------------------------------------
+
+    /**
+     * A 12-row alignment designed so that every case the logo has to get right is visible at a glance, and so that
+     * the letter heights can be checked against the definition by counting rows in this table rather than by
+     * trusting the picture.
+     * <p>
+     * Written COLUMN BY COLUMN: each entry is one alignment column spelled out over the 12 rows, which is the only
+     * way to state exact frequencies. The rows are transposed out of it below.
+     */
+    private final static String[] LOGO_COLUMNS = {
+            "WWWWWWWWWWWW", // fully conserved: one letter filling the band
+            "KKKKKKKKKKKK",
+            "GGGGGGGGGGGG",
+            "YYYYYYYYYYYY",
+            "AAAAAAAAASSS", // 9:3 -- a tall letter over a short one
+            "LLLLLLIIIVVV", // 6:3:3 -- three letters, two of them tied (and so alphabetical)
+            "DDDDDDEEEEEE", // 6:6 -- an even split, drawn as two equal letters
+            "CCCCCCCCCCCC",
+            "PPPPPP------", // conserved but HALF GAPPED: full letter, half height. The occupancy rule, visible.
+            "------------", // all gap: nothing is known, so nothing is drawn (not a zero-height bar)
+            "QQQQQQQQQQQQ",
+            "FFFFFFFFYYYY", // 8:4
+            "ACDEFGHIKLMN", // twelve different residues: 17% of the band split twelve ways, so nothing is legible
+            "RSTVWYACDEFG",
+            "MMMMMMMMMMMM",
+            "EEEEEEEEEEEE" };
+
+    private static Phylogeny sequenceLogoTree() {
+        final String[] names = { "Homo_sapiens", "Pan_troglodytes", "Gorilla_gorilla", "Pongo_abelii",
+                                 "Macaca_mulatta", "Mus_musculus", "Rattus_norvegicus", "Oryctolagus_cuniculus",
+                                 "Bos_taurus", "Canis_lupus", "Gallus_gallus", "Danio_rerio" };
+        final PhylogenyNode[] tips = new PhylogenyNode[ names.length ];
+        for( int row = 0; row < names.length; ++row ) {
+            final StringBuilder seq = new StringBuilder();
+            for( final String column : LOGO_COLUMNS ) {
+                seq.append( column.charAt( row ) );
+            }
+            tips[ row ] = alignedLeaf( names[ row ], 0.03 + ( row * 0.01 ), seq.toString() );
+        }
+        final PhylogenyNode root = clade( 0.0,
+                clade( 0.04,
+                        clade( 0.03, clade( 0.02, tips[ 0 ], tips[ 1 ] ), clade( 0.02, tips[ 2 ], tips[ 3 ] ) ),
+                        clade( 0.03, tips[ 4 ], clade( 0.02, tips[ 5 ], tips[ 6 ] ) ) ),
+                clade( 0.05,
+                        clade( 0.03, tips[ 7 ], clade( 0.02, tips[ 8 ], tips[ 9 ] ) ),
+                        clade( 0.06, tips[ 10 ], tips[ 11 ] ) ) );
+        return tree( root, "Sequence logo",
+                     "The conservation track drawn as a SEQUENCE LOGO: one stack of letters per alignment column, "
+                             + "each letter's height its share of that column's information content, the most "
+                             + "frequent residue on top. Choose it under Settings > Overlays > Conservation measure "
+                             + "(\"Sequence logo\"), beside the two bar measures. Reading left to right, this "
+                             + "12-row alignment shows what the heights mean: four fully conserved columns fill the "
+                             + "band with a single letter; a 9:3 column draws a tall letter over a short one; a "
+                             + "6:3:3 column draws three, the tied pair alphabetical so that two viewers stack it "
+                             + "alike; a 6:6 column draws two of equal height. Column 9 is the one worth pausing "
+                             + "on -- every residue present is a P, yet half the rows are gaps, so it is drawn at "
+                             + "FULL conservation and HALF height: gaps scale the stack rather than joining it. "
+                             + "Column 10 is all gaps and draws nothing at all, because nothing is known about it. "
+                             + "Columns 13 and 14 hold twelve different residues each: against a 20-letter alphabet "
+                             + "that still leaves 17% of the band, but spread over twelve letters none of them is "
+                             + "legible -- which is what \"no consensus here\" should look like. Like the "
+                             + "bars, the logo is computed over the tips CURRENTLY ON SCREEN: collapse a clade or "
+                             + "enter a subtree and it re-scores for what is actually being looked at." );
     }
 
     // ---- sequence alignment (embedded aligned mol_seqs; shown with Settings -> Overlays -> Sequence Alignment) ------
@@ -2406,6 +2634,170 @@ public final class DemoTreeGenerator {
         phy.setRooted( true );
         phy.externalNodesHaveChanged();
         return phy;
+    }
+
+    /**
+     * "Tree share": every track at once on ONE tree -- long tip labels, a domain architecture and an aligned
+     * sequence on each tip, plus a Color-by legend. Each of those reserves width, and before the width budget
+     * they reserved it independently, each capped against the WHOLE panel: the caps summed past 100% and the
+     * tree -- which was simply whatever was left -- got a NEGATIVE width and drew as a single vertical line.
+     */
+    private static Phylogeny crowdedTracksTree() {
+        final String base = "MKQLEDPFGH-WYVASTMKQIEDPFGYWYVAST"; // 33 columns, one aligned gap
+        final String[] names = { "Homo_sapiens_SRC_kinase_isoform_X1_preproprotein",
+                                 "Pan_troglodytes_SRC_kinase_isoform_X1_preproprotein",
+                                 "Mus_musculus_Src_kinase_isoform_X2_preproprotein",
+                                 "Gallus_gallus_SRC_kinase_predicted_preproprotein",
+                                 "Xenopus_tropicalis_src_kinase_transcript_variant_2",
+                                 "Danio_rerio_src_kinase_isoform_X1_partial_cds",
+                                 "Branchiostoma_floridae_ABL_kinase_predicted_protein",
+                                 "Nematostella_vectensis_ABL_kinase_partial_preproprotein" };
+        final String[] families = { "SRC", "SRC", "SRC", "SRC", "SRC", "SRC", "ABL", "ABL" };
+        final PhylogenyNode[] tips = new PhylogenyNode[ names.length ];
+        for( int i = 0; i < names.length; ++i ) {
+            // Domains from the verified PFAM_ACCESSIONS table -- a demo must not carry an accession nobody looked
+            // up -- plus "Ig", which deliberately has none, so this tree shows both rollover routes as the
+            // domain demo does (and a fourth domain makes the track a real competitor for the width).
+            final PhylogenyNode n = domainLeaf( names[ i ], 0.05 + ( i * 0.02 ), 520,
+                                                dom( "SH3", 15, 70 ), dom( "SH2", 85, 175 ),
+                                                dom( "Pkinase", 195, 410 ), dom( "Ig", 425, 505 ) );
+            final Sequence s = n.getNodeData().getSequence();
+            s.setMolecularSequence( sub( base, i % base.length(), "ACDEFGHIK".charAt( i % 9 ) ) );
+            s.setMolecularSequenceAligned( true );
+            cat( n, "demo:family", families[ i ] );
+            tips[ i ] = n;
+        }
+        final PhylogenyNode root = clade( 0,
+                clade( 0.06, clade( 0.04, tips[ 0 ], tips[ 1 ] ), clade( 0.05, tips[ 2 ], tips[ 3 ] ) ),
+                clade( 0.07, clade( 0.05, tips[ 4 ], tips[ 5 ] ), clade( 0.06, tips[ 6 ], tips[ 7 ] ) ) );
+        return tree( root, "Crowded tracks (Tree share)",
+                     "Every width-hungry track at once: long tip labels, a domain architecture per tip, an aligned "
+                             + "sequence and a Color-by legend. The tree is allocated its share of the width FIRST "
+                             + "and the tracks divide what is left, so it stays a tree instead of being squeezed to "
+                             + "the line it used to collapse to. Drag the CONTROL PANEL's \"Tree share\" slider "
+                             + "(under Node size) to re-divide it: the alignment is the elastic track and gives way "
+                             + "first, while the labels, the clade bands and the legend column are never shaved -- "
+                             + "half a legend still covers what it was meant to stand clear of. Switch OFF "
+                             + "\"Shorten Labels\" to see the labels compete at full length -- it is on by "
+                             + "default, so they open abbreviated. The domain zoom (d- / d+) trades against the "
+                             + "alignment through the same budget. Works in every "
+                             + "display type: the rectangular layouts divide the depth WIDTH, the circular one the "
+                             + "tip-ring RADIUS, the unrooted one its fan spread." );
+    }
+
+    // Unequal, but never shorter than two thirds of the longest: a number rides its spoke's MIDPOINT, so every tip
+    // -- and the label beside it -- then sits farther out than any neighbour's number, and the demo shows the
+    // branch rule alone rather than a number over a tip label (measured with 0.25..0.6: 58 px of number ink on a
+    // neighbouring short spoke's label).
+    private static final double[] LENGTHS = { 0.4, 0.6, 0.45, 0.55, 0.5, 0.42, 0.58 };
+
+    /**
+     * The pair for "a tip label never lies across another" (the radial layouts): a radiation of NAMED lineages. A
+     * dozen of equal length have room along their spokes in both radial layouts. Ninety-six of alternating short
+     * and long length crowd in UNROOTED, where a label sits at its own tip: the short tips are a third of the way
+     * out, where neighbouring spokes are closer than a label is tall, so those labels can only be drawn across a
+     * neighbour's and "Auto-hide Labels" drops them, keeping the long tips' at the rim. In CIRCULAR every label
+     * rides the outer ring at even spacing, so at that window the same tree crowds nowhere there -- which is
+     * itself the point of the ring; a ring tighter than a name is tall (measured: a 450 x 450 export) crowds too,
+     * and the same rule thins it. The two files differ in nothing but the count and the lengths.
+     */
+    private static Phylogeny radialLabelsTree( final int tips, final boolean fits ) {
+        final PhylogenyNode root = new PhylogenyNode();
+        for( int i = 0; i < tips; ++i ) {
+            root.addAsChild( blLeaf( "lineage_" + ( i + 1 ), fits ? 0.5 : ( ( ( i % 2 ) == 0 ) ? 0.2 : 0.6 ) ) );
+        }
+        final String shape = tips + " named lineages radiating from one node. Switch to the UNROOTED layout: ";
+        return tree( root, fits ? "Radial tip labels: room for every one (" + tips + " lineages)"
+                                : "Radial tip labels: crowded (" + tips + " lineages)",
+                     fits ? shape + "every name rides its own spoke and none of the " + tips + " is hidden. Compare "
+                             + "radial-labels-crowded.xml, eight times the lineages at two lengths."
+                          : shape + "the short lineages end a third of the way out, where neighbouring spokes are "
+                             + "closer together than a name is tall, so their names could only be drawn ACROSS a "
+                             + "neighbour's. \"Auto-hide Labels\" (on by default) draws a name only where no name "
+                             + "already drawn is in its way, first come, so the long lineages' names at the rim stay "
+                             + "and the crowded ones are dropped (at a 1100x850 window 72 of the 96 names are drawn and 24 hidden); switch it off to see them all, "
+                             + "printed through each other, or zoom in (Y+) and watch them return as the fan opens. "
+                             + "In the CIRCULAR layout every name rides the outer ring at even spacing, so at that "
+                             + "window this same tree crowds nowhere there; shrink the window until the ring is tighter "
+                             + "than a name is tall and the same rule thins the ring too. Compare radial-labels-fit.xml." );
+    }
+
+    /**
+     * The pair for "a branch number never lies across a branch that is not its own" (the radial layouts): an
+     * explosive radiation -- one node, {@code tips} branches of unequal length -- which in the UNROOTED layout is a
+     * fan of spokes a few degrees apart. With ten spokes every branch-length number has room; with three times
+     * as many, the spokes are closer at a short spoke's midpoint than the number is tall, so those numbers could
+     * only be placed across a neighbour's spoke and "Auto-hide Labels" drops them, while the long spokes carry
+     * their numbers farther out, where the fan has opened up, and keep them. The lengths are UNEQUAL for exactly
+     * that reason: a star of equal spokes tips from every number fitting to none fitting all at once (measured: 72
+     * equal spokes at a 900x600 window, 72 refused), and a demo of a rule that keeps some and drops some has to
+     * show both. The two files differ in nothing but the count.
+     */
+    private static Phylogeny radialNumbersTree( final int tips, final boolean fits ) {
+        final PhylogenyNode root = new PhylogenyNode();
+        for( int i = 0; i < tips; ++i ) {
+            // seven lengths, cycling: neighbouring spokes carry their numbers at different radii
+            root.addAsChild( blLeaf( "radiation_tip_" + ( i + 1 ), LENGTHS[ i % LENGTHS.length ] ) );
+        }
+        final String shape = tips + " lineages radiating from one node -- a hard polytomy, the shape of an "
+                + "explosive radiation. Switch to the UNROOTED layout and turn on \"Branch Lengths\": ";
+        return tree( root, fits ? "Radial branch numbers: room for every one (" + tips + " spokes)"
+                                : "Radial branch numbers: crowded (" + tips + " spokes)",
+                     fits ? shape + "every number sits beside its own spoke and none of the " + tips + " is dropped, "
+                             + "because with this few spokes no number reaches a neighbour's. Compare "
+                             + "radial-numbers-crowded.xml, the same radiation with three times the lineages."
+                          : shape + "at a SHORT spoke's midpoint the neighbouring spokes are closer together than "
+                             + "the number is tall, so that number could only be drawn ACROSS a neighbour's spoke -- "
+                             + "where it would read as that branch's length. \"Auto-hide Labels\" (on by default) "
+                             + "drops exactly those and keeps the rest, which ride the LONG spokes farther out where "
+                             + "the fan has opened up (at a 900x600 window 16 of the 32 are drawn, 12 dropped for a spoke and 4 more for another number); switch it off to see every number drawn and the "
+                             + "crossings it was hiding, or zoom in (Y+) and watch them return as the spokes "
+                             + "spread apart. A branch is an obstacle to a number just as another number is, and "
+                             + "nothing is hidden unless a line really runs through the ink. Compare "
+                             + "radial-numbers-fit.xml, the same radiation with ten lineages." );
+    }
+
+    /**
+     * "Auto-hide crowded data": a NEST of near-zero-length internal branches, each carrying a bootstrap value --
+     * a polytomy resolved arbitrarily, which is what real consensus trees look like. Their support numbers are
+     * drawn centred on their branches, so on a branch a fraction of a pixel wide every one of them lands on top
+     * of its neighbours. Contrast the two well-separated clades at the bottom, whose numbers have room.
+     */
+    private static Phylogeny zeroLengthNestTree() {
+        PhylogenyNode cursor = clade( 0.02, conf( blLeaf( "outgroup", 0.45 ), 100 ) );
+        final PhylogenyNode root = cursor;
+        // 60 deep, NOT a dozen: the numbers only actually collide once the rows are closer than a line of text,
+        // and at a normal window a 17-tip tree leaves them ~35 px apart -- a demo of crowding that does not crowd.
+        // MEASURED on the generated file at 900x600: 0 of 16 numbers suppressed at the original 17 tips; here
+        // 30 of 41 numbers and 24 of 61 symbols, all of them back when "Auto-hide Labels" is switched off.
+        for( int i = 0; i < 60; ++i ) {
+            final PhylogenyNode inner = clade( 0.0004,
+                                               conf( blLeaf( "nested_tip_" + ( i + 1 ), 0.40 ), 41 + ( i % 55 ) ) );
+            conf( inner, 30 + ( i % 68 ) );
+            cursor.addAsChild( inner );
+            cursor = inner;
+        }
+        // ...and a pair of ordinary, well-separated branches: their numbers are never in anyone's way, so they
+        // stay drawn however crowded the nest above is -- and so does the ZERO-length branch below them, because
+        // nothing is beside it. Zero is a value, not an absence.
+        cursor.addAsChild( conf( blLeaf( "roomy_tip_a", 0.35 ), 97 ) );
+        cursor.addAsChild( conf( clade( 0.0, blLeaf( "zero_branch_tip_a", 0.30 ),
+                                        blLeaf( "zero_branch_tip_b", 0.30 ) ), 88 ) );
+        return tree( root, "Auto-hide crowded data (zero-length nest)",
+                     "Fourteen internal branches of essentially no length, each carrying a bootstrap value -- an "
+                             + "arbitrarily resolved polytomy, the shape real consensus trees have. A support "
+                             + "number is drawn CENTRED on its branch, so here each one reaches far past both ends "
+                             + "and lands on its neighbours. With \"Auto-hide Labels\" on (the default) a number "
+                             + "is drawn only where nothing already drawn is in its way, and the support SYMBOLS "
+                             + "are thinned the same way -- never shrunk, because in the size-scaled mode a "
+                             + "symbol's diameter IS its value. Switch the checkbox off to draw every number and "
+                             + "see what it is hiding (30 of 41 numbers and 24 of 61 symbols are dropped at a "
+                             + "900x600 window), or zoom in (Y+) and watch them come back as room appears -- "
+                             + "nothing is hidden except where something already drawn is in the way. The branch "
+                             + "of length EXACTLY zero near the bottom is the reason the rule asks about overlap "
+                             + "rather than about branch length: give it room (zoom in, or switch auto-hide off) "
+                             + "and its number is drawn like any other, because a missing number would claim "
+                             + "there is no value where one was measured." );
     }
 
     private static PhylogenyNode alignedLeaf( final String name, final double branch_length, final String aligned_seq ) {

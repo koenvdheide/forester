@@ -171,19 +171,19 @@ public abstract class MainFrame extends javax.swing.JPanel implements ActionList
     static final String DISPLAY_SCALE_LABEL = "Scale";
     static final String SHOW_TREE_NAME_LABEL = "Tree Name";
     static final String DISPLAY_SCALE_GRID_LABEL = "Scale Grid Lines";
-    static final String DISPLAY_SCALE_GRID_TIP = "Draw faint vertical reference lines at scale intervals across the tree (phylograms only), so branch depths are easy to compare.";
+    static final String DISPLAY_SCALE_GRID_TIP = "Draw faint reference lines at scale intervals across the tree (rings in the circular layout; phylograms only), so branch depths are easy to compare.";
     static final String GEOLOGIC_GRID_LABEL = "Time-Axis Grid Lines";
     static final String GEOLOGIC_GRID_TIP = "When a Time Axis is on, draw faint reference lines across the tree at its tick positions (the geologic band boundaries, or the calendar year ticks).";
     static final String GEOLOGIC_AGES_LABEL = "Geologic Boundary Ages";
     static final String GEOLOGIC_AGES_TIP = "When the Geologic time axis is on, label the coarser band's interval boundaries with their age (e.g. \"201.4 Ma\" at the base of the Jurassic).";
     static final String DISPLAY_SCALE_AXIS_LABEL = "Scale Axis";
-    static final String DISPLAY_SCALE_AXIS_TIP = "Draw a labeled distance axis with tick marks along the bottom (phylograms only), so branch lengths can be read off directly.";
+    static final String DISPLAY_SCALE_AXIS_TIP = "Draw a labeled distance axis with tick marks (along the bottom, down the side when the root is at the top or bottom, and in the circular layout out from the root in the gap between the last tip and the first; phylograms only), so branch lengths can be read off directly.";
     static final String DISPLAY_HPD_BARS_LABEL = "Node Age Bars (HPD)";
     static final String DISPLAY_HPD_BARS_TIP = "On a dated (time-scaled) phylogram, draw a bar at each internal node spanning its age uncertainty (the node's phyloXML date min/max).";
     static final String DISPLAY_FOSSIL_RANGE_BARS_LABEL = "Fossil Range Bars (FAD/LAD)";
     static final String DISPLAY_FOSSIL_RANGE_BARS_TIP = "On a dated (time-scaled) phylogram, draw a stratigraphic-range bar at each fossil tip spanning its first-to-last appearance (the tip's phyloXML date min/max).";
     static final String DISPLAY_ZEBRA_STRIPES_LABEL = "Zebra Stripes";
-    static final String DISPLAY_ZEBRA_STRIPES_TIP = "Shade every other tip row with a faint band, so a label is easy to track across a wide tree to its annotation columns.";
+    static final String DISPLAY_ZEBRA_STRIPES_TIP = "Shade every other tip row with a faint band, so a label is easy to track across a wide tree to its metadata columns.";
     static final String DISPLAY_BREAK_LONG_BRANCHES_LABEL = "Break Long Branches";
     static final String DISPLAY_BREAK_LONG_BRANCHES_TIP = "On a phylogram, draw an outlier-long branch (e.g. a distant outgroup) shortened with a break mark and give the rest of the tree the freed width. The true branch length is unchanged (still shown as its label).";
     static final String DISPLAY_INTERNAL_TAXONOMY_KEY_LABEL = "Internal Taxonomy Key";
@@ -191,7 +191,7 @@ public abstract class MainFrame extends javax.swing.JPanel implements ActionList
     static final String DISPLAY_REVERSE_TIP_ORDER_LABEL = "Reverse Tip Order";
     static final String DISPLAY_REVERSE_TIP_ORDER_TIP = "Reverse the order of the tips (mirror the tree across the tip axis). In a root-top/bottom orientation the tips run sideways, so this flips them left-to-right. Rectangular layouts only.";
     static final String DISPLAY_TIP_LABELS_BELOW_COLUMNS_LABEL = "Tip Labels Below Columns";
-    static final String DISPLAY_TIP_LABELS_BELOW_COLUMNS_TIP = "Clustergram layout: in a root-top/bottom orientation with annotation columns, draw the tip labels BELOW the columns (so the dendrogram sits directly on the tip-aligned grid) instead of between the tree and the columns.";
+    static final String DISPLAY_TIP_LABELS_BELOW_COLUMNS_TIP = "Clustergram layout: in a root-top/bottom orientation with metadata columns, draw the tip labels BELOW the columns (so the dendrogram sits directly on the tip-aligned grid) instead of between the tree and the columns.";
     static final String DISPLAY_LEGEND_COLUMN_LABEL = "Legend in Its Own Column";
     static final String DISPLAY_LEGEND_COLUMN_TIP = "Reserve a column at the right for the legend instead of letting it float over the tree -- its default corner, the top right, is where a root-left tree puts its top tips and its annotation-column headers. The window then shows what a rendered figure (and Save/Export as PDF) shows. Drag a legend anywhere and it gives the column back. Rectangular root-left only; never at the cost of more than 40% of the width.";
     static final String DISPLAY_BOLD_FOUND_LABELS_LABEL = "Bold Found Labels";
@@ -377,6 +377,7 @@ public abstract class MainFrame extends javax.swing.JPanel implements ActionList
     // help menu:
     JMenuItem _about_item;
     JMenuItem _keyboard_shortcuts_item;
+    JMenuItem _cheat_sheet_item;
     JMenuItem _help_item;
     JMenuItem _website_item;
     JMenuItem _aptxjs_website_item;
@@ -603,9 +604,9 @@ public abstract class MainFrame extends javax.swing.JPanel implements ActionList
             updateOptions(getOptions());
             // the scale axis reserves a tip-spread band (a side ruler in a vertical orientation, a bottom band in a
             // horizontal one); toggling it must re-fit so the reserve is applied/reclaimed and the axis clears the
-            // tips -- but ONLY where the axis is actually drawn (a rectangular-family phylogram with a scale). For a
-            // cladogram or the radial circular/unrooted layouts the toggle is inert, so leave the view (and any radial
-            // zoom) untouched. showWhole re-fits to the viewport in BOTH orientations -- no preferred-size feedback,
+            // tips -- but ONLY where the axis takes a band (a rectangular-family phylogram with a scale). A cladogram
+            // and unrooted draw none, and circular draws its ruler in the seam, reserving nothing, so leave the view
+            // (and any radial zoom) untouched there. showWhole re-fits to the viewport in BOTH orientations -- no preferred-size feedback,
             // so no depth-zoom drift (a plain fitWidth/fitHeight feeds the extent back and creeps the zoom by MOVE).
             final TreePanel tp = getCurrentTreePanel();
             if ((tp != null) && tp.scaleAxisAppliesToLayout()) {
@@ -680,6 +681,8 @@ public abstract class MainFrame extends javax.swing.JPanel implements ActionList
             about();
         } else if (o == _keyboard_shortcuts_item) {
             KeyboardShortcuts.show(this);
+        } else if (o == _cheat_sheet_item) {
+            ControlPanelCheatSheet.show(this);
         } else if (o == _references_item) {
             showReferences();
         } else if (o == _help_item) {
@@ -1295,6 +1298,7 @@ public abstract class MainFrame extends javax.swing.JPanel implements ActionList
         _help_jmenu.add(_references_item = new JMenuItem("References"));
         _help_jmenu.addSeparator();
         _help_jmenu.add(_keyboard_shortcuts_item = new JMenuItem("Keyboard Shortcuts"));
+        _help_jmenu.add(_cheat_sheet_item = new JMenuItem("Control Panel Cheat Sheet"));
         _help_jmenu.addSeparator();
         if (!_embedded) {
             _help_jmenu.add(_error_log_item = new JMenuItem("Show Error Log"));
@@ -1310,6 +1314,10 @@ public abstract class MainFrame extends javax.swing.JPanel implements ActionList
         customizeJMenuItem(_aptxjs_website_item);
         customizeJMenuItem(_references_item);
         customizeJMenuItem(_keyboard_shortcuts_item);
+        customizeJMenuItem(_cheat_sheet_item);
+        _cheat_sheet_item.setToolTipText("Every control panel button and checkbox, with the icon it draws and "
+                + "what it does -- read off the live panel, so it always matches what is on screen. Saveable as "
+                + "a PNG to print or pin up.");
         customizeJMenuItem(_about_item);
         _keyboard_shortcuts_item.setToolTipText("List the keyboard shortcuts for navigating and viewing trees");
         _references_item.setToolTipText("Main literature citations for the algorithms implemented in Archaeopteryx");
@@ -1364,7 +1372,7 @@ public abstract class MainFrame extends javax.swing.JPanel implements ActionList
         _clustergram_item.setToolTipText("<html>One click: turn the tree into a clustergram — the dendrogram on the "
                 + "left with its tips aligned, and the numeric per-tip fields as shared-scale heat-map columns beside it "
                 + "(categorical fields as color strips), ordered by View → Order Matrix Columns.<br><i>Import "
-                + "Annotations (CSV/TSV) first if the tree has no per-tip data yet.</i></html>");
+                + "Metadata (CSV/TSV) first if the tree has no per-tip data yet.</i></html>");
         final JMenu order_menu = createMenu("Order Matrix Columns", getConfiguration());
         if (!_embedded) {
             order_menu.setFont(MainFrame.menu_font);
@@ -1661,7 +1669,7 @@ public abstract class MainFrame extends javax.swing.JPanel implements ActionList
     }
 
     /**
-     * Opens the "Annotation Fields" chooser: for every annotation field of the current tree, pick its ONE display
+     * Opens the "Metadata Fields" chooser: for every metadata field of the current tree, pick its ONE display
      * role -- a tip-aligned column (color strip / symbol / heat map / bar / stacked bar / pie / text) or the node's
      * own label -- plus the order the fields appear in, then applies the result to the current tree.
      * <p>
@@ -1684,9 +1692,9 @@ public abstract class MainFrame extends javax.swing.JPanel implements ActionList
         final List<String> all_refs = TreePanelUtil.userVisiblePropertyRefs(phy);
         if (all_refs.isEmpty()) {
             JOptionPane.showMessageDialog(this,
-                    "This tree has no annotation fields.\n"
-                            + "Import a table (File → Import Annotations) or load a tree with node properties first.",
-                    "No Annotation Fields", JOptionPane.INFORMATION_MESSAGE);
+                    "This tree has no metadata fields.\n"
+                            + "Import a table (File → Import Metadata) or load a tree with metadata first.",
+                    "No Metadata Fields", JOptionPane.INFORMATION_MESSAGE);
             return;
         }
         final List<String> colorable = PropertyColorScheme.colorableRefs(phy);
@@ -1839,7 +1847,7 @@ public abstract class MainFrame extends javax.swing.JPanel implements ActionList
         final JPanel content = new JPanel(new java.awt.BorderLayout(0, 6));
         content.add(sp, java.awt.BorderLayout.CENTER);
         content.add(normalize_cb, java.awt.BorderLayout.SOUTH);
-        if (JOptionPane.showConfirmDialog(this, content, "Annotation Fields", JOptionPane.OK_CANCEL_OPTION,
+        if (JOptionPane.showConfirmDialog(this, content, "Metadata Fields", JOptionPane.OK_CANCEL_OPTION,
                 JOptionPane.PLAIN_MESSAGE) != JOptionPane.OK_OPTION) {
             return;
         }
@@ -3232,6 +3240,10 @@ public abstract class MainFrame extends javax.swing.JPanel implements ActionList
     }
 
 
+    private static boolean isRadialType(final PHYLOGENY_GRAPHICS_TYPE t) {
+        return (t == PHYLOGENY_GRAPHICS_TYPE.CIRCULAR) || (t == PHYLOGENY_GRAPHICS_TYPE.UNROOTED);
+    }
+
     void typeChanged(final Object o) {
         updateTypeCheckboxes(getOptions(), o);
         updateOptions(getOptions());
@@ -3244,17 +3256,16 @@ public abstract class MainFrame extends javax.swing.JPanel implements ActionList
             // back to P, e.g. for a near-clock tree). Gated on a real transition (previous_type != TRIANGULAR) so
             // re-selecting the already-current Triangular style does NOT re-clobber a deliberate P choice; only when the
             // tree has branch lengths and is currently a phylogram. The nudge does its own re-fit below, so the
-            // radial-exit re-fit is skipped when it fires (that fit would be on the stale pre-cladogram layout).
+            // general re-fit is skipped when it fires (that fit would be on the stale pre-cladogram layout).
             final boolean nudge_to_cladogram = (previous_type != PHYLOGENY_GRAPHICS_TYPE.TRIANGULAR)
                     && (new_type == PHYLOGENY_GRAPHICS_TYPE.TRIANGULAR) && getCurrentTreePanel().isPhyHasBranchLengths()
                     && getCurrentTreePanel().getControlPanel().isDrawPhylogram();
-            if (!nudge_to_cladogram
-                    && (((previous_type == PHYLOGENY_GRAPHICS_TYPE.UNROOTED) && (new_type != PHYLOGENY_GRAPHICS_TYPE.UNROOTED))
-                            || ((previous_type == PHYLOGENY_GRAPHICS_TYPE.CIRCULAR) && (new_type != PHYLOGENY_GRAPHICS_TYPE.CIRCULAR))
-                            || ((previous_type != PHYLOGENY_GRAPHICS_TYPE.UNROOTED) && (new_type == PHYLOGENY_GRAPHICS_TYPE.UNROOTED))
-                            || ((previous_type != PHYLOGENY_GRAPHICS_TYPE.CIRCULAR) && (new_type == PHYLOGENY_GRAPHICS_TYPE.CIRCULAR)))) {
-                getCurrentTreePanel().getControlPanel().showWhole();
-            }
+            // Any transition INTO or OUT OF a radial layout is re-fitted below, AFTER the panel has its new type. A
+            // fit taken before the type changed (as this did until 2026-09-27) is a fit of the OLD layout: leaving
+            // circular for rectangular, the label reach it computed was circular's -- where the domain track is
+            // sized from the radius -- so rectangular opened with the domain column 110 px inside the names
+            // (Christian: "labels and domains overlapping"; measured 137 px of reach against the 247 a fit gives).
+            final boolean radial_involved = isRadialType(previous_type) || isRadialType(new_type);
             // The phylogram/cladogram (P/A/C) radios apply in EVERY layout that can honor branch lengths -- since
             // 0.11.7 the CIRCULAR layout renders a real phylogram (isCircularPhylogram) and UNROOTED always has, so the
             // radios are enabled purely on branch-length presence (the old "&& new_type != CIRCULAR" force-disable was a
@@ -3275,23 +3286,21 @@ public abstract class MainFrame extends javax.swing.JPanel implements ActionList
                 getCurrentTreePanel().getControlPanel().setTreeDisplayType(Options.PHYLOGENY_DISPLAY_TYPE.CLADOGRAM);
                 getCurrentTreePanel().getControlPanel().showWhole();
             }
-            if ((new_type == PHYLOGENY_GRAPHICS_TYPE.CIRCULAR) || (new_type == PHYLOGENY_GRAPHICS_TYPE.UNROOTED)) {
-                // the showWhole above ran while the panel was still the OLD (rectangular) type, so it laid out a
-                // non-square preferred size; now that the panel IS radial, re-fit its SQUARE canvas to the viewport
-                // (otherwise the first radial frame draws in the stale rectangular canvas -- off-centre until a re-fit).
+            if (radial_involved && !nudge_to_cladogram) {
+                // now that the panel IS its new type -- and its P/A state and label direction are settled -- fit it:
+                // a radial destination gets its SQUARE canvas fitted to the viewport (else the first radial frame draws
+                // in the stale rectangular canvas, off-centre until a re-fit), and a rectangular destination gets its
+                // label reach and x-distance recomputed for a column layout (else the domain track lands on the names)
                 getCurrentTreePanel().getControlPanel().showWhole();
             }
             // Relabel the zoom cluster for the new layout (rectangular <-> radial): the X-/X+ zoom buttons become
             // rotate controls, Y+/Y- become a plain +/- zoom, E greys out, and W becomes the label-direction flip.
             getCurrentTreePanel().getControlPanel().updateZoomButtonsForLayout();
             updateScreenTextAntialias(getMainPanel().getTreePanels());
-            if (getCurrentTreePanel().getControlPanel().getDynamicallyHideData() != null) {
-                if (new_type == PHYLOGENY_GRAPHICS_TYPE.UNROOTED) {
-                    getCurrentTreePanel().getControlPanel().getDynamicallyHideData().setEnabled(false);
-                } else {
-                    getCurrentTreePanel().getControlPanel().getDynamicallyHideData().setEnabled(true);
-                }
-            }
+            // "Auto-hide Labels" stays live in EVERY layout. It used to be greyed out for unrooted, from the years
+            // when that layout thinned nothing; the radial rule (a label or number is drawn only where nothing
+            // already drawn is in its way) now reads the same checkbox in all five layouts, so a greyed box would
+            // show the user a control that does something and tell them it does not (Christian, 2026-09-27).
             // Keep the control panel's five-way layout row lit on the right button, and re-seed an open Settings
             // dialog (its Rectangular-style dropdown greys out for the radial layouts). Done HERE rather than in
             // the buttons' own listeners so every path that changes the style -- a layout button, the Settings
@@ -3319,11 +3328,19 @@ public abstract class MainFrame extends javax.swing.JPanel implements ActionList
         }
         if (tp.isRadialLayout() && (tp.getControlPanel() != null) && tp.getControlPanel().isShowDomainArchitectures()
                 && (getOptions().getNodeLabelDirection() != NODE_LABEL_DIRECTION.RADIAL)) {
-            getOptions().setNodeLabelDirection(NODE_LABEL_DIRECTION.RADIAL);
-            if (_label_direction_cbmi != null) {
-                _label_direction_cbmi.setSelected(true);
-            }
+            setNodeLabelDirection(NODE_LABEL_DIRECTION.RADIAL);
             tp.repaint();
+        }
+    }
+
+    /** Sets the radial layouts' label direction the way the menu does: the option AND its checkbox together.
+     *  {@link #updateOptions} rewrites the option from the checkbox on every menu action, so an option set on its
+     *  own (as a figure's {@code labeldirection} once was) is undone by the next click anywhere in the menus, while
+     *  the checkbox goes on showing the direction the user did not get (a review find, 2026-09-27). */
+    void setNodeLabelDirection(final NODE_LABEL_DIRECTION direction) {
+        getOptions().setNodeLabelDirection(direction);
+        if (_label_direction_cbmi != null) {
+            _label_direction_cbmi.setSelected(direction == NODE_LABEL_DIRECTION.RADIAL);
         }
     }
 
@@ -3553,6 +3570,9 @@ public abstract class MainFrame extends javax.swing.JPanel implements ActionList
                 tp.setTreeOrientation(getOptions().getTreeOrientation()); // per-tab: back to the default layout
                 tp.setShowInternalDataForThisTab(true); // per-tab: both Display-Data toggles back on
                 tp.setShowExternalDataForThisTab(true);
+                // per-tab: the alignment goes back off (its shipped default). The shared checkbox follows via
+                // resyncFromOptions -> reseedDisplayDataFromCurrentTab below, which re-seeds it from this tab.
+                tp.setShowMsa(false);
                 tp.resetTimeAxisToAutoDerive(); // per-tab: drop any Time-Axis override -> back to auto-derive
                 tp.resetBranchLengthModeToDefault(); // per-tab: back to the TIME branch-length view (Auspice trees)
                 tp.clearAnnotationColumns(); // per-tab: drop any Tools>Annotation Fields selection (fresh install has none)
@@ -4006,8 +4026,8 @@ public abstract class MainFrame extends javax.swing.JPanel implements ActionList
         }
         final JFileChooser fc = new JFileChooser();
         fc.setMultiSelectionEnabled(false);
-        fc.setDialogTitle("Import Annotations (CSV/TSV)");
-        fc.setFileFilter(new FileNameExtensionFilter("Annotation tables (*.csv, *.tsv, *.txt)", "csv", "tsv", "txt"));
+        fc.setDialogTitle("Import Metadata (CSV/TSV)");
+        fc.setFileFilter(new FileNameExtensionFilter("Metadata tables (*.csv, *.tsv, *.txt)", "csv", "tsv", "txt"));
         if (getCurrentDir(DirectoryPreferences.Category.OPEN) != null) {
             fc.setCurrentDirectory(getCurrentDir(DirectoryPreferences.Category.OPEN));
         }
@@ -4042,7 +4062,7 @@ public abstract class MainFrame extends javax.swing.JPanel implements ActionList
         }
         final String url = JOptionPane.showInputDialog(this,
                 "Enter a CSV/TSV URL (e.g. a Google Sheet published to the web as CSV):",
-                "Import Annotations from URL", JOptionPane.PLAIN_MESSAGE);
+                "Import Metadata from URL", JOptionPane.PLAIN_MESSAGE);
         if (ForesterUtil.isEmpty(url)) {
             return;
         }
@@ -4108,7 +4128,7 @@ public abstract class MainFrame extends javax.swing.JPanel implements ActionList
         final NodeDataImporter.ImportProfile profile = (tp != null) ? tp.getLastImportProfile() : null;
         if (profile == null) {
             JOptionPane.showMessageDialog(this,
-                    "No annotation import to repeat for this tree.\nUse \"Import Annotations (CSV/TSV)…\" first.",
+                    "No metadata import to repeat for this tree.\nUse \"Import Metadata (CSV/TSV)…\" first.",
                     "Nothing to Re-import", JOptionPane.INFORMATION_MESSAGE);
             return;
         }
@@ -4133,7 +4153,7 @@ public abstract class MainFrame extends javax.swing.JPanel implements ActionList
             JOptionPane.showMessageDialog(this,
                     "Re-imported from " + name + ", but no rows matched a tip — the tree was not changed.\n\n"
                             + "Check the key column / match attribute against the edited source (use \"Import "
-                            + "Annotations (CSV/TSV)…\" to reconfigure).\n\n" + result.summary(),
+                            + "Metadata (CSV/TSV)…\" to reconfigure).\n\n" + result.summary(),
                     "Re-import: Nothing Matched", JOptionPane.WARNING_MESSAGE);
             return;
         }
@@ -4219,7 +4239,7 @@ public abstract class MainFrame extends javax.swing.JPanel implements ActionList
         final java.util.List<AnnotationColumns.ColumnSpec> specs = clustergramColumnSpecs(phy);
         if (specs.isEmpty()) {
             JOptionPane.showMessageDialog(this,
-                    "This tree has no per-tip data to put in the heat map.\n\nUse File → Import Annotations (CSV/TSV) "
+                    "This tree has no per-tip data to put in the heat map.\n\nUse File → Import Metadata (CSV/TSV) "
                             + "to add columns, then run Clustergram again.",
                     "Clustergram", JOptionPane.INFORMATION_MESSAGE);
             return;
@@ -4299,7 +4319,7 @@ public abstract class MainFrame extends javax.swing.JPanel implements ActionList
      * or {@code null} on cancel.
      */
     private ImportChoice showImportChoice(final Phylogeny phy, final String text) {
-        final javax.swing.JDialog dialog = new javax.swing.JDialog(SwingUtilities.getWindowAncestor(this), "Import Annotations", java.awt.Dialog.ModalityType.APPLICATION_MODAL);
+        final javax.swing.JDialog dialog = new javax.swing.JDialog(SwingUtilities.getWindowAncestor(this), "Import Metadata", java.awt.Dialog.ModalityType.APPLICATION_MODAL);
         dialog.setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE); // 'X' disposes (not just hides)
         final ImportChoice[] result = { null };
         final NodeDataImporter.Table[] cur_table = { null };
@@ -4401,7 +4421,7 @@ public abstract class MainFrame extends javax.swing.JPanel implements ActionList
             addLeft(body, new JLabel("Preview (first " + rows_shown + " of " + table.getRowCount() + " rows):"));
             addLeft(body, preview_scroll);
             addLeft(body, controls);
-            addLeft(body, new JLabel("Columns to import (uncheck to skip; edit a name to rename its property):"));
+            addLeft(body, new JLabel("Columns to import (uncheck to skip; edit a name to rename its metadata field):"));
             addLeft(body, map_scroll);
             addLeft(body, summary);
             content.add(body, java.awt.BorderLayout.CENTER);
@@ -4485,7 +4505,7 @@ public abstract class MainFrame extends javax.swing.JPanel implements ActionList
         final int total_tips = phy.getNumberOfExternalNodes();
         final NodeDataImporter.ImportResult result = NodeDataImporter.apply(phy, table, key_col, match_by, plan);
         if ((result.getTipsAnnotated() > 0) && (tp != null)) {
-            tp.pushUndoSnapshot(before, was_edited, "Import Annotations"); // now we know it changed the tree
+            tp.pushUndoSnapshot(before, was_edited, "Import Metadata"); // now we know it changed the tree
             final String prov = importProvenance(result.getPropertyColumns(), result.getTipsAnnotated(), total_tips,
                     source_name, match_by);
             final String existing = phy.getDescription();
@@ -4508,7 +4528,7 @@ public abstract class MainFrame extends javax.swing.JPanel implements ActionList
     static String importProvenance(final List<String> property_columns, final int tips_annotated,
             final int total_tips, final String source_name, final NodeDataImporter.MatchBy match_by) {
         final StringBuilder sb = new StringBuilder();
-        sb.append("Imported annotations from table \"").append(source_name).append("\" onto ").append(tips_annotated)
+        sb.append("Imported metadata from table \"").append(source_name).append("\" onto ").append(tips_annotated)
           .append(" of ").append(total_tips).append(total_tips == 1 ? " tip" : " tips").append(" (matched by ")
           .append(match_by.toString().toLowerCase()).append(").");
         if (!property_columns.isEmpty()) {
@@ -4590,7 +4610,11 @@ public abstract class MainFrame extends javax.swing.JPanel implements ActionList
             phy.setDescription(ForesterUtil.isEmpty(existing) ? prov : existing + " " + prov);
             tp.setTree(phy); // recompute the layout so the alignment track shows
             tp.getControlPanel().rebuildSearchFields(true); // the molecular sequence becomes searchable
-            tp.getOptions().setShowMsa(true); // show the alignment at once
+            // The tips carry an alignment only NOW, so the "Sequence Alignment" checkbox has to become available:
+            // force the rescan, because the presence scan is cached by tree IDENTITY and the import mutated this
+            // same tree in place (a cache keyed on the shape of its input is stale when the VALUES change).
+            tp.getControlPanel().updateDataCheckboxVisibility(true);
+            tp.getControlPanel().setCheckbox(DisplayOption.SHOW_MSA, true); // show the alignment at once
             showWhole();
             tp.setEdited(true);
         }
@@ -4649,7 +4673,7 @@ public abstract class MainFrame extends javax.swing.JPanel implements ActionList
         else {
             JOptionPane.showMessageDialog(this,
                     "Imported GTDB taxonomy onto " + annotated + " of " + phy.getNumberOfExternalNodes()
-                            + " tips.\nColor by (or add an Annotation Column for) gtdb:phylum / gtdb:family / gtdb:genus …",
+                            + " tips.\nColor by (or add a Metadata Column for) gtdb:phylum / gtdb:family / gtdb:genus …",
                     "Import GTDB Taxonomy", JOptionPane.INFORMATION_MESSAGE);
         }
     }

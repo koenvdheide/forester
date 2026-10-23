@@ -35,6 +35,7 @@ import java.util.function.Consumer;
 import javax.swing.JPanel;
 import javax.swing.JScrollBar;
 import javax.swing.JScrollPane;
+import com.formdev.flatlaf.FlatClientProperties;
 import javax.swing.JTabbedPane;
 import javax.swing.JViewport;
 import javax.swing.SwingConstants;
@@ -115,12 +116,12 @@ public class MainPanel extends JPanel implements ComponentListener {
                                      final String full_path) {
         final TreePanel treepanel = new TreePanel(phy, config, this);
         // if this tree was saved after an annotation import, restore the remembered profile so File -> Re-import works
-        // across a save/reload (the profile rides along as a property on the root node)
+        // across a save/reload (the profile rides along as a property on the <phylogeny>)
         treepanel.setLastImportProfile(org.forester.archaeopteryx.tools.NodeDataImporter.readProfileFromTree(phy));
-        // restore a saved per-tree Time-Axis config (aptx:time_axis on the root); a saved config wins over the
+        // restore a saved per-tree Time-Axis config (aptx:time_axis on the <phylogeny>); a saved config wins over the
         // auto-derived default, and null (no/unparsable property) leaves this tab on auto-derive
         treepanel.applyTimeAxisConfig(TimeAxisConfig.readFromTree(phy));
-        // ...and the saved FIGURE (aptx:figure on the root): the overlays, layout and which labels are drawn, so a
+        // ...and the saved FIGURE (aptx:figure on the <phylogeny>): the overlays, layout and which labels are drawn, so a
         // reopened tree looks like the figure that was saved rather than the defaults. Read here, but APPLIED at
         // the very end -- the phylogram/cladogram choice is stored per TAB INDEX, so it can only be set once this
         // tab exists and is the selected one. Applying it earlier wrote it onto whichever tab was in front.
@@ -358,6 +359,20 @@ public class MainPanel extends JPanel implements ComponentListener {
         _treegraphic_scroll_panes = new ArrayList<JScrollPane>();
         _treegraphic_scroll_pane_panels = new ArrayList<JPanel>();
         _tabbed_pane = new JTabbedPane(SwingConstants.TOP);
+        // An "x" on every tab. The closing itself is the SAME path as File > Close Tab and the tab right-click
+        // menu -- MainFrameApplication.closeTabAt, which selects the tab first and then runs closeCurrentPane, so
+        // the unsaved-changes confirmation and the per-tab teardown happen exactly once, in one place. FlatLaf
+        // draws and hit-tests the button itself (a Swing JTabbedPane has no close button of its own), and the
+        // callback hands back the tab's COMPONENT rather than an index -- deliberately, since an index captured
+        // when the button was drawn would be stale the moment another tab closed.
+        _tabbed_pane.putClientProperty(FlatClientProperties.TABBED_PANE_TAB_CLOSABLE, Boolean.TRUE);
+        _tabbed_pane.putClientProperty(FlatClientProperties.TABBED_PANE_TAB_CLOSE_TOOLTIPTEXT, "Close this tree");
+        _tabbed_pane.putClientProperty(FlatClientProperties.TABBED_PANE_TAB_CLOSE_CALLBACK,
+                (java.util.function.BiConsumer<JTabbedPane, Integer>) (pane, index) -> {
+                    if ((_mainframe instanceof MainFrameApplication) && (index != null)) {
+                        ((MainFrameApplication) _mainframe).closeTabAt(index.intValue());
+                    }
+                });
         _tabbed_pane.addChangeListener(new ChangeListener() {
 
             // This method is called whenever the selected tab changes

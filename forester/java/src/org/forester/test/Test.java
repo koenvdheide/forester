@@ -37,7 +37,6 @@ import java.util.SortedSet;
 
 import org.forester.application.support_transfer;
 import org.forester.archaeopteryx.TreePanelUtil;
-import org.forester.clade_analysis.CladeAnalysisTest;
 import org.forester.development.DevelopmentTools;
 import org.forester.evoinference.TestPhylogenyReconstruction;
 import org.forester.evoinference.matrix.character.BasicCharacterStateMatrix;
@@ -475,6 +474,24 @@ public final class Test {
             System.out.println("failed.");
             failed++;
         }
+        System.out.print("Metadata wording (one word, everything users see): ");
+        if (org.forester.archaeopteryx.MetadataWordingTest.test()) {
+            System.out.println("OK.");
+            succeeded++;
+        }
+        else {
+            System.out.println("failed.");
+            failed++;
+        }
+        System.out.print("Heat-map cell borders: ");
+        if (org.forester.archaeopteryx.HeatmapCellBorderTest.test()) {
+            System.out.println("OK.");
+            succeeded++;
+        }
+        else {
+            System.out.println("failed.");
+            failed++;
+        }
         System.out.print("Per-tab display state: ");
         if (org.forester.archaeopteryx.PerTabDisplayStateTest.test()) {
             System.out.println("OK.");
@@ -547,6 +564,110 @@ public final class Test {
         }
         System.out.print("MSA track render: ");
         if (org.forester.archaeopteryx.MsaTrackRenderTest.test()) {
+            System.out.println("OK.");
+            succeeded++;
+        } else {
+            System.out.println("failed.");
+            failed++;
+        }
+        System.out.print("Control panel cheat sheet: ");
+        if (org.forester.archaeopteryx.ControlPanelCheatSheetTest.test()) {
+            System.out.println("OK.");
+            succeeded++;
+        } else {
+            System.out.println("failed.");
+            failed++;
+        }
+        System.out.print("MSA sequence logo: ");
+        if (org.forester.archaeopteryx.MsaLogoTest.test()) {
+            System.out.println("OK.");
+            succeeded++;
+        } else {
+            System.out.println("failed.");
+            failed++;
+        }
+        System.out.print("Radial tip labels: ");
+        if (org.forester.archaeopteryx.RadialTipLabelRenderTest.test()) {
+            System.out.println("OK.");
+            succeeded++;
+        } else {
+            System.out.println("failed.");
+            failed++;
+        }
+        System.out.print("Oriented occupancy: ");
+        if (org.forester.archaeopteryx.OrientedOccupancyTest.test()) {
+            System.out.println("OK.");
+            succeeded++;
+        } else {
+            System.out.println("failed.");
+            failed++;
+        }
+        System.out.print("Branch obstacles: ");
+        if (org.forester.archaeopteryx.BranchObstaclesTest.test()) {
+            System.out.println("OK.");
+            succeeded++;
+        } else {
+            System.out.println("failed.");
+            failed++;
+        }
+        System.out.print("Radial branch numbers: ");
+        if (org.forester.archaeopteryx.RadialBranchNumberRenderTest.test()) {
+            System.out.println("OK.");
+            succeeded++;
+        } else {
+            System.out.println("failed.");
+            failed++;
+        }
+        System.out.print("Tree share squeeze: ");
+        if (org.forester.archaeopteryx.TreeShareSqueezeTest.test()) {
+            System.out.println("OK.");
+            succeeded++;
+        } else {
+            System.out.println("failed.");
+            failed++;
+        }
+        System.out.print("Tab close button: ");
+        if (org.forester.archaeopteryx.TabCloseButtonTest.test()) {
+            System.out.println("OK.");
+            succeeded++;
+        } else {
+            System.out.println("failed.");
+            failed++;
+        }
+        System.out.print("Legend interaction survives a paint: ");
+        if (org.forester.archaeopteryx.LegendInteractionSurvivesPaintTest.test()) {
+            System.out.println("OK.");
+            succeeded++;
+        } else {
+            System.out.println("failed.");
+            failed++;
+        }
+        System.out.print("Label occupancy grid: ");
+        if (org.forester.archaeopteryx.LabelOccupancyTest.test()) {
+            System.out.println("OK.");
+            succeeded++;
+        } else {
+            System.out.println("failed.");
+            failed++;
+        }
+        System.out.print("Auto-hide crowded branch data + FPS readout: ");
+        if (org.forester.archaeopteryx.CrowdedBranchDataTest.test()) {
+            System.out.println("OK.");
+            succeeded++;
+        } else {
+            System.out.println("failed.");
+            failed++;
+        }
+        System.out.print("Layout width budget (tree vs. the tracks beside it): ");
+        if (org.forester.archaeopteryx.LayoutWidthBudgetTest.test()) {
+            System.out.println("OK.");
+            succeeded++;
+        } else {
+            System.out.println("failed.");
+            failed++;
+        }
+        System.out.print("MSA display toggle: ");
+        if (org.forester.archaeopteryx.MsaToggleTest.test()) {
             System.out.println("OK.");
             succeeded++;
         } else {
@@ -724,6 +845,22 @@ public final class Test {
         }
         System.out.print("Legend placement: ");
         if (org.forester.archaeopteryx.LegendPlacementTest.test()) {
+            System.out.println("OK.");
+            succeeded++;
+        } else {
+            System.out.println("failed.");
+            failed++;
+        }
+        System.out.print("Legend stacking: ");
+        if (org.forester.archaeopteryx.LegendStackingTest.test()) {
+            System.out.println("OK.");
+            succeeded++;
+        } else {
+            System.out.println("failed.");
+            failed++;
+        }
+        System.out.print("Circular scale axis: ");
+        if (org.forester.archaeopteryx.CircularScaleAxisTest.test()) {
             System.out.println("OK.");
             succeeded++;
         } else {
@@ -2076,6 +2213,24 @@ public final class Test {
             System.out.println("failed.");
             failed++;
         }
+        System.out.print("BEAST branch mode (Time | Div on the demo pair): ");
+        if (org.forester.archaeopteryx.BeastBranchModeTest.test()) {
+            System.out.println("OK.");
+            succeeded++;
+        }
+        else {
+            System.out.println("failed.");
+            failed++;
+        }
+        System.out.print("Node data: a date of zero is a date: ");
+        if (org.forester.phylogeny.data.NodeDataDateTest.test()) {
+            System.out.println("OK.");
+            succeeded++;
+        }
+        else {
+            System.out.println("failed.");
+            failed++;
+        }
         System.out.print("Nexus export spec compliance: ");
         if (Test.testNexusExportSpecCompliance()) {
             System.out.println("OK.");
@@ -2348,6 +2503,54 @@ public final class Test {
             System.out.println("failed.");
             failed++;
         }
+        System.out.print("Domain rollover: ");
+        if (org.forester.archaeopteryx.DomainHoverTest.test()) {
+            System.out.println("OK.");
+            succeeded++;
+        } else {
+            System.out.println("failed.");
+            failed++;
+        }
+        System.out.print("Tree as ASCII: ");
+        if (org.forester.phylogeny.PhylogenyAsciiTest.test()) {
+            System.out.println("OK.");
+            succeeded++;
+        } else {
+            System.out.println("failed.");
+            failed++;
+        }
+        System.out.print("An export does not aim the hit-tests at its own canvas: ");
+        if (org.forester.archaeopteryx.RadialExportGeometryTest.test()) {
+            System.out.println("OK.");
+            succeeded++;
+        } else {
+            System.out.println("failed.");
+            failed++;
+        }
+        System.out.print("Zero is a value, not an absence: ");
+        if (org.forester.archaeopteryx.ZeroValueDisplayTest.test()) {
+            System.out.println("OK.");
+            succeeded++;
+        } else {
+            System.out.println("failed.");
+            failed++;
+        }
+        System.out.print("Nexus/phyloXML round trips: ");
+        if (org.forester.io.writers.NexusPhyloXmlRoundTripTest.test()) {
+            System.out.println("OK.");
+            succeeded++;
+        } else {
+            System.out.println("failed.");
+            failed++;
+        }
+        System.out.print("Nexus sequence export: ");
+        if (org.forester.io.writers.NexusSequenceExportTest.test()) {
+            System.out.println("OK.");
+            succeeded++;
+        } else {
+            System.out.println("failed.");
+            failed++;
+        }
         System.out.print("MAD rooting: ");
         if (Test.testMADrooting()) {
             System.out.println("OK.");
@@ -2462,14 +2665,6 @@ public final class Test {
         }
         System.out.print("RIO: ");
         if (TestRIO.test()) {
-            System.out.println("OK.");
-            succeeded++;
-        } else {
-            System.out.println("failed.");
-            failed++;
-        }
-        System.out.print("Clade analyis: ");
-        if (CladeAnalysisTest.test()) {
             System.out.println("OK.");
             succeeded++;
         } else {

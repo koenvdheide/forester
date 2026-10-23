@@ -256,7 +256,7 @@ final class SettingsDialog extends JDialog {
         final JCheckBox auto_color = new JCheckBox( "Auto-color a newly opened tree",
                                                     _mf.getOptions().isAutoColorNewTrees() );
         auto_color.setToolTipText( "When a tree is opened, color it right away by its most informative field "
-                + "(taxonomy, sequence, or property) -- like Archaeopteryx.js. A sparse field is offered in "
+                + "(taxonomy, sequence, or metadata) -- like Archaeopteryx.js. A sparse field is offered in "
                 + "\"Color by\" but never chosen automatically. Turn off to open trees uncolored." );
         auto_color.addActionListener( e -> _mf.getOptions().setAutoColorNewTrees( auto_color.isSelected() ) );
         add( c, auto_color );
@@ -293,8 +293,8 @@ final class SettingsDialog extends JDialog {
         // (the Import Annotations / CSV path) or a taxonomy <uri>. Options-direct (no menu item); re-layouts so the
         // tip labels shift to make room. Renders in all five display types (rectangular x3 + circular + unrooted).
         final JCheckBox tip_images = new JCheckBox( "Tip Images", _mf.getOptions().isShowTipImages() );
-        tip_images.setToolTipText( "Draw an image at each tip (from a local path or URL in a node property / <uri>). "
-                + "Add the paths with Tools → Import Annotations." );
+        tip_images.setToolTipText( "Draw an image at each tip (from a local path or URL in a metadata field / <uri>). "
+                + "Add the paths with File → Import Metadata." );
         tip_images.addActionListener( e -> {
             _mf.getOptions().setShowTipImages( tip_images.isSelected() );
             _mf.getMainPanel().getControlPanel().displayedPhylogenyMightHaveChanged( true );
@@ -304,16 +304,19 @@ final class SettingsDialog extends JDialog {
             _mf.getOptions().setTipImageSize( v );
             _mf.getMainPanel().getControlPanel().displayedPhylogenyMightHaveChanged( true );
         } ) ) );
-        // Sequence alignment: colored residue cells beside the tips (rectangular root-left only). Options-direct;
-        // auto-enabled when the tree carries an aligned molecular sequence (loaded FASTA / phyloXML <mol_seq>).
-        final JCheckBox show_msa = new JCheckBox( "Sequence Alignment", _mf.getOptions().isShowMsa() );
-        show_msa.setToolTipText( "Show a multiple sequence alignment next to the tree (rectangular root-left). "
-                + "Load it with File → Load Alignment (FASTA)." );
-        show_msa.addActionListener( e -> {
-            _mf.getOptions().setShowMsa( show_msa.isSelected() );
-            _mf.getMainPanel().getControlPanel().displayedPhylogenyMightHaveChanged( true );
-        } );
-        add( c, show_msa );
+        // Sequence alignment: colored residue cells beside the tips (rectangular root-left only). PER-TAB, and the
+        // very same state as the control panel's "Sequence Alignment" checkbox -- this writes THROUGH that checkbox
+        // (which also pushes it onto the current tab), so the two views can never disagree. Auto-enabled at load for
+        // a tree whose tips carry an aligned molecular sequence (loaded FASTA / phyloXML <mol_seq>).
+        add( c, panelCheckbox( "Sequence Alignment",
+                               "Show a multiple sequence alignment next to the tree (rectangular root-left). "
+                                       + "Load it with File → Load Alignment (FASTA). Also on the control panel.",
+                               TreePanel::isShowMsa,
+                               ( p, b ) -> {
+                                   final ControlPanel cp = _mf.getMainPanel().getControlPanel();
+                                   cp.setCheckbox( DisplayOption.SHOW_MSA, b.booleanValue() );
+                                   cp.displayedPhylogenyMightHaveChanged( true );
+                               } ) );
         add( c, labeled( "Alignment column width:",
                 intSpinner( _mf.getOptions().getMsaColumnWidth(), AptxConstants.MSA_COLUMN_WIDTH_MIN,
                         AptxConstants.MSA_COLUMN_WIDTH_MAX, 1, v -> {
@@ -598,6 +601,19 @@ final class SettingsDialog extends JDialog {
         where.setAlignmentX( Component.LEFT_ALIGNMENT );
         where.setForeground( FormWidgets.mutedColor() );
         c.add( where );
+        // Here rather than under Overlays: that tab is about what is drawn for the TREE (and all of it, bar the
+        // navigation overview, is figure content that reaches an export). This reports on the PROGRAM -- how long
+        // a frame costs -- and can never appear in an exported figure, so it belongs with the application itself.
+        c.add( Box.createVerticalStrut( 12 ) );
+        c.add( header( "Diagnostics" ) );
+        final JCheckBox fps = new JCheckBox( "Show paint-time / FPS counter", _mf.getOptions().isShowFps() );
+        fps.setToolTipText( "Draw the time the last frames took to paint, and the rate that implies, in the "
+                + "top-right corner. On screen only -- it is never included in an exported figure." );
+        fps.addActionListener( e -> {
+            _mf.getOptions().setShowFps( fps.isSelected() );
+            _mf.getMainPanel().getControlPanel().displayedPhylogenyMightHaveChanged( false );
+        } );
+        add( c, fps );
         return c;
     }
 
@@ -1043,7 +1059,7 @@ final class SettingsDialog extends JDialog {
                 "<html>Reset all display settings to their defaults?<br><br>"
                         + ( _mf._embedded ? "This resets the search options and turns off "
                                 : "This also switches the theme to <b>Light</b>, resets the search options, and turns off " )
-                        + "property-based <b>&quot;Color by&quot;</b> (back to the default palette) on "
+                        + "<b>&quot;Color by&quot;</b> (back to the default palette) on "
                         + "<b>all open trees</b>.<br>"
                         + "Manually applied branch/clade colors and your loaded trees are not changed.</html>",
                 "Reset to Defaults", JOptionPane.OK_CANCEL_OPTION, JOptionPane.WARNING_MESSAGE );
