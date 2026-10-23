@@ -3329,9 +3329,7 @@ final class ControlPanel extends JPanel implements ActionListener {
     /** Tooltip + accessible name: these buttons carry no text, so the words have to live somewhere. */
     private static void describe(final AbstractButton b, final String text) {
         b.setToolTipText(text);
-        if (!(/** @j2sNative true || */ false)) {
-            b.getAccessibleContext().setAccessibleName(text);
-        }
+        b.getAccessibleContext().setAccessibleName(text);
     }
 
     /** Glyph size for the layout row: scales with the GUI font so it holds up at a large font size.

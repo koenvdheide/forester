@@ -1484,7 +1484,6 @@ public final class AptxUtil {
 
 
     // Returns true if the specified format name can be written
-    /** @j2sNative return false; */
     final static boolean canWriteFormat(final String format_name) {
         final Iterator<ImageWriter> iter = ImageIO.getImageWritersByFormatName(format_name);
         return iter.hasNext();
