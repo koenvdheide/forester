@@ -136,7 +136,7 @@ public final class TreePanel extends JPanel implements MouseWheelListener {
 
     private boolean _domain_labels_left_aligned;
 
-    /** The Jalview integration's domain labels: left-aligned, black or white by fill luminance, on tall enough strips. */
+    /** Domain labels a host can ask for: left-aligned, black or white by fill luminance, on tall enough strips. */
     void setDomainLabelsLeftAligned(final boolean left_aligned) {
         _domain_labels_left_aligned = left_aligned;
     }
