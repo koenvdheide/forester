@@ -170,7 +170,7 @@ public final class RenderableDomainArchitecture extends DomainArchitecture imple
         return lum > 0.55 ? new Color( 20, 26, 29 ) : Color.WHITE;
     }
 
-    /** Black or white label ink by fill luminance, as the Jalview integration drew domain labels. */
+    /** Black or white label ink by fill luminance, for the domain labels a host can ask for. */
     private static Color luminanceInk( final Color c ) {
         final int luminance = ( ( 299 * c.getRed() ) + ( 587 * c.getGreen() ) + ( 114 * c.getBlue() ) ) / 1000;
         return luminance > 128 ? Color.BLACK : Color.WHITE;
