@@ -1375,7 +1375,7 @@ public abstract class MainFrame extends javax.swing.JPanel implements ActionList
                 + "Metadata (CSV/TSV) first if the tree has no per-tip data yet.</i></html>");
         final JMenu order_menu = createMenu("Order Matrix Columns", getConfiguration());
         if (!_embedded) {
-            order_menu.setFont(MainFrame.menu_font);
+            order_menu.setFont(MainFrame.menu_font); // createMenu sets the font only in custom-colors mode
         }
         order_menu.setToolTipText("How this tab's heat-map matrix orders its columns (the other columns keep their "
                 + "place)");

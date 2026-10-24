@@ -1732,7 +1732,7 @@ public final class MainFrameApplication extends MainFrame {
         _open_item.setToolTipText("Open a tree file (phyloXML, Newick/NHX, Nexus, Auspice JSON, ToL)");
         if (!_embedded) {
             _file_jmenu.add(_open_recent_menu = new JMenu("Open Recent"));
-            _open_recent_menu.setFont(MainFrame.menu_font);
+            _open_recent_menu.setFont(MainFrame.menu_font); // a submenu does not inherit the item font (see CollapseMenuFontTest)
         }
         rebuildOpenRecentMenu();
         _file_jmenu.addSeparator();
