@@ -171,11 +171,15 @@ public class MainPanel extends JPanel implements ComponentListener {
         if (figure != null) {
             // this tab is now the selected one, so the per-tab display type lands on it and not on its neighbour
             figure.applyTo(treepanel);
+            // the shared checkboxes show the CURRENT tab, which this now is -- without this they would still show
+            // the previous tab's toggles while the tree drew the restored figure's
+            getControlPanel().reseedDisplayDataFromCurrentTab();
             if (getMainFrame() != null) {
                 getMainFrame().syncMatrixColumnOrderMenu(); // the figure may have set this tab to Manual
             }
+        } else {
+            getControlPanel().reseedDisplayDataFromCurrentTab();
         }
-        getControlPanel().reseedDisplayDataFromCurrentTab();
         if (getMainFrame() != null && getMainFrame()._embedded) {
             getMainFrame().validateEmbeddedTree();
         }

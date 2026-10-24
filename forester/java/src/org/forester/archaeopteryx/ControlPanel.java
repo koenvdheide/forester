@@ -4356,20 +4356,16 @@ final class ControlPanel extends JPanel implements ActionListener {
         _click_to_combobox.setMaximumRowCount(14);
         _click_to_combobox.setFont(ControlPanel.js_font);
         // "Root/Reroot" is drawn greyed out, with the reason as its tooltip, when the tree must not be re-rooted
-        final javax.swing.ListCellRenderer click_to_renderer = _click_to_combobox.getRenderer();
-        _click_to_combobox.setRenderer(new javax.swing.ListCellRenderer<Object>() {
-            @Override
-            public Component getListCellRendererComponent(final JList<?> list, final Object value, final int index,
-                    final boolean selected, final boolean focused) {
-                final Component c = click_to_renderer.getListCellRendererComponent(list, value, index, selected,
-                        focused);
-                final boolean refused = (_reroot_refusal != null) && ClickToOption.REROOT.title().equals(value);
-                c.setEnabled(!refused);
-                if (c instanceof javax.swing.JComponent) {
-                    ((javax.swing.JComponent) c).setToolTipText(refused ? _reroot_refusal : null);
-                }
-                return c;
+        final javax.swing.ListCellRenderer<? super String> click_to_renderer = _click_to_combobox.getRenderer();
+        _click_to_combobox.setRenderer((list, value, index, selected, focused) -> {
+            final java.awt.Component c = click_to_renderer.getListCellRendererComponent(list, value, index, selected,
+                    focused);
+            final boolean refused = (_reroot_refusal != null) && ClickToOption.REROOT.title().equals(value);
+            c.setEnabled(!refused);
+            if (c instanceof javax.swing.JComponent) {
+                ((javax.swing.JComponent) c).setToolTipText(refused ? _reroot_refusal : null);
             }
+            return c;
         });
         // don't add listener until all items are set (or each one will trigger
         // an event)
