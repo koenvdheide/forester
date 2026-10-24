@@ -71,28 +71,7 @@ final class GuiPreferences {
      *  as a string. {@code reader} turns the option's current value into the stored string; {@code writer} parses
      *  a stored string back onto the option (and silently ignores an unparseable value, so a corrupt file never
      *  breaks startup). Add to {@link #PREFS} via the typed factories below -- never renumber existing keys. */
-    private static final class Pref {
-        private final String key;
-        private final Function<Options, String> reader;
-        private final BiConsumer<Options, String> writer;
-
-        private Pref(String key, Function<Options, String> reader, BiConsumer<Options, String> writer) {
-            this.key = key;
-            this.reader = reader;
-            this.writer = writer;
-        }
-
-        public String key() {
-            return key;
-        }
-
-        public Function<Options, String> reader() {
-            return reader;
-        }
-
-        public BiConsumer<Options, String> writer() {
-            return writer;
-        }
+    private record Pref(String key, Function<Options, String> reader, BiConsumer<Options, String> writer) {
     }
 
     private static final List<Pref> PREFS = List.of(

@@ -37,27 +37,7 @@ import org.forester.util.ForesterConstants;
 final class AlgorithmReferences {
 
     /** One algorithm and its main citation (or, for an unpublished method, a short description). */
-    static final class Reference {
-        private final String algorithm;
-        private final String citation;
-
-        Reference(String algorithm, String citation) {
-            this.algorithm = algorithm;
-            this.citation = citation;
-        }
-
-        public String algorithm() {
-            return algorithm;
-        }
-
-        public String citation() {
-            return citation;
-        }
-
-        @Override
-        public String toString() {
-            return "Reference[algorithm=" + algorithm + ", citation=" + citation + "]";
-        }}
+    record Reference(String algorithm, String citation) {}
 
     static List<Reference> all() {
         final List<Reference> refs = new ArrayList<>();
