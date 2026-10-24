@@ -49,40 +49,10 @@ final class KeyboardShortcuts {
     private static final String  ALT = MAC ? "⌥" : "Alt+";        // ⌥ (Option) vs Alt+
     private static final String  SHIFT = MAC ? "⇧" : "Shift+";    // ⇧ vs Shift+
 
-    static final class Shortcut {
-        private final String keys;
-        private final String action;
-
-        Shortcut(String keys, String action) {
-            this.keys = keys;
-            this.action = action;
-        }
-
-        public String keys() {
-            return keys;
-        }
-
-        public String action() {
-            return action;
-        }
+    record Shortcut(String keys, String action) {
     }
 
-    static final class ShortcutGroup {
-        private final String title;
-        private final List<Shortcut> shortcuts;
-
-        ShortcutGroup(String title, List<Shortcut> shortcuts) {
-            this.title = title;
-            this.shortcuts = shortcuts;
-        }
-
-        public String title() {
-            return title;
-        }
-
-        public List<Shortcut> shortcuts() {
-            return shortcuts;
-        }
+    record ShortcutGroup(String title, List<Shortcut> shortcuts) {
     }
 
     /** The grouped shortcut reference, in display order. Pure -- no toolkit needed. */

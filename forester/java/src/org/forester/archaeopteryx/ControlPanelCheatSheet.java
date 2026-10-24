@@ -66,33 +66,7 @@ import javax.swing.SwingConstants;
 final class ControlPanelCheatSheet {
 
     /** One row: the control's icon (may be null -- a checkbox or a slider has none) and what it does. */
-    static final class Entry {
-        private final Icon icon;
-        private final String label;
-        private final String description;
-
-        Entry(Icon icon, String label, String description) {
-            this.icon = icon;
-            this.label = label;
-            this.description = description;
-        }
-
-        public Icon icon() {
-            return icon;
-        }
-
-        public String label() {
-            return label;
-        }
-
-        public String description() {
-            return description;
-        }
-
-        @Override
-        public String toString() {
-            return "Entry[icon=" + icon + ", label=" + label + ", description=" + description + "]";
-        }
+    record Entry(Icon icon, String label, String description) {
     }
 
     /**

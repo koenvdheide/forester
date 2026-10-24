@@ -42,33 +42,7 @@ final class LabelDateAnchor {
     static final int    MIN_AGREEING_DEN = 20;
 
     /** The anchor date (decimal year), how many of the compared tips agree on it, and how many were compared. */
-    static final class Anchor {
-        private final BigDecimal value;
-        private final int agreeing;
-        private final int compared;
-
-        Anchor(BigDecimal value, int agreeing, int compared) {
-            this.value = value;
-            this.agreeing = agreeing;
-            this.compared = compared;
-        }
-
-        public BigDecimal value() {
-            return value;
-        }
-
-        public int agreeing() {
-            return agreeing;
-        }
-
-        public int compared() {
-            return compared;
-        }
-
-        @Override
-        public String toString() {
-            return "Anchor[value=" + value + ", agreeing=" + agreeing + ", compared=" + compared + "]";
-        }
+    record Anchor(BigDecimal value, int agreeing, int compared) {
     }
 
     /**
@@ -76,34 +50,7 @@ final class LabelDateAnchor {
      * anchor (a height, or minus a distance from the root), and the label's own decimal year -- the point estimate
      * used when the precise tips place the anchor.
      */
-    static final class TipOffer {
-        private final double rangeStart;
-        private final double rangeEnd;
-        private final double offset;
-        private final double labelDate;
-
-        TipOffer(double rangeStart, double rangeEnd, double offset, double labelDate) {
-            this.rangeStart = rangeStart;
-            this.rangeEnd = rangeEnd;
-            this.offset = offset;
-            this.labelDate = labelDate;
-        }
-
-        public double rangeStart() {
-            return rangeStart;
-        }
-
-        public double rangeEnd() {
-            return rangeEnd;
-        }
-
-        public double offset() {
-            return offset;
-        }
-
-        public double labelDate() {
-            return labelDate;
-        }
+    record TipOffer(double rangeStart, double rangeEnd, double offset, double labelDate) {
     }
 
     /**

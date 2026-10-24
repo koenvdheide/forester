@@ -11957,46 +11957,11 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
     private boolean _heatmap_borders_off_for_test = false;
 
     /** A protein domain under the pointer, and the tip whose architecture it belongs to. */
-    static final class DomainHit {
-        private final PhylogenyNode node;
-        private final ProteinDomain domain;
-
-        DomainHit(PhylogenyNode node, ProteinDomain domain) {
-            this.node = node;
-            this.domain = domain;
-        }
-
-        public PhylogenyNode node() {
-            return node;
-        }
-
-        public ProteinDomain domain() {
-            return domain;
-        }
+    record DomainHit(PhylogenyNode node, ProteinDomain domain) {
     }
 
     /** A cell of an annotation column: the DRAWN column and the tip whose row it is on. */
-    static final class AnnotationCell {
-        private final int column;
-        private final PhylogenyNode tip;
-
-        AnnotationCell(int column, PhylogenyNode tip) {
-            this.column = column;
-            this.tip = tip;
-        }
-
-        public int column() {
-            return column;
-        }
-
-        public PhylogenyNode tip() {
-            return tip;
-        }
-
-        @Override
-        public String toString() {
-            return "AnnotationCell[column=" + column + ", tip=" + tip + "]";
-        }
+    record AnnotationCell(int column, PhylogenyNode tip) {
     }
 
     /**

@@ -357,46 +357,7 @@ public final class DemoTreeGenerator {
     //       demo exercises the tolerance between the two conventions. Two tips were dated only to the month and to the
     //       year; BEAST sampled their dates, so they carry a height HPD: a sampling-date uncertainty. A strict clock:
     //       one rate on every branch, so no Color-by field competes with the time axis the demo is about.
-    private static final class BeastClade {
-        private final int taxon;
-        private final double date;
-        private final double lo;
-        private final double hi;
-        private final double posterior;
-        private final BeastClade[] kids;
-
-        private BeastClade(int taxon, double date, double lo, double hi, double posterior, BeastClade... kids) {
-            this.taxon = taxon;
-            this.date = date;
-            this.lo = lo;
-            this.hi = hi;
-            this.posterior = posterior;
-            this.kids = kids;
-        }
-
-        public int taxon() {
-            return taxon;
-        }
-
-        public double date() {
-            return date;
-        }
-
-        public double lo() {
-            return lo;
-        }
-
-        public double hi() {
-            return hi;
-        }
-
-        public double posterior() {
-            return posterior;
-        }
-
-        public BeastClade[] kids() {
-            return kids;
-        }
+    private record BeastClade(int taxon, double date, double lo, double hi, double posterior, BeastClade... kids) {
     }
 
     private static final String BEAST_STRICT_CLOCK_RATE = "0.004";
