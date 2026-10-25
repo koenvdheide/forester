@@ -6606,7 +6606,7 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
      * All of them from the lengths KEPT when the tab left time (divergence is rate x those, time IS those), and all
      * of them given the unit -- each is a tree of its own to the scale bar and to a saved file.
      * <p>
-     * In this fork a view is rooted at the clade's own node, detached, and an undo splices the restored copy in its
+     * A view is rooted at the clade's own node, detached, and an undo splices the restored copy in its
      * place ({@link #synchronizeSubtreeRoots()}); {@link #restoreSnapshot} lays out before that splice.
      *
      * @param time the lengths the tab's branches have in time (see {@link #timeLengths()}, asked BEFORE the mode
@@ -16066,13 +16066,6 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
         }
     }
 
-    /**
-     * Find the node, if any, at the given location
-     *
-     * @param x
-     * @param y
-     * @return pointer to the node at x,y, null if not found
-     */
     public final PhylogenyNode findNodeOrLabel(final int x, final int y) {
         final PhylogenyNode on_box = findNode(x, y);
         if (on_box != null || _phylogeny == null || _phylogeny.isEmpty()) {
@@ -16108,6 +16101,13 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
                 metrics.getAscent() + metrics.getDescent());
     }
 
+    /**
+     * Find the node, if any, at the given location
+     *
+     * @param x
+     * @param y
+     * @return pointer to the node at x,y, null if not found
+     */
     final PhylogenyNode findNode(final int x, final int y) {
         if ((_phylogeny == null) || _phylogeny.isEmpty() || !hitTestableLayout()) {
             return null; // laid out for an export canvas; see paintPhylogeny

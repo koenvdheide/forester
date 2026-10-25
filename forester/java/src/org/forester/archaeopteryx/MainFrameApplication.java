@@ -2151,11 +2151,11 @@ public final class MainFrameApplication extends MainFrame {
 
     void exit() {
         if (!_embedded) {
-            new GuiPreferences().saveFrom(getOptions());
-            new DirectoryPreferences().saveFrom(_current_dirs);
+            new GuiPreferences().saveFrom(getOptions()); // persist the display toggles for the next session
+            new DirectoryPreferences().saveFrom(_current_dirs); // and each dialog's last-used directory
         }
         end();
-        if (!_embedded && _launched_as_standalone_application) {
+        if (_launched_as_standalone_application) {
             // Standalone app only: force JVM termination. Disposing the frame is not enough -- a heavyweight
             // rollover Popup (TreePanel/PopupFactory) leaves a cached, still-displayable native window, and the
             // Fetch/Infer/taxonomy worker threads are NOT stopped by terminate(); both keep AWT's toolkit thread
