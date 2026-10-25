@@ -699,7 +699,7 @@ public final class MainFrameApplication extends MainFrame {
                 representativeTipsChosen(tp, phy, in, has_bl, protected_ids, pane.getValue());
             }
         });
-        showOwnedWindow(dialog);
+        showViewerWindow(dialog);
     }
 
     private void representativeTipsChosen(final TreePanel tp, final Phylogeny phy, final RepSelInputs in,

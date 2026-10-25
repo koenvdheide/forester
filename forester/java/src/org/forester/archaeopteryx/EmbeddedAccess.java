@@ -176,7 +176,7 @@ public final class EmbeddedAccess {
     }
 
     public static void selectNodesOnClick(final MainPanel main) {
-        main.getControlPanel().selectNodesOnClick();
+        main.setSelectNodesOnClick();
     }
 
     public static void setDisplayOption(final TreePanel panel, final DisplayOption option, final boolean show) {
@@ -272,9 +272,5 @@ public final class EmbeddedAccess {
 
     public static void setOutlineFontsInVectorExport(final MainFrame frame, final boolean outline) {
         frame.getOptions().setOutlineFontsInVectorExport(outline);
-    }
-
-    public static void setShowMsa(final TreePanel panel, final boolean show) {
-        panel.getOptions().setShowMsa(show);
     }
 }

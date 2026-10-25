@@ -861,10 +861,7 @@ public final class TreePanel extends JPanel implements MouseWheelListener {
     private boolean isBranchEditHighlighted(final PhylogenyNode node,
                                             final boolean to_pdf,
                                             final boolean to_graphics_file) {
-        final NodeClickAction action = _control_panel.getActionWhenNodeClicked();
-        return ((action == NodeClickAction.COPY_SUBTREE) || (action == NodeClickAction.CUT_SUBTREE)
-                || (action == NodeClickAction.DELETE_NODE_OR_SUBTREE) || (action == NodeClickAction.PASTE_SUBTREE)
-                || (action == NodeClickAction.ADD_NEW_NODE)) && (getCutOrCopiedTree() != null)
+        return (getCutOrCopiedTree() != null)
                 && (getCopiedAndPastedNodes() != null) && !to_pdf && !to_graphics_file
                 && getCopiedAndPastedNodes().contains(node.getId());
     }
@@ -1143,7 +1140,9 @@ public final class TreePanel extends JPanel implements MouseWheelListener {
         if ((to_pdf || to_graphics_file) && getOptions().isExportBlackAndWhite()) {
             g.setColor(Color.BLACK);
         } else if (isBranchEditHighlighted(node, to_pdf, to_graphics_file)) {
-            g.setColor(CLIPBOARD_HIGHLIGHT); // held by Cut/Copy -- an editing state, not a search hit
+            // held by Cut/Copy (or just pasted) -- an editing state, not a search hit; shown until the next edit
+            // (fadeClipboardHighlight), there being no cut/copy "mode" to be in or out of any more
+            g.setColor(CLIPBOARD_HIGHLIGHT);
         } else if (_display_colours.containsKey(node)) {
             final Color override = _display_colours.get(node);
             g.setColor(override != null ? override
@@ -6831,6 +6830,9 @@ public final class TreePanel extends JPanel implements MouseWheelListener {
      * only the bottom one: an undo inside a view puts a COPY on display, whose nodes are the whole tree's no longer.
      * All of them from the lengths KEPT when the tab left time (divergence is rate x those, time IS those), and all
      * of them given the unit -- each is a tree of its own to the scale bar and to a saved file.
+     * <p>
+     * A view is rooted at the clade's own node, detached, and an undo splices the restored copy in its
+     * place ({@link #synchronizeSubtreeRoots()}); {@link #restoreSnapshot} lays out before that splice.
      *
      * @param time the lengths the tab's branches have in time (see {@link #timeLengths()}, asked BEFORE the mode
      *            is changed)
@@ -17760,12 +17762,6 @@ public final class TreePanel extends JPanel implements MouseWheelListener {
         return (int) hitReach(effectiveNodeHalfBoxSize(node));
     }
 
-    /**
-     * The node under ({@code x},{@code y}) for a click or a hover, or null: of the nodes whose square
-     * ({@link #nodeHitHalfSize}) holds the point, the one whose centre is NEAREST (a tie: the first in postorder).
-     * Until 0.11.196 the first in postorder won, so where squares overlapped -- large marks, or tips packed closer
-     * than their squares -- a click right on one tip could open its neighbour.
-     */
     public final PhylogenyNode findNodeOrLabel(final int x, final int y) {
         final PhylogenyNode on_box = findNode(x, y);
         if (on_box != null || _phylogeny == null || _phylogeny.isEmpty()) {
@@ -17801,6 +17797,12 @@ public final class TreePanel extends JPanel implements MouseWheelListener {
                 metrics.getAscent() + metrics.getDescent());
     }
 
+    /**
+     * The node under ({@code x},{@code y}) for a click or a hover, or null: of the nodes whose square
+     * ({@link #nodeHitHalfSize}) holds the point, the one whose centre is NEAREST (a tie: the first in postorder).
+     * Until 0.11.196 the first in postorder won, so where squares overlapped -- large marks, or tips packed closer
+     * than their squares -- a click right on one tip could open its neighbour.
+     */
     final PhylogenyNode findNode(final int x, final int y) {
         if ((_phylogeny == null) || _phylogeny.isEmpty() || !hitTestableLayout()) {
             return null; // laid out for an export canvas; see paintPhylogeny
@@ -18697,7 +18699,10 @@ public final class TreePanel extends JPanel implements MouseWheelListener {
                 if (!node.isRoot() && node.getParent().isCollapse()) {
                     return;
                 }
-                if (isShiftClick(e)) {
+                if (getMainPanel().selectNodesOnClick() && isPlainSingleLeftClick(e)) {
+                    selectNode(node);
+                    suppressHoverAfterClick(node);
+                } else if (isShiftClick(e)) {
                     // Shift-click: the selection. A collapsed clade is one unit, so on its wedge the click toggles
                     // its WHOLE subtree's tips -- like a branch click -- and the wedge's fill and the count follow.
                     if (node.isCollapse()) {
@@ -21200,7 +21205,7 @@ public final class TreePanel extends JPanel implements MouseWheelListener {
     final void superTree() {
         setNodeInPreorderToNull();
         synchronizeSubtreeRoots();
-        final int level = --_subtree_index;
+        final int level = --_subtree_index; // the slot subTree() filled on the way down
         _sub_phylogenies_temp_roots[level].setParent(_sub_phylogenies_parents[level]);
         _sub_phylogenies_temp_roots[level].setCollapse(_sub_phylogenies_collapsed[level]
                 && !_sub_phylogenies_temp_roots[level].isExternal());
@@ -21239,7 +21244,7 @@ public final class TreePanel extends JPanel implements MouseWheelListener {
             return;
         }
         final PhylogenyNode parent = _sub_phylogenies_parents[_subtree_index - 1];
-        superTree();
+        superTree(); // back to the phylogeny we descended from (reattaches the sub-tree's root)
         if ((parent != null) && !parent.isRoot()) {
             subTree(parent); // re-descend one branch up; subTree() fits and repaints
         } else {

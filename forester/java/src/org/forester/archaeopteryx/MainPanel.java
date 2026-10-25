@@ -61,6 +61,7 @@ public class MainPanel extends JPanel implements ComponentListener {
     private Set<Long> _copied_and_pasted_nodes;
     private TreePanel _clipboard_highlight_owner;
     private boolean _fit_owed;
+    private boolean _select_nodes_on_click;
     private Consumer<TreePanel> _tree_initializer;
     private Runnable _tree_views_changed_listener;
 
@@ -90,6 +91,14 @@ public class MainPanel extends JPanel implements ComponentListener {
     }
 
     MainPanel() {
+    }
+
+    void setSelectNodesOnClick() {
+        _select_nodes_on_click = true;
+    }
+
+    boolean selectNodesOnClick() {
+        return _select_nodes_on_click;
     }
 
     public void setTreeInitializer(final Consumer<TreePanel> initializer) {
@@ -166,18 +175,23 @@ public class MainPanel extends JPanel implements ComponentListener {
         _treegraphic_scroll_panes.add(treegraphic_scroll_pane);
         getTabbedPane().addTab(name, null, treegraphic_scroll_pane_panel, "");
         getTabbedPane().setSelectedIndex(getTabbedPane().getTabCount() - 1);
-        if (getMainFrame() != null && getMainFrame()._embedded) {
+        final boolean embedded = (getMainFrame() != null) && getMainFrame()._embedded;
+        if (embedded) {
             AptxUtil.lookAtSomeTreePropertiesForAptxControlSettings(phy, getControlPanel());
         }
         initializeTree(treepanel);
         if (figure != null) {
             // this tab is now the selected one, so the per-tab display type lands on it and not on its neighbour
             figure.applyTo(treepanel);
+            // the shared checkboxes show the CURRENT tab, which this now is -- without this they would still show
+            // the previous tab's toggles while the tree drew the restored figure's
+            getControlPanel().reseedDisplayDataFromCurrentTab();
             if (getMainFrame() != null) {
                 getMainFrame().syncMatrixColumnOrderMenu(); // the figure may have set this tab to Manual
             }
+        } else if (embedded) {
+            getControlPanel().reseedDisplayDataFromCurrentTab();
         }
-        getControlPanel().reseedDisplayDataFromCurrentTab();
         getControlPanel().showWhole();
         notifyTreeViewsChanged();
     }
