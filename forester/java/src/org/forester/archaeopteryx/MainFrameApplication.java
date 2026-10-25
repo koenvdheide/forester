@@ -161,7 +161,7 @@ public final class MainFrameApplication extends MainFrame {
         //   setVisible( true );
         if ((phys != null) && (phys.length > 0)) {
             AptxUtil.addPhylogeniesToTabs(phys, "", null, _configuration, _mainpanel);
-            validate();
+            _window.validate();
             getMainPanel().getControlPanel().showWholeAll();
             getMainPanel().getControlPanel().showWhole();
             // offer label extraction for a command-line / initially-loaded header tree too, but only after
