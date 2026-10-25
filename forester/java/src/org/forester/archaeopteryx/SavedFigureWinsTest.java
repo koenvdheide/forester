@@ -360,7 +360,7 @@ public final class SavedFigureWinsTest {
                 } );
             }
             finally {
-                SwingUtilities.invokeAndWait( () -> ( ( JFrame ) mf[ 0 ] ).dispose() );
+                SwingUtilities.invokeAndWait( () -> mf[ 0 ].dispose() );
             }
             return FigureRenderer.readTrees( out )[ 0 ];
         }
@@ -441,7 +441,7 @@ public final class SavedFigureWinsTest {
             return o[ 0 ];
         }
         finally {
-            SwingUtilities.invokeAndWait( () -> ( ( JFrame ) mf[ 0 ] ).dispose() );
+            SwingUtilities.invokeAndWait( () -> mf[ 0 ].dispose() );
         }
     }
 

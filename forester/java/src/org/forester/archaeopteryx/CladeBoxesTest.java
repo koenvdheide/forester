@@ -245,10 +245,10 @@ public final class CladeBoxesTest {
                           + ", boxes end at " + tp.cladeBandRightEdgeForTest() );
         // a window too short to stack the two: the boxes' legend stands beside the Color-by legend, and the column
         // holds both -- not the wider one alone, which left the other over the tree
-        final java.awt.Dimension frame_size = mf.getSize();
+        final java.awt.Dimension frame_size = mf._window.getSize();
         tp.setColorByPropertyRef( "vipr:Host" );
-        mf.setSize( 1300, 330 ); // wide enough that both stay under the column's 40% cap
-        mf.validate();
+        mf._window.setSize( 1300, 330 ); // wide enough that both stay under the column's 40% cap
+        mf._window.validate();
         mf.showWhole();
         paint( tp );
         final Rectangle beside_shared = tp.getPropertyLegendBounds(), beside_rank = tp.getRankLegendBoundsForTest();
@@ -268,8 +268,8 @@ public final class CladeBoxesTest {
         ok &= ck( ( during == 2000 ) && ( tp.legendPlacementHeightForTest() == tp.getVisibleRect().height ),
                   "the legends are placed in a fixed-size export's height while laid out for it (" + during + "), the "
                           + "view's after (" + tp.legendPlacementHeightForTest() + ")" );
-        mf.setSize( frame_size );
-        mf.validate();
+        mf._window.setSize( frame_size );
+        mf._window.validate();
         tp.setColorByPropertyRef( null );
         mf.showWhole();
         // the displayed tree gone empty: the bands go, and their legend with them
@@ -739,9 +739,9 @@ public final class CladeBoxesTest {
         ok &= ck( ( tp.cladeBandLevelsForTest().size() == 2 ) && ( two >= ( one + sub_w + 13 ) ), "unrooted, two "
                 + "levels: the fan keeps room for both (" + one + " for one, " + two + " for two, the wider subfamily "
                 + "name " + sub_w + " px)" );
-        final java.awt.Dimension frame_size = mf.getSize();
-        mf.setSize( 1600, 1250 ); // room for two levels: a smaller window holds the outer names at the canvas edge
-        mf.validate();
+        final java.awt.Dimension frame_size = mf._window.getSize();
+        mf._window.setSize( 1600, 1250 ); // room for two levels: a smaller window holds the outer names at the canvas edge
+        mf._window.validate();
         mf.showWhole();
         tp.setRecordLabelBoxesForTest( true );
         paint( tp );
@@ -778,8 +778,8 @@ public final class CladeBoxesTest {
                     + "level past its labels (" + at + " vs its labels' reach " + own + " + the genus level " + one
                     + "), in " + tp.getWidth() + "x" + tp.getHeight() );
         }
-        mf.setSize( frame_size );
-        mf.validate();
+        mf._window.setSize( frame_size );
+        mf._window.validate();
         mf.showWhole();
         tp.setRecordLabelBoxesForTest( false );
         tp.setCladeBands( "genus", CLADE_VIS.BOXES );
@@ -1003,7 +1003,7 @@ public final class CladeBoxesTest {
             } );
         }
         finally {
-            SwingUtilities.invokeAndWait( () -> ( ( JFrame ) mf[ 0 ] ).dispose() );
+            SwingUtilities.invokeAndWait( () -> mf[ 0 ].dispose() );
         }
         return ok[ 0 ];
     }
@@ -1063,7 +1063,7 @@ public final class CladeBoxesTest {
             } );
         }
         finally {
-            SwingUtilities.invokeAndWait( () -> ( ( JFrame ) mf[ 0 ] ).dispose() );
+            SwingUtilities.invokeAndWait( () -> mf[ 0 ].dispose() );
         }
         return ok[ 0 ];
     }
@@ -1153,7 +1153,7 @@ public final class CladeBoxesTest {
         // the precondition its README row quotes: in the window as it opens, a one-tip box is shorter than a line
         ok &= ck( ( 2 * tp.getYdistance() ) < tp.getLargeFontHeight(), "precondition: a one-tip box ("
                 + ( 2 * tp.getYdistance() ) + " px) is shorter than a line (" + tp.getLargeFontHeight() + " px) in a "
-                + ( ( JFrame ) mf ).getHeight() + " px window" );
+                + mf._window.getHeight() + " px window" );
         ok &= ck( new HashSet<String>( tp.cladeBoxNamesDrawnForTest() ).equals( CROWDED_TALL ),
                   "rectangular: the seven large genera are named, the six one-tip genera are not; got "
                           + tp.cladeBoxNamesDrawnForTest() );
@@ -1380,7 +1380,7 @@ public final class CladeBoxesTest {
             }
         }
         finally {
-            SwingUtilities.invokeAndWait( () -> ( ( JFrame ) mf[ 0 ] ).dispose() );
+            SwingUtilities.invokeAndWait( () -> mf[ 0 ].dispose() );
         }
         return ok[ 0 ];
     }
@@ -1402,7 +1402,7 @@ public final class CladeBoxesTest {
             SwingUtilities.invokeAndWait( () -> ok[ 0 ] = ex.run( mf[ 0 ] ) );
         }
         finally {
-            SwingUtilities.invokeAndWait( () -> ( ( JFrame ) mf[ 0 ] ).dispose() );
+            SwingUtilities.invokeAndWait( () -> mf[ 0 ].dispose() );
         }
         return ok[ 0 ];
     }

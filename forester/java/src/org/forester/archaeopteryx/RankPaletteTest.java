@@ -389,7 +389,7 @@ public final class RankPaletteTest {
             SwingUtilities.invokeAndWait( () -> ok[ 0 ] = ex.run( mf[ 0 ] ) );
         }
         finally {
-            SwingUtilities.invokeAndWait( () -> ( ( JFrame ) mf[ 0 ] ).dispose() );
+            SwingUtilities.invokeAndWait( () -> mf[ 0 ].dispose() );
         }
         return ok[ 0 ];
     }

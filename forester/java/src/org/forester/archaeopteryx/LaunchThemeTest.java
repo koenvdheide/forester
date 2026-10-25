@@ -144,7 +144,7 @@ public final class LaunchThemeTest {
         SwingUtilities.invokeAndWait( () -> mf[ 0 ] = MainFrameApplication.createInstance( null, conf, "launch theme" ) );
         SwingUtilities.invokeAndWait( () -> {
             try {
-                final MainFrame frame = mf[ 0 ];
+                final JFrame frame = mf[ 0 ]._window;
                 ok[ 0 ] &= everyUiIsFlatLaf( frame, when );
                 // each check stands on its own: a failed contrast does not skip the comparison with the switch
                 final Map<String, BufferedImage> at_launch = new HashMap<>();
@@ -163,7 +163,7 @@ public final class LaunchThemeTest {
                 }
             }
             finally {
-                ( (JFrame) mf[ 0 ] ).dispose();
+                mf[ 0 ].dispose();
             }
         } );
         return ok[ 0 ];

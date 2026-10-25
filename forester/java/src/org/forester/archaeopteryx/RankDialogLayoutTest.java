@@ -181,7 +181,7 @@ public final class RankDialogLayoutTest {
             } );
         }
         finally {
-            SwingUtilities.invokeAndWait( () -> ( (JFrame) mf[ 0 ] ).dispose() );
+            SwingUtilities.invokeAndWait( () -> mf[ 0 ].dispose() );
         }
         return ck( seen[ 0 ], title + ": the dialog opened" ) && ok[ 0 ];
     }

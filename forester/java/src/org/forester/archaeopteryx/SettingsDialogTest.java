@@ -72,7 +72,7 @@ public final class SettingsDialogTest {
             final boolean[] ok = { true };
             SwingUtilities.invokeAndWait( () -> {
                 // the menu bar must carry a "Settings" launcher and no longer the old "Options"/"Type" menus
-                final JMenuBar bar = ( (JFrame) mf[ 0 ] ).getJMenuBar();
+                final JMenuBar bar = mf[ 0 ].getJMenuBar();
                 boolean has_settings = false;
                 boolean has_old = false;
                 for ( int i = 0; i < bar.getMenuCount(); ++i ) {
@@ -289,7 +289,7 @@ public final class SettingsDialogTest {
                     mf[ 0 ].getOptions().setSupportDotSize( kept_dot_size );
                 }
                 dlg.dispose();
-                ( (JFrame) mf[ 0 ] ).dispose();
+                mf[ 0 ].dispose();
             } );
             return ok[ 0 ];
         }

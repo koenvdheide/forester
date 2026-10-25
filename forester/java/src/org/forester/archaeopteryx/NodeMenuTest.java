@@ -191,7 +191,7 @@ public final class NodeMenuTest {
             } );
         }
         finally {
-            SwingUtilities.invokeAndWait( () -> ( (JFrame) mf[ 0 ] ).dispose() );
+            SwingUtilities.invokeAndWait( () -> mf[ 0 ].dispose() );
         }
         return ok[ 0 ];
     }
@@ -613,7 +613,7 @@ public final class NodeMenuTest {
             } );
         }
         finally {
-            SwingUtilities.invokeAndWait( () -> ( (JFrame) mf[ 0 ] ).dispose() );
+            SwingUtilities.invokeAndWait( () -> mf[ 0 ].dispose() );
         }
         return ok[ 0 ];
     }

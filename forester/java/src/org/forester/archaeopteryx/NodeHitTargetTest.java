@@ -162,7 +162,7 @@ public final class NodeHitTargetTest {
             } );
         }
         finally {
-            SwingUtilities.invokeAndWait( () -> ( (JFrame) mf[ 0 ] ).dispose() );
+            SwingUtilities.invokeAndWait( () -> mf[ 0 ].dispose() );
         }
         return ok[ 0 ];
     }
@@ -177,7 +177,7 @@ public final class NodeHitTargetTest {
         final boolean[] ok = { true };
         try {
             SwingUtilities.invokeAndWait( () -> {
-                final JFrame frame = (JFrame) mf[ 0 ];
+                final JFrame frame = mf[ 0 ]._window;
                 ok[ 0 ] &= ck( ( frame.getWidth() == 900 ) && ( frame.getHeight() <= 900 ),
                                "the window opens 900 px wide and at most 900 px tall, as the demo says ("
                                        + frame.getWidth() + " x " + frame.getHeight() + ")" );
@@ -234,7 +234,7 @@ public final class NodeHitTargetTest {
             } );
         }
         finally {
-            SwingUtilities.invokeAndWait( () -> ( (JFrame) mf[ 0 ] ).dispose() );
+            SwingUtilities.invokeAndWait( () -> mf[ 0 ].dispose() );
         }
         return ok[ 0 ];
     }
@@ -300,7 +300,7 @@ public final class NodeHitTargetTest {
             } );
         }
         finally {
-            SwingUtilities.invokeAndWait( () -> ( (JFrame) mf[ 0 ] ).dispose() );
+            SwingUtilities.invokeAndWait( () -> mf[ 0 ].dispose() );
         }
         return ok[ 0 ];
     }

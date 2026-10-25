@@ -80,7 +80,7 @@ public final class GuiFontTest {
                     ok[ 0 ] = liveOk( mf[ 0 ] );
                 }
                 finally {
-                    ( (JFrame) mf[ 0 ] ).dispose();
+                    mf[ 0 ].dispose();
                 }
             } );
             SwingUtilities.invokeAndWait( () -> ok[ 0 ] &= themeSwitchKeepsItOk( conf ) );
@@ -142,7 +142,7 @@ public final class GuiFontTest {
                   "a checkbox ('" + textOf( checkbox ) + "') is not bold" );
         ok &= ck( bold < checked / 2, "bold is the exception on the panel: " + bold + " of " + checked );
         // ---- the menu bar: every menu and every item, submenus included --------------------------------
-        final JMenuBar bar = ( (JFrame) mf ).getJMenuBar();
+        final JMenuBar bar = mf.getJMenuBar();
         final int[] counts = { 0, 0 }; // items, submenus
         for( int i = 0; i < bar.getMenuCount(); i++ ) {
             final JMenu menu = bar.getMenu( i );

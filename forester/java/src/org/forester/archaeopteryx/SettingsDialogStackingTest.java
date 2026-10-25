@@ -97,7 +97,7 @@ public final class SettingsDialogStackingTest {
                         d.dispose();
                     }
                     if ( mf[ 0 ] != null ) {
-                        ( (JFrame) mf[ 0 ] ).dispose();
+                        mf[ 0 ].dispose();
                     }
                 } );
             }
@@ -121,7 +121,7 @@ public final class SettingsDialogStackingTest {
             // aside, so "over Settings" can only mean centred on Settings
             settings.setLocation( settings.getX() + 400, settings.getY() );
             final Rectangle s = settings.getBounds();
-            final Rectangle m = mf.getBounds();
+            final Rectangle m = mf._window.getBounds();
             ok[ 0 ] &= ck( Math.abs( s.getCenterX() - m.getCenterX() ) >= 300, "precondition: Settings sits aside the main "
                     + "window's centre: " + s + " / " + m );
             final List<AbstractButton> buttons = new ArrayList<>();
@@ -240,7 +240,7 @@ public final class SettingsDialogStackingTest {
     private static List<SettingsDialog> settingsDialogs( final MainFrame mf, final boolean showing_only ) {
         final List<SettingsDialog> found = new ArrayList<>();
         for( final Window w : Window.getWindows() ) {
-            if ( ( w instanceof SettingsDialog ) && ( w.getOwner() == mf ) && w.isDisplayable()
+            if ( ( w instanceof SettingsDialog ) && ( w.getOwner() == mf._window ) && w.isDisplayable()
                     && ( !showing_only || w.isShowing() ) ) {
                 found.add( (SettingsDialog) w );
             }
@@ -271,7 +271,7 @@ public final class SettingsDialogStackingTest {
         if ( w == null ) {
             return "nothing";
         }
-        if ( w == mf ) {
+        if ( w == mf._window ) {
             return "the main window";
         }
         return w.getClass().getName() + ( w.isDisplayable() ? "" : " (hidden)" );
