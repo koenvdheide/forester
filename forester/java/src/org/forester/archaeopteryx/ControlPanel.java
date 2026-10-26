@@ -2660,8 +2660,10 @@ final class ControlPanel extends JPanel implements ActionListener {
     }
 
     void setupControls() {
-        setupThemeToggle();
-        nextRowGap(SECTION_GAP); // more space between the theme toggle and the layout row
+        if (!getMainFrame()._embedded) {
+            setupThemeToggle();
+            nextRowGap(SECTION_GAP); // more space between the theme toggle and the layout row
+        }
         setupLayoutButtons();
         nextRowGap(TIGHT_GAP); // layout and P/A/C are both "how the tree is drawn" -- keep them as one block
         setupTreeDisplayTypeOptions();

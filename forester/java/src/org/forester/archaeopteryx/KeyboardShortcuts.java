@@ -140,10 +140,8 @@ final class KeyboardShortcuts {
     }
 
     /** Shows the shortcuts reference (non-modal) over {@code parent}. */
-    static void show( final Component parent ) {
-        final Window owner = ( parent instanceof Window ) ? (Window) parent
-                : SwingUtilities.getWindowAncestor( parent );
-        buildDialog( owner ).setVisible( true );
+    static void show( final MainFrame parent ) {
+        parent.showViewerWindow( buildDialog( SwingUtilities.getWindowAncestor( parent ) ) );
     }
 
     private KeyboardShortcuts() {
