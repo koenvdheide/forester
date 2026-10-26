@@ -423,6 +423,8 @@ public abstract class MainFrame extends JPanel implements ActionListener {
     JMenu _process_menu;
     private EqualizerIcon _process_anim_icon;   // the gentle equalizer-bars activity indicator on the process menu
     private Timer         _process_anim_timer;
+    private boolean _closed;
+    private final List<Window> _viewer_windows = new ArrayList<>();
     MainPanel _mainpanel;
     Container _contentpane;
     /** The window a standalone viewer runs in, created by {@link MainFrameApplication}; null when another program
@@ -855,9 +857,21 @@ public abstract class MainFrame extends JPanel implements ActionListener {
         return _jmenubar;
     }
 
-    /** Disposes the viewer's own window, if it has one. A viewer another program hosts has none: the host ends it
-     *  with {@link MainFrameApplication#end()}. */
+    /**
+     * Tears this viewer down at once, without asking: unsaved edits are discarded, so a host that wants a
+     * confirmation asks before calling this. Disposes the viewer's own window, if it has one, and every non-modal
+     * window it opened; work that completes afterwards changes nothing. A modal dialog that a host's window owns
+     * stays open until the user dismisses it.
+     */
     public void dispose() {
+        _closed = true;
+        stopProcessAnimation();
+        for (final Window window : new ArrayList<>(_viewer_windows)) {
+            window.dispose();
+        }
+        _mainpanel.terminate();
+        _contentpane.removeAll();
+        setVisible(false);
         if (_window != null) {
             _window.dispose();
         }
@@ -985,6 +999,9 @@ public abstract class MainFrame extends JPanel implements ActionListener {
     }
 
     private void doUpdateProcessMenu() {
+        if (_closed) {
+            return;
+        }
         if (_process_pool.size() > 0) {
             if (_process_menu == null) {
                 _process_menu = createMenu("", getConfiguration());
@@ -1046,6 +1063,35 @@ public abstract class MainFrame extends JPanel implements ActionListener {
 
     boolean isProcessAnimationRunningForTest() {
         return (_process_anim_timer != null) && _process_anim_timer.isRunning();
+    }
+
+    /** True once {@link #dispose()} has torn this viewer down. */
+    public boolean isClosed() {
+        return _closed;
+    }
+
+    /** Records a window this viewer opened, so that dispose() closes it while a host program runs on; once the
+     *  viewer is closed, disposes the window instead and returns false. */
+    boolean addViewerWindow(final Window window) {
+        if (_closed) {
+            window.dispose();
+            return false;
+        }
+        _viewer_windows.add(window);
+        window.addWindowListener(new java.awt.event.WindowAdapter() {
+
+            @Override
+            public void windowClosed(final java.awt.event.WindowEvent e) {
+                _viewer_windows.remove(window);
+            }
+        });
+        return true;
+    }
+
+    void showViewerWindow(final Window window) {
+        if (addViewerWindow(window)) {
+            window.setVisible(true);
+        }
     }
 
     private void removeBranchColors() {
@@ -1590,7 +1636,7 @@ public abstract class MainFrame extends JPanel implements ActionListener {
         final ReportWindow w = new ReportWindow(this, title, report,
                 getCurrentDir(DirectoryPreferences.Category.EXPORT),
                 dir -> setCurrentDir(DirectoryPreferences.Category.EXPORT, dir));
-        w.setVisible(true);
+        showViewerWindow(w);
     }
 
     /**
@@ -3174,7 +3220,7 @@ public abstract class MainFrame extends JPanel implements ActionListener {
                             + (changed == 1 ? "y" : "ies") + " (undo with Edit > Undo).", title,
                             JOptionPane.INFORMATION_MESSAGE);
                 } : null);
-        w.setVisible(true);
+        showViewerWindow(w);
         return w;
     }
 
@@ -3387,6 +3433,9 @@ public abstract class MainFrame extends JPanel implements ActionListener {
             return;
         }
         final ClockPlotWindow w = new ClockPlotWindow(this);
+        if (!addViewerWindow(w)) {
+            return;
+        }
         _clock_plot_window = w;
         if (!w.showFor(tp)) {
             _clock_plot_window = null;

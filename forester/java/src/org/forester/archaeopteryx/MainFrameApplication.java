@@ -169,6 +169,9 @@ public final class MainFrameApplication extends MainFrame {
             // the frame is realized (deferred), so the dialog never appears mid-construction
             final Phylogeny[] loaded = phys;
             javax.swing.SwingUtilities.invokeLater(() -> {
+                if (isClosed()) {
+                    return;
+                }
                 reportIgnoredDomains(loaded);
                 offerLabelExtraction(loaded);
                 offerTipDateExtraction();
@@ -400,10 +403,8 @@ public final class MainFrameApplication extends MainFrame {
         }
     }
 
+    /** Same as {@link #dispose()}. */
     public void end() {
-        _mainpanel.terminate();
-        _contentpane.removeAll();
-        setVisible(false);
         dispose();
     }
 
@@ -937,7 +938,7 @@ public final class MainFrameApplication extends MainFrame {
         if (colorset != null) {
             frame.getTanglegramPanel().applyThemeColors(colorset.getBackgroundColor(), colorset.getBranchColor());
         }
-        frame.setVisible(true);
+        showViewerWindow(frame);
         // no connectors almost always means a user error (wrong field per tree, reversed association columns, or the
         // trees share no tips) -- warn, but only AFTER showing the window so the (empty) tanglegram it refers to is
         // visible behind the dialog
@@ -1920,6 +1921,9 @@ public final class MainFrameApplication extends MainFrame {
             public void menuSelected(final javax.swing.event.MenuEvent e) {
                 javax.swing.MenuSelectionManager.defaultManager().clearSelectedPath();
                 SwingUtilities.invokeLater(() -> {
+                    if (isClosed()) {
+                        return; // queued before end(): building the dialog would bring back the disposed window
+                    }
                     // ONE Settings dialog: while it is open, the menu brings it forward. A second copy stacked
                     // exactly over the first, and the first was no longer re-seeded on a tab switch. A closed one
                     // is built anew, so it opens seeded from the current tab.
@@ -2089,10 +2093,7 @@ public final class MainFrameApplication extends MainFrame {
     void exit() {
         new GuiPreferences().saveFrom(getOptions()); // persist the display toggles for the next session
         new DirectoryPreferences().saveFrom(_current_dirs); // and each dialog's last-used directory
-        _mainpanel.terminate();
-        _contentpane.removeAll();
-        setVisible(false);
-        dispose();
+        end();
         if (_launched_as_standalone_application) {
             // Standalone app only: force JVM termination. Disposing the frame is not enough -- a heavyweight
             // rollover Popup (TreePanel/PopupFactory) leaves a cached, still-displayable native window, and the
