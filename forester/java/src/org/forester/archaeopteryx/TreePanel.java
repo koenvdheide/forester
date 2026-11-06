@@ -5810,12 +5810,21 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
         paintPartitionLine(g, to_graphics_file, graphics_file_y, graphics_file_height);
     }
 
+    /**
+     * Whether x positions are distances from the root, so that one vertical
+     * line marks one height.
+     */
+    public final boolean drawsDistancesToScale() {
+        return (getPhylogenyGraphicsType() != PHYLOGENY_GRAPHICS_TYPE.UNROOTED)
+                && (getPhylogenyGraphicsType() != PHYLOGENY_GRAPHICS_TYPE.CIRCULAR)
+                && getControlPanel().isDrawPhylogram();
+    }
+
     private void paintPartitionLine(final Graphics2D g,
                                     final boolean to_graphics_file,
                                     final int graphics_file_y,
                                     final int graphics_file_height) {
-        if ((getPhylogenyGraphicsType() == PHYLOGENY_GRAPHICS_TYPE.UNROOTED)
-                || (getPhylogenyGraphicsType() == PHYLOGENY_GRAPHICS_TYPE.CIRCULAR)) {
+        if (!drawsDistancesToScale()) {
             return;
         }
         if (_partition_threshold <= 0f) {
