@@ -4918,13 +4918,14 @@ public final class TreePanel extends JPanel implements ActionListener, MouseWhee
     }
 
     /**
-     * Whether this left click leaves the tree as it is, so an embedding host
+     * Whether this left click only selects nodes, so an embedding host
      * may act on it.
      */
     public final boolean clickOnlySelects(final MouseEvent e) {
         return !(getOptions().isShowOverview() && isOvOn() && isInOv())
                 && (((e.getModifiersEx() & InputEvent.SHIFT_DOWN_MASK) != 0)
-                        || (getControlPanel().getActionWhenNodeClicked() == NodeClickAction.SELECT_NODES));
+                        || (((e.getModifiersEx() & InputEvent.CTRL_DOWN_MASK) == 0)
+                                && (getControlPanel().getActionWhenNodeClicked() == NodeClickAction.SELECT_NODES)));
     }
 
     /**
