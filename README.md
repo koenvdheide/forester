@@ -117,6 +117,15 @@ panel; on a headless server run it under `xvfb-run`. The full option list is in
 the [Archaeopteryx user manual](https://github.com/cmzmasek/archaeopteryx#rendering-figures-from-the-command-line),
 or run it with `-help`.
 
+**Embedding Archaeopteryx.** Another Swing program can host the viewer in one of
+its own windows. `MainFrameApplication.createEmbeddedInstance(phylogenies,
+configuration, title)` returns the viewer as a `JPanel`: add it to your window,
+install its `getJMenuBar()` there, and call `end()` when you close it. `end()`
+also closes the non-modal windows the viewer opened, without asking about
+unsaved edits. An embedded viewer has no Exit item and never ends the JVM. It
+leaves the look and feel alone and neither reads nor writes the standalone
+app's saved settings, directories or recent files.
+
 
 Citing
 ------
