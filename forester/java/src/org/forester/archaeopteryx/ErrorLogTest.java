@@ -43,7 +43,7 @@ public final class ErrorLogTest {
     public static boolean test() {
         return signature() && dedup() && errorVsChatter() && stderrTee() && sizeCap() && location()
                 && tailAndConsole() && badPropertyCannotBlockStartup() && menu() && markerAfterStartupError()
-                && heapReport() && holders();
+                && heapReport() && holders() && embeddedViewer();
     }
 
     /** What the application registers as the heap's holders: one line per open tab naming its tree, its undo
@@ -76,6 +76,44 @@ public final class ErrorLogTest {
                     ok[ 0 ] = fail( "the registered report must carry every open tab's line; got: " + all );
                 }
                 mf[ 0 ].dispose();
+            } );
+            return ok[ 0 ];
+        }
+        catch ( final Exception e ) {
+            return fail( "exception: " + e );
+        }
+    }
+
+    /** An embedded viewer has no window of its own: the heap report and the error marker must still reach it, and
+     *  the report must drop it once the host ends it. */
+    private static boolean embeddedViewer() {
+        if ( java.awt.GraphicsEnvironment.isHeadless() ) {
+            return true;
+        }
+        try {
+            final java.io.File file = new java.io.File( System.getProperty( "user.dir" ), "forester/demo/scale-axis.xml" );
+            final org.forester.phylogeny.Phylogeny phy = org.forester.phylogeny.factories.ParserBasedPhylogenyFactory
+                    .getInstance().create( file, org.forester.io.parsers.phyloxml.PhyloXmlParser.createPhyloXmlParser() )[ 0 ];
+            phy.setName( "embedded viewer probe" );
+            final MainFrameApplication viewer = MainFrameApplication
+                    .createEmbeddedInstance( new org.forester.phylogeny.Phylogeny[] { phy }, new Configuration(), "embedded" );
+            final String[] line = { null };
+            final boolean[] ok = { true };
+            javax.swing.SwingUtilities.invokeAndWait( () -> {
+                line[ 0 ] = viewer.getMainPanel().getCurrentTreePanel().memoryFootprint();
+                if ( !MainFrame.describeHeapForLog().contains( line[ 0 ] ) ) {
+                    ok[ 0 ] = fail( "the heap report must list an embedded viewer" );
+                }
+                MainFrame.showErrorIndicatorOnAllFrames();
+            } );
+            javax.swing.SwingUtilities.invokeAndWait( () -> {
+                if ( menuByText( viewer, "error logged" ) == null ) {
+                    ok[ 0 ] = fail( "the error marker must reach an embedded viewer" );
+                }
+                viewer.end();
+                if ( MainFrame.describeHeapForLog().contains( line[ 0 ] ) ) {
+                    ok[ 0 ] = fail( "an ended viewer must drop out of the heap report" );
+                }
             } );
             return ok[ 0 ];
         }

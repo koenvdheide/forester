@@ -37,12 +37,15 @@ import java.io.IOException;
 import java.io.Writer;
 import java.nio.file.Files;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.SortedSet;
+import java.util.WeakHashMap;
 
 import javax.swing.ButtonGroup;
 import javax.swing.JCheckBoxMenuItem;
@@ -425,6 +428,10 @@ public abstract class MainFrame extends JPanel implements ActionListener {
     private Timer         _process_anim_timer;
     private boolean _closed;
     private final List<Window> _viewer_windows = new ArrayList<>();
+    /** Every viewer not yet disposed, standalone or nested in a host's window; weak, so a viewer a host drops
+     *  without end() can still be collected. */
+    private static final Set<MainFrame> LIVE_VIEWERS = Collections
+            .synchronizedSet(Collections.newSetFromMap(new WeakHashMap<>()));
     MainPanel _mainpanel;
     Container _contentpane;
     /** The window a standalone viewer runs in, created by {@link MainFrameApplication}; null when another program
@@ -456,6 +463,7 @@ public abstract class MainFrame extends JPanel implements ActionListener {
     final ProcessPool _process_pool;
 
     MainFrame() {
+        LIVE_VIEWERS.add(this);
         _process_pool = ProcessPool.createInstance();
         _writetopdf_filechooser = new JFileChooser();
         _writetopdf_filechooser.setMultiSelectionEnabled(false);
@@ -868,6 +876,7 @@ public abstract class MainFrame extends JPanel implements ActionListener {
      */
     public void dispose() {
         _closed = true;
+        LIVE_VIEWERS.remove(this);
         stopProcessAnimation();
         for (final Window window : new ArrayList<>(_viewer_windows)) {
             window.dispose();
@@ -1283,9 +1292,8 @@ public abstract class MainFrame extends JPanel implements ActionListener {
      *  allocated last. Reads sizes only; safe from the handler's thread. */
     static String describeHeapForLog() {
         final StringBuilder sb = new StringBuilder();
-        for (final java.awt.Window w : java.awt.Window.getWindows()) {
-            final MainFrame mf = viewerOf(w);
-            if ((mf == null) || (mf.getMainPanel() == null)) {
+        for (final MainFrame mf : LIVE_VIEWERS.toArray(new MainFrame[0])) {
+            if (mf.getMainPanel() == null) {
                 continue;
             }
             for (final TreePanel tp : mf.getMainPanel().getTreePanels()) {
@@ -1297,20 +1305,10 @@ public abstract class MainFrame extends JPanel implements ActionListener {
 
     static void showErrorIndicatorOnAllFrames() {
         javax.swing.SwingUtilities.invokeLater(() -> {
-            for (final java.awt.Window w : java.awt.Window.getWindows()) {
-                final MainFrame mf = viewerOf(w);
-                if (mf != null) {
-                    mf.showErrorIndicator();
-                }
+            for (final MainFrame mf : LIVE_VIEWERS.toArray(new MainFrame[0])) {
+                mf.showErrorIndicator();
             }
         });
-    }
-
-    /** The standalone viewer that is {@code w}'s content pane, or null. */
-    private static MainFrame viewerOf(final Window w) {
-        final Container content = (w instanceof javax.swing.RootPaneContainer)
-                ? ((javax.swing.RootPaneContainer) w).getContentPane() : null;
-        return (content instanceof MainFrame) ? (MainFrame) content : null;
     }
 
     void showErrorIndicator() {
