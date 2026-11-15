@@ -66,7 +66,7 @@
                 <exclude name="**/*Test*.class"/>
             </patternset>
         </unjar>
-        <jar level="9" destfile="${forester_jar}" basedir="${classes.dir}" excludes="**/Test.class" duplicate="fail"
+        <jar level="9" destfile="${forester_jar}" basedir="${classes.dir}" excludes="**/Test.class,org/forester/application/**,org/forester/surfacing/**,org/forester/rio/**,org/forester/msa_compactor/**,com/approximatrix/**,org/apache/commons/codec/**" duplicate="fail"
              index="true">
             <manifest>
                 <attribute name="Main-Class" value="org.forester.archaeopteryx.Archaeopteryx"/>
