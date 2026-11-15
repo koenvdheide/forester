@@ -1926,6 +1926,7 @@ public abstract class MainFrame extends JPanel implements ActionListener {
         about.append("Copyright (C) 2018 Christian M Zmasek\n");
         about.append("All Rights Reserved\n");
         about.append("License: GNU Lesser General Public License (LGPL)\n");
+        about.append("PDF export: GNU General Public License version 3 (GPL3)\n");
         about.append("Last modified: " + AptxConstants.PRG_DATE + "\n");
         about.append("Based on: " + ForesterUtil.getForesterLibraryInformation() + "\n");
 
