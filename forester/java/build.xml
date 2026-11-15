@@ -93,6 +93,7 @@
                 <exclude name="swingjs/j2s/org/forester/surfacing/**"/>
                 <exclude name="swingjs/j2s/org/forester/rio/**"/>
                 <exclude name="swingjs/j2s/org/forester/msa_compactor/**"/>
+                <exclude name="swingjs/j2s/org/forester/**/Test.js"/>
             </fileset>
         </zip>
     </target>
