@@ -465,6 +465,7 @@ public final class MainFrameApplication extends MainFrame {
     }
 
     public void end() {
+        removeAllTextFrames();
         _mainpanel.terminate();
         _contentpane.removeAll();
         disposeWindow();
