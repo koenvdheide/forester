@@ -89,6 +89,10 @@
                 <include name="swingjs/j2s/org/forester/**/*.js"/>
                 <include name="swingjs/j2s/resources/phyloxml.xsd"/>
                 <include name="swingjs/j2s/resources/forester-source.properties"/>
+                <exclude name="swingjs/j2s/org/forester/application/**"/>
+                <exclude name="swingjs/j2s/org/forester/surfacing/**"/>
+                <exclude name="swingjs/j2s/org/forester/rio/**"/>
+                <exclude name="swingjs/j2s/org/forester/msa_compactor/**"/>
             </fileset>
         </zip>
     </target>
