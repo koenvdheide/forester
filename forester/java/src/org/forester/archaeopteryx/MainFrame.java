@@ -1320,7 +1320,7 @@ public abstract class MainFrame extends JPanel implements ActionListener {
     }
 
     void showErrorIndicator() {
-        if ((_jmenubar == null) || (_error_indicator_menu != null)) {
+        if (_embedded || (_jmenubar == null) || (_error_indicator_menu != null)) {
             return;
         }
         _error_indicator_menu = createMenu("⚠ error logged", getConfiguration());
