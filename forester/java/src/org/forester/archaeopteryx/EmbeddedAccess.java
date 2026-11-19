@@ -57,10 +57,6 @@ public final class EmbeddedAccess {
         return frame._view_jmenu;
     }
 
-    public static JMenuItem exitItem(final MainFrame frame) {
-        return frame._exit_item;
-    }
-
     public static JMenuItem openItem(final MainFrame frame) {
         return frame._open_item;
     }

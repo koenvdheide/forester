@@ -3935,7 +3935,6 @@ public abstract class MainFrame extends JPanel implements ActionListener {
                 // re-seed the always-visible control-panel controls (theme radios + search checkboxes) that hold
                 // their own state -- else they stay stale and the search checkboxes clobber the reset on next click
                 cp.resyncFromOptions();
-                cp.reseedDisplayDataFromCurrentTab();
                 cp.updateZoomButtonsForLayout(); // layout reset to RECTANGULAR/ROOT_LEFT -> H reverts to W, radial labels revert
             }
             final TreePanel current = getMainPanel().getCurrentTreePanel();

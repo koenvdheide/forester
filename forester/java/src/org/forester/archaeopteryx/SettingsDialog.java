@@ -89,7 +89,6 @@ final class SettingsDialog extends JDialog {
     SettingsDialog( final MainFrame mf ) {
         super( javax.swing.SwingUtilities.getWindowAncestor( mf ), "Settings" );
         _mf = mf;
-        setDefaultCloseOperation( DISPOSE_ON_CLOSE );
         final JTabbedPane tabs = new JTabbedPane();
         _tabs = tabs;
         // the former single "Display" tab had grown too long, so it is split into three focused tabs
