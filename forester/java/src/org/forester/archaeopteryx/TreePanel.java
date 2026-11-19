@@ -2379,7 +2379,7 @@ public final class TreePanel extends JPanel implements MouseWheelListener {
      * move. A held key's auto-repeat arrives here too and changes nothing; over a legend nothing changes either.
      */
     private void shiftChanged(final boolean down) {
-        if (_hover_select_preview == down) {
+        if (getMainPanel().selectNodesOnClick() || (_hover_select_preview == down)) {
             return;
         }
         final Point p = getMousePosition();
@@ -18008,7 +18008,7 @@ public final class TreePanel extends JPanel implements MouseWheelListener {
         if (!to_screen || (_hover_node == null)) {
             return;
         }
-        final boolean select_mode = _hover_select_preview; // Shift held: the glow says what a shift-click will do
+        final boolean select_mode = _hover_select_preview; // the glow says what a selection click will do
         final Set<Long> found = getFoundNodes0();
         boolean deselect = false;                // whether a click here would DESELECT rather than add
         java.util.List<PhylogenyNode> marks = null;
@@ -18695,15 +18695,14 @@ public final class TreePanel extends JPanel implements MouseWheelListener {
                     return;
                 }
             }
+            final boolean select = isShiftClick(e) || (getMainPanel().selectNodesOnClick()
+                    && SwingUtilities.isLeftMouseButton(e) && !e.isControlDown());
             if (node != null) {
                 if (!node.isRoot() && node.getParent().isCollapse()) {
                     return;
                 }
-                if (getMainPanel().selectNodesOnClick() && isPlainSingleLeftClick(e)) {
-                    selectNode(node);
-                    suppressHoverAfterClick(node);
-                } else if (isShiftClick(e)) {
-                    // Shift-click: the selection. A collapsed clade is one unit, so on its wedge the click toggles
+                if (select) {
+                    // Shift-click or a host selection click. A collapsed clade is one unit, so its wedge toggles
                     // its WHOLE subtree's tips -- like a branch click -- and the wedge's fill and the count follow.
                     if (node.isCollapse()) {
                         selectSubtreeTips(node);
@@ -18716,8 +18715,8 @@ public final class TreePanel extends JPanel implements MouseWheelListener {
                     // entry acts once on this node, as in Archaeopteryx.js (Christian, 2026-10-26).
                     showNodeMenu(node, e.getX(), e.getY());
                 }
-            } else if (isShiftClick(e)) {
-                // no node under the cursor: a shift-click on a branch selects/deselects that subtree's tips
+            } else if (select) {
+                // no node under the cursor: a selection click on a branch toggles that subtree's tips
                 final PhylogenyNode branch = findBranch(e.getX(), e.getY());
                 selectSubtreeTips(branch);
                 suppressHoverAfterClick(branch); // don't flip to the grey "remove" until the pointer moves off
@@ -18817,9 +18816,9 @@ public final class TreePanel extends JPanel implements MouseWheelListener {
             if (isInOv()) {
                 setInOv(false);
             }
-            // Shift held: the focus glow previews the selection (what a shift-click will do), and a branch is a
-            // target too (its clade). Otherwise the glow is a neutral focus mark and branches are not targets.
-            _hover_select_preview = e.isShiftDown();
+            // While Shift is held or the host selects by default, the focus glow previews the selection and a
+            // branch is a target too (its clade). Otherwise the glow is a neutral focus mark and branches are not targets.
+            _hover_select_preview = e.isShiftDown() || getMainPanel().selectNodesOnClick();
             final boolean select_mode = _hover_select_preview;
             final PhylogenyNode node = findNode(e.getX(), e.getY());
             if ((node != null) && (node.isRoot() || !node.getParent().isCollapse())) {
@@ -18853,7 +18852,7 @@ public final class TreePanel extends JPanel implements MouseWheelListener {
                     applyHover(null, false);
                     setCursor(NodeHoverText.hasLink(domain.domain()) ? HAND_CURSOR : ARROW_CURSOR);
                 } else {
-                    // over a branch with Shift held -> hand cursor + preview the clade a shift-click takes
+                    // over a selectable branch -> hand cursor + preview the clade a selection click takes
                     final PhylogenyNode branch = select_mode ? findBranch(e.getX(), e.getY()) : null;
                     applyHover(branch, true);
                     setCursor((branch != null) ? HAND_CURSOR : ARROW_CURSOR);
