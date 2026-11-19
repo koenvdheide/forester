@@ -3138,7 +3138,7 @@ public abstract class MainFrame extends JPanel implements ActionListener {
         final TreePanel tp = _mainpanel.getCurrentTreePanel();
         // Work on a copy: the pure engine mutates internal-node taxa, and the undo checkpoint (taken in
         // AncestralTaxonomyInferrer.commit) snapshots the still-untouched LIVE tree before the copy is installed.
-        final Phylogeny phy = _mainpanel.getCurrentPhylogeny().copy();
+        final Phylogeny phy = tp.getCompletePhylogeny().copy();
         final TaxonomicLineageService service = TreePanelUtil.getDefaultLineageService();
         final SortedSet<String> unresolved = TreePanelUtil.tipsWithoutLineage(phy, service);
         if (!unresolved.isEmpty()) {

@@ -1270,7 +1270,7 @@ public final class MainFrameApplication extends MainFrame {
 
     private void obtainSequenceAndTaxonomicInformation() {
         if (getCurrentTreePanel() != null) {
-            final Phylogeny phy = getCurrentTreePanel().getPhylogeny();
+            final Phylogeny phy = getCurrentTreePanel().getCompletePhylogeny();
             if ((phy != null) && !phy.isEmpty()) {
                 final SequenceAndTaxonomyDataObtainer t = new SequenceAndTaxonomyDataObtainer(this,
                         _mainpanel.getCurrentTreePanel(),
