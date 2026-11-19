@@ -708,6 +708,9 @@ public final class MainFrameApplication extends MainFrame {
         if (!(pane_value instanceof Integer) || (((Integer) pane_value).intValue() != JOptionPane.OK_OPTION)) {
             return;
         }
+        if (isClosed() || !_mainpanel.getTreePanels().contains(tp) || (tp.getPhylogeny() != phy)) {
+            return;
+        }
         // --- parse & validate ---
         final boolean by_cutoff = in._cutoff_rb.isSelected();
         final String s = in._value_tf.getText().trim();
@@ -770,7 +773,7 @@ public final class MainFrameApplication extends MainFrame {
             _representative_extraction_prompt.ask(tp, result, () -> {
                 // the answer can come after the user moved to another tab or closed the viewer
                 final int source_tab = _mainpanel.getTreePanels().indexOf(tp);
-                if ((source_tab >= 0) && !isClosed()) {
+                if (!isClosed() && (source_tab >= 0) && (tp.getPhylogeny() == phy)) {
                     _mainpanel.getTabbedPane().setSelectedIndex(source_tab);
                     copyRepresentativesToNewTab(phy, result, by_cutoff, requested_target);
                 }
