@@ -13199,8 +13199,7 @@ public final class TreePanel extends JPanel implements MouseWheelListener {
         if (p.x < start) {
             return null;
         }
-        final int h = TreePanelUtil.domainBoxHeight(getYdistance(), DOMAIN_STRUCTURE_HEIGHT_MIN,
-                                                    DOMAIN_STRUCTURE_HEIGHT_MAX);
+        final int h = domainStructureHeight();
         for (final PhylogenyNode node : visibleExternalTips()) {
             if (!domainTrackWasPainted(node)) {
                 continue; // "Auto-hide Labels" (and viewport culling) drop tracks the geometry would still find
