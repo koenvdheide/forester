@@ -6686,10 +6686,20 @@ public final class TreePanel extends JPanel implements MouseWheelListener {
     boolean isBranchLengthToggleApplicable() {
         final Phylogeny whole = wholeTree();
         if ( _branch_length_toggle_for != whole ) {
-            _branch_length_toggle_applicable = BranchLengthLayout.isApplicable( whole, timeLengths() );
+            _branch_length_toggle_applicable = isWholeTreeApplicable( timeLengths() );
             _branch_length_toggle_for = whole;
         }
         return _branch_length_toggle_applicable;
+    }
+
+    private boolean isWholeTreeApplicable( final BranchLengthLayout.TimeLengths time ) {
+        attachSubtreeRoots();
+        try {
+            return BranchLengthLayout.isApplicable( wholeTree(), time );
+        }
+        finally {
+            detachSubtreeRoots();
+        }
     }
 
     /** Every tree this tab holds: the trees a subtree view was descended from, the whole tree first, and the tree on
@@ -6722,8 +6732,14 @@ public final class TreePanel extends JPanel implements MouseWheelListener {
             return;
         }
         int settled = 0;
-        for( final Phylogeny tree : treesOfThisTab() ) {
-            settled += BranchLengthLayout.settleMergedBranches( tree, _time_lengths );
+        attachSubtreeRoots();
+        try {
+            for( final Phylogeny tree : treesOfThisTab() ) {
+                settled += BranchLengthLayout.settleMergedBranches( tree, _time_lengths );
+            }
+        }
+        finally {
+            detachSubtreeRoots();
         }
         if ( settled > 0 ) {
             recalculateMaxDistanceToRoot();
@@ -6734,6 +6750,16 @@ public final class TreePanel extends JPanel implements MouseWheelListener {
      *  divergence, the ones kept when it left time, and the gap between its dates for a branch none was kept for. */
 
     private BranchLengthLayout.TimeLengths timeLengths() {
+        attachSubtreeRoots();
+        try {
+            return timeLengthsWithRootsAttached();
+        }
+        finally {
+            detachSubtreeRoots();
+        }
+    }
+
+    private BranchLengthLayout.TimeLengths timeLengthsWithRootsAttached() {
         if ( branchLengthMode() == BranchLengthLayout.MODE.TIME ) {
             // what is on screen -- and, for a branch that is the sum of pieces a delete made, the pieces, with the
             // rates of the nodes that are gone (remembered at the undo checkpoint every delete takes first)
@@ -6783,7 +6809,7 @@ public final class TreePanel extends JPanel implements MouseWheelListener {
         // stranded showing divergence.
         // Cost of asking, once per press: 0.2 ms on a tree of 7,199 nodes.
         final BranchLengthLayout.TimeLengths time = timeLengths();
-        _branch_length_toggle_applicable = BranchLengthLayout.isApplicable( wholeTree(), time );
+        _branch_length_toggle_applicable = isWholeTreeApplicable( time );
         _branch_length_toggle_for = wholeTree();
         if ( ( mode == BranchLengthLayout.MODE.DIVERGENCE ) && !_branch_length_toggle_applicable ) {
             reseedBranchLengthsControl(); // the button the user pressed must not stay down on a mode that is not shown
@@ -6842,20 +6868,26 @@ public final class TreePanel extends JPanel implements MouseWheelListener {
                          final BranchLengthLayout.TimeLengths time,
                          final boolean displayed ) {
         final String unit = BranchLengthLayout.distanceUnit( mode, AptxUtil.timeTreeUnit( wholeTree() ) );
-        for( int i = 0; i <= _subtree_index; ++i ) {
-            final Phylogeny tree = ( i < _subtree_index ) ? _sub_phylogenies[ i ] : _phylogeny;
-            if ( ( tree == null ) || ( ( tree == _phylogeny ) && !displayed ) ) {
-                continue;
+        attachSubtreeRoots();
+        try {
+            for( int i = 0; i <= _subtree_index; ++i ) {
+                final Phylogeny tree = ( i < _subtree_index ) ? _sub_phylogenies[ i ] : _phylogeny;
+                if ( ( tree == null ) || ( ( tree == _phylogeny ) && !displayed ) ) {
+                    continue;
+                }
+                if ( mode == BranchLengthLayout.MODE.DIVERGENCE ) {
+                    // the tab was judged before its mode was set (the switch asks the whole tree; an undo restores a
+                    // layout the tab was in): every tree of it goes, a clade with no change of its own too
+                    BranchLengthLayout.applyDivergenceToPart( tree, time );
+                }
+                else {
+                    BranchLengthLayout.applyTime( tree, time );
+                }
+                tree.setDistanceUnit( unit );
             }
-            if ( mode == BranchLengthLayout.MODE.DIVERGENCE ) {
-                // the tab was judged before its mode was set (the switch asks the whole tree; an undo restores a
-                // layout the tab was in): every tree of it goes, a clade with no change of its own too
-                BranchLengthLayout.applyDivergenceToPart( tree, time );
-            }
-            else {
-                BranchLengthLayout.applyTime( tree, time );
-            }
-            tree.setDistanceUnit( unit );
+        }
+        finally {
+            detachSubtreeRoots();
         }
         // The ROOT of a view is a COPY of the clade's top node, not the node: no layout reaches it (a root has no
         // branch), so it would go on stating the length it was copied with, in the layout of that moment. It
@@ -6891,8 +6923,8 @@ public final class TreePanel extends JPanel implements MouseWheelListener {
         final BranchLengthLayout.MODE to = s.getBranchLengthMode();
         final BranchLengthLayout.TimeLengths time;
         if ( to == BranchLengthLayout.MODE.DIVERGENCE ) {
-            // the tree restored: the lengths in time its snapshot was taken with. The trees beneath a view are not
-            // in the snapshot and are not taken back by it: what they have now -- showing time, about to show
+            // The trees beneath a view are not in the snapshot and are not taken back by it: what they have now
+            // -- showing time, about to show
             // divergence, what they show; already in divergence, what the tab keeps
             final BranchLengthLayout.TimeLengths now;
             if ( branchLengthMode() == BranchLengthLayout.MODE.TIME ) {
@@ -6900,12 +6932,18 @@ public final class TreePanel extends JPanel implements MouseWheelListener {
                 for( int i = 0; i < _subtree_index; ++i ) {
                     beneath[ i ] = _sub_phylogenies[ i ];
                 }
-                now = BranchLengthLayout.TimeLengths.onScreen( beneath );
+                attachSubtreeRoots();
+                try {
+                    now = BranchLengthLayout.TimeLengths.onScreen( beneath );
+                }
+                finally {
+                    detachSubtreeRoots();
+                }
             }
             else {
                 now = ( _time_lengths != null ) ? _time_lengths : new BranchLengthLayout.TimeLengths();
             }
-            time = now.over( s.getTimeLengths(), _phylogeny );
+            time = now;
             _time_lengths = time;
         }
         else {
@@ -6916,6 +6954,20 @@ public final class TreePanel extends JPanel implements MouseWheelListener {
             layOut( _branch_length_mode, time, false );
             if ( ( getMainPanel() != null ) && ( getMainPanel().getMainFrame() != null ) ) {
                 getMainPanel().getMainFrame().refreshOpenSettingsDialog();
+            }
+        }
+    }
+
+    /** After the restored tree went on display: in divergence its lengths in time are its snapshot's, its top's
+     *  branch included (inside a view that branch came back with it), over what the tab keeps. */
+    private void keepTimeLengthsOf( final TreeHistory.Snapshot s ) {
+        if ( s.getBranchLengthMode() == BranchLengthLayout.MODE.DIVERGENCE ) {
+            attachSubtreeRoots();
+            try {
+                _time_lengths = _time_lengths.over( s.getTimeLengths(), _phylogeny );
+            }
+            finally {
+                detachSubtreeRoots();
             }
         }
         _branch_length_toggle_for = null; // offered or not follows the restored lengths, not the cached answer
@@ -10308,6 +10360,21 @@ public final class TreePanel extends JPanel implements MouseWheelListener {
         }
     }
 
+    /** Gives the root of every view its parent back for a tab-wide branch-length pass: BranchLengthLayout skips a
+     *  parent-less node, so a detached root would keep its branch out of the pass. */
+    private void attachSubtreeRoots() {
+        synchronizeSubtreeRoots();
+        for (int level = 0; level < _subtree_index; ++level) {
+            _sub_phylogenies_temp_roots[level].setParent(_sub_phylogenies_parents[level]);
+        }
+    }
+
+    private void detachSubtreeRoots() {
+        for (int level = 0; level < _subtree_index; ++level) {
+            _sub_phylogenies_temp_roots[level].setParent(null);
+        }
+    }
+
     /** This tree's candidate for {@code ref}, or null when the ref is not one. */
     PropertyColorScheme.VisCandidate visualizationCandidate(final String ref) {
         return PropertyColorScheme.findCandidate(getVisualizationCandidates(), ref);
@@ -12549,6 +12616,7 @@ public final class TreePanel extends JPanel implements MouseWheelListener {
         _restoring_snapshot = true;
         try {
             final Phylogeny phy = s.getPhylogeny();
+            followBranchLengthModeOf(s); // a view's trees beneath are laid out before the restored clade joins them
             setTree(phy); // also nulls the preorder cache
             setFoundNodes0(null); // the restored copy's search/selection hits from the mutated tree no longer apply
             setFoundNodes1(null);
@@ -12577,7 +12645,7 @@ public final class TreePanel extends JPanel implements MouseWheelListener {
             // restored tree (unwritten edits survive), or mark it detached when the node is gone. Last, so the
             // windows read a fully recomputed tree (renderable domain architectures, counts).
             rebindNodeFrames(phy);
-            followBranchLengthModeOf(s);
+            keepTimeLengthsOf(s);
             setEdited(s.isEdited());
         }
         finally {
